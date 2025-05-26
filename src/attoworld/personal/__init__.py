@@ -4,3 +4,4 @@ of data processing files that utilize functions that might not otherwise be of g
 """
 
 from . import nick
+from . import vlad
