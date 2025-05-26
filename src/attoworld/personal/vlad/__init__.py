@@ -493,22 +493,6 @@ def Fourier_transform(
                 right=0.0,
             )
 
-        # The phase correction was already applied to y_fft before interpolation.
-        # If we were to apply it *after* interpolation, it would be:
-        # phase_correction_on_target_freq = np.exp(
-        #    1j * _pulse_centers_for_phase * target_frequencies.reshape((len(target_frequencies), 1))
-        # )
-        # output_spectrum = interpolated_unphased_result * phase_correction_on_target_freq
-        # However, the original code applies the phase correction *before* this final interpolation step
-        # if omega is None, and *after* if omega is not None.
-        # Let's re-check original logic for omega not None:
-        # Z = np.fft.fftshift(np.fft.ifft(Z, axis=0), axes=0) * (N_fft * dt) <-- y_fft (unphased by t0 yet for this path)
-        # ...
-        # result[:,j] = np.interp(omega, w_grid, Z[:,j], left=0.0, right=0.0) <-- interpolation of unphased
-        # result = result * np.exp(1j * t0 * omega.reshape((len(omega), 1))) <-- phase correction
-        # This means my current y_fft_corrected (which has phase) should NOT be used for interpolation here.
-        # I should interpolate 'y_fft' (before t0 correction) and then apply t0 correction using target_frequencies.
-
         # Reverting to match original logic for target_frequencies path:
         # Interpolate the raw FFT result (before t0 correction)
         interpolated_raw_fft = np.zeros(
@@ -755,13 +739,7 @@ def minimize_imaginary_parts(complex_array: ArrayLike) -> ArrayLike:
 
     # Normalize phi to be in (-pi/2, pi/2] or a similar principal range if desired,
     # though for exp(1j*phi) it doesn't strictly matter beyond 2pi periodicity.
-    # The original code maps phi to (-pi/2, pi/2] effectively.
     phi -= np.pi * np.round(phi / np.pi)  # This maps to (-pi/2, pi/2]
-    # Let's test the original normalization:
-    # If phi = 0.6*pi, round(0.6) = 1. phi = 0.6pi - pi = -0.4pi. Correct.
-    # If phi = 0.4*pi, round(0.4) = 0. phi = 0.4pi. Correct.
-    # If phi = -0.6*pi, round(-0.6) = -1. phi = -0.6pi + pi = 0.4pi. Correct.
-    # This normalization is fine.
 
     return complex_array * np.exp(1j * phi)
 
@@ -828,9 +806,6 @@ def integrate_oscillating_function(
     # Case 1: Small delta_phi (dphi is small)
     if np.any(is_small_delta_phi):
         # Approximation: integral \approx dx * exp(i*phi_avg) * (f_avg + i/8 * dphi * df)
-        # This seems to be a higher-order trapezoidal rule for oscillating functions.
-        # Original: Z[s] = Z[s] * (0.5 * (f1[s] + f2[s]) + 0.125j * dphi[s] * df[s])
-        # where Z[s] was common_factor_z[is_small_delta_phi]
         term_small_dphi = (
             0.5 * (f1[is_small_delta_phi] + f2[is_small_delta_phi])
             + 0.125j * delta_phi[is_small_delta_phi] * delta_f[is_small_delta_phi]
@@ -842,11 +817,6 @@ def integrate_oscillating_function(
     # Case 2: Large delta_phi (use formula for oscillating part)
     is_large_delta_phi = ~is_small_delta_phi
     if np.any(is_large_delta_phi):
-        # This is likely an approximation based on integration by parts or steepest descent.
-        # Original: Z[s] = Z[s] / dphi[s]**2 * (exp_term * (df[s] - 1j*f2[s]*dphi[s]) -
-        #                                     (df[s] - 1j*f1[s]*dphi[s]) / exp_term)
-        # where Z[s] was common_factor_z[is_large_delta_phi] and exp_term = exp(0.5j * dphi[s])
-
         dphi_large = delta_phi[is_large_delta_phi]
         exp_half_j_dphi = np.exp(0.5j * dphi_large)
 
