@@ -1,10 +1,4 @@
-from copy import deepcopy
-
 import numpy as np
-from matplotlib.backends.backend_pdf import PdfPages
-import matplotlib
-import matplotlib.pyplot as plt
-import h5py
 import pandas
 
 class FrogResult:
