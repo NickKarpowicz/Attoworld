@@ -1,13 +1,13 @@
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from matplotlib_inline.backend_inline import set_matplotlib_formats
 import pandas
 import os
 
 # load calibration data
 try:
-    calibration = np.load("./calibration_data/Reso_Spectrometer_CalibrationCorrection.npz")
+    calibration_data_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "calibration_data")
+    calibration = np.load(os.path.join(calibration_data_path, "Reso_Spectrometer_CalibrationCorrection.npz"))
     wavelength_calibration=calibration['wavelength']
     lamp_spec=calibration['lamp_ref']
     lamp_measbyReso=calibration['lamp_measured']
@@ -103,21 +103,21 @@ def read_csd_file(filename):
         data.append(row_float)
     file.close()
     return np.array(data)
-    
+
 def plot_spectra(filenameList, pdfFilename, legendItemList = None):
     """DEPRECATED plot the spectra produced by the Maya spectrometer"""
 
     dataList = []
     for filename in filenameList:
         dataList.append(read_csd_file(filename))
-    
+
     fig,ax = plt.subplots(2,1,figsize=(6,8))
     legendHandles = []
     for data in dataList:
         avgeSpectrum = []
         for row in data:
-            avgeSpectrum.append(np.mean(np.array(row))) 
-        handle, = ax[0].plot(data[:, 0], avgeSpectrum) 
+            avgeSpectrum.append(np.mean(np.array(row)))
+        handle, = ax[0].plot(data[:, 0], avgeSpectrum)
         legendHandles.append(handle)
     #ax[0].set_ylim(3e-17,1e-9)
     #ax[0].set_xlim(freqLim[0], freqLim[1])
@@ -125,12 +125,12 @@ def plot_spectra(filenameList, pdfFilename, legendItemList = None):
     ax[0].set_ylabel("Intensity")
     if legendItemList is not None:
         ax[0].legend(legendHandles, legendItemList)
-        
+
     for data in dataList:
         avgeSpectrum = []
         for row in data:
-            avgeSpectrum.append(np.mean(np.array(row))) 
-        handle, = ax[1].semilogy(data[:, 0], avgeSpectrum) 
+            avgeSpectrum.append(np.mean(np.array(row)))
+        handle, = ax[1].semilogy(data[:, 0], avgeSpectrum)
         legendHandles.append(handle)
     #ax[1].set_ylim(3e-17,1e-9)
     #ax[1].set_xlim(freqLim[0], freqLim[1])
@@ -138,9 +138,9 @@ def plot_spectra(filenameList, pdfFilename, legendItemList = None):
     ax[1].set_ylabel("Intensity")
     if legendItemList is not None:
         ax[1].legend(legendHandles, legendItemList)
-        
+
     fig.savefig(pdfFilename)
-    
+
 def read_spectrometer_excel(filename):
     """Reads xls file (passed as the string filename without extension!) produced by the UV-VIS spectrometer RESONANCE VS-7550-VUV.
 
@@ -159,7 +159,7 @@ def read_spectrometer_excel(filename):
     if '.' in filename and './' not in filename:
         raise ValueError('in function read_spectrometer_excel, filename must be passed without extension (filename should not contain a dot)')
     os.system("cat " + filename + ".xls > " + filename + ".txt")
-    dataF = pandas.read_table(filename + ".txt", sep='\t', keep_default_na=False, skiprows=44)  # keep_default_na=False,         
+    dataF = pandas.read_table(filename + ".txt", sep='\t', keep_default_na=False, skiprows=44)  # keep_default_na=False,
     data = []
     for row in dataF.values:
         data.append([])
@@ -274,11 +274,11 @@ def calibrate(data, column: int, dark = None, dark_c = None, stitch: bool = Fals
     if smooth_points is not None and smooth_points > 0:
         spectrum = smooth(spectrum, smooth_points)
     return wavelength, spectrum
-    
+
 def list_error():
     raise Exception('list size in function plot_spectra_UVsp is not coherent')
-    
-def plot_spectra_UVsp(filenameList, columnList, pdfFilename, legendItemList = None, 
+
+def plot_spectra_UVsp(filenameList, columnList, pdfFilename, legendItemList = None,
                      darkTupleList = None, normalizationList = None, color_gradient: bool = False,
                      additive_constant_log_intensity = 20, wavelength_range = None,
                      title = None, invert_order: bool = False, plotList = None, do_calibrate: bool = True,
@@ -324,7 +324,7 @@ def plot_spectra_UVsp(filenameList, columnList, pdfFilename, legendItemList = No
             list_error()
     if darkTupleList is not None:
         if len(darkTupleList) != len(filenameList):
-            print('Error: in function plot_spectra_UVsp\ndarkTupleList has different size than filenameList') 
+            print('Error: in function plot_spectra_UVsp\ndarkTupleList has different size than filenameList')
             list_error()
     if normalizationList is not None:
         if len(normalizationList) != len(filenameList):
@@ -334,7 +334,7 @@ def plot_spectra_UVsp(filenameList, columnList, pdfFilename, legendItemList = No
         if len(plotList) != len(filenameList):
             print('Error: in function plot_spectra_UVsp\nplotList has different size than filenameList')
             list_error()
-            
+
     if invert_order:
         filenameList.reverse()
         columnList.reverse()
@@ -346,7 +346,7 @@ def plot_spectra_UVsp(filenameList, columnList, pdfFilename, legendItemList = No
             normalizationList.reverse()
         if plotList is not None:
             plotList.reverse()
-            
+
     if plotList is not None:
         for i in reversed(range(len(plotList))):
             if not plotList[i]:
@@ -360,7 +360,7 @@ def plot_spectra_UVsp(filenameList, columnList, pdfFilename, legendItemList = No
                     del darkTupleList[i]
                 if normalizationList is not None:
                     del normalizationList[i]
-        
+
     dataList = []
     for filename in filenameList:
         data = read_spectrometer_excel(filename)
@@ -416,30 +416,30 @@ def plot_spectra_UVsp(filenameList, columnList, pdfFilename, legendItemList = No
     if normalizationList is None:
         normalizationList = [1. for i in dataList]
     for (data, column, normalization, color, i) in\
-      zip(dataList, columnList, normalizationList, colors, range(len(dataList))): 
+      zip(dataList, columnList, normalizationList, colors, range(len(dataList))):
         handle, = ax[0].plot(data[:,7*column+1], data[:,7*column+2]*normalization , color=color)
         legendHandles.append(handle)
-    if wavelength_range is not None: 
+    if wavelength_range is not None:
         ax[0].set_xlim(wavelength_range[0], wavelength_range[1])
     ax[0].set_xlabel("Wavelength (nm)")
     ax[0].set_ylabel("Intensity")
     ax[0].grid(linestyle = (0, (5, 10)))   # offset, dash length, space length
     if legendItemList is not None:
         ax[0].legend(legendHandles, legendItemList)
-        
+
     for (data, column, normalization, color, i) in \
-      zip(dataList, columnList, normalizationList, colors, range(len(dataList))): 
-        handle, = ax[1].semilogy(data[:,7*column+1], 
+      zip(dataList, columnList, normalizationList, colors, range(len(dataList))):
+        handle, = ax[1].semilogy(data[:,7*column+1],
                                  data[:,7*column+2]*normalization+additive_constant_log_intensity,
-                                 color=color) 
+                                 color=color)
         legendHandles.append(handle)
-    if wavelength_range is not None: 
+    if wavelength_range is not None:
         ax[1].set_xlim(wavelength_range[0], wavelength_range[1])
     ax[1].set_xlabel("Wavelength (nm)")
     ax[1].set_ylabel("Intensity")
-    ax[1].grid(linestyle = (0, (5, 10)))  
+    ax[1].grid(linestyle = (0, (5, 10)))
     if legendItemList is not None:
         ax[0].legend(legendHandles, legendItemList)
-        
+
     fig.savefig(pdfFilename)
     plt.show()
