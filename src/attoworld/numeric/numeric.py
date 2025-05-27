@@ -91,7 +91,7 @@ def uniform_derivative(data: np.ndarray, order: int = 1, neighbors: int = 1, bou
 
     return derivative
 
-def interpolate(x_in: np.ndarray, y_in:np.ndarray, x_out:np.ndarray, neighbors: int, extrapolate: bool = False) -> np.ndarray:
+def interpolate(x_in: np.ndarray, y_in:np.ndarray, x_out:np.ndarray, neighbors: int = 2, extrapolate: bool = False) -> np.ndarray:
     """
     Use a Fornberg stencil containing a specified number of neighboring points to perform interpolation.
 
@@ -111,6 +111,7 @@ def interpolate(x_in: np.ndarray, y_in:np.ndarray, x_out:np.ndarray, neighbors: 
     x_in_sorted = x_in[sort_order]
     y_in_sorted = y_in[sort_order]
     y_out = np.zeros(x_out.shape)
+    locations = np.searchsorted(x_in_sorted, x_out, side='left')
 
     def interpolate_front_edge(x):
         stencil = fornberg_stencil(
@@ -126,8 +127,7 @@ def interpolate(x_in: np.ndarray, y_in:np.ndarray, x_out:np.ndarray, neighbors: 
             position_out=x)
         return np.sum(stencil * y_in_sorted[(-1 - 2*neighbors):(-1)])
 
-    def interpolate_point(x):
-        location = np.searchsorted(x_in_sorted, x_out[_i], side='left')
+    def interpolate_point(x, location):
 
         if (((location == 0) and x != x_in_sorted[0]) or (location >= len(x_in_sorted))):
             #points outside the range of x_in (extrapolation)
@@ -141,8 +141,8 @@ def interpolate(x_in: np.ndarray, y_in:np.ndarray, x_out:np.ndarray, neighbors: 
 
         elif x == x_in_sorted[location]:
             #case if x is exactly in the x_in array
-            #check if the next point also matches, careful not to go outside the array
-            return y_in_sorted[location]
+            #if multiple points match, return average
+            return np.mean(y_in_sorted[location==x_in_sorted])
 
         elif location < neighbors:
             #use modified front-edge interp
@@ -160,6 +160,6 @@ def interpolate(x_in: np.ndarray, y_in:np.ndarray, x_out:np.ndarray, neighbors: 
             return np.sum(stencil * y_in_sorted[(location-neighbors):(location + neighbors)])
 
     for _i in range(len(x_out)):
-        y_out[_i] = interpolate_point(x_out[_i])
+        y_out[_i] = interpolate_point(x_out[_i], locations[_i])
 
     return y_out
