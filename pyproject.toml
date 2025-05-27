@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "attoworld"
-version = "2025.0.12"
+version = "2025.0.13"
 authors = [{ name = "Nick Karpowicz", email = "nicholas.karpowicz@mpq.mpg.de" }]
-dependencies = ["numpy", "scipy", "matplotlib", "pyyaml", "marimo"]
+dependencies = ["numpy", "scipy", "matplotlib", "pyyaml", "marimo", "h5py", "pandas"]
 description = "Tools from the Attosecond science group at the Max Planck Institute of Quantum Optics"
 readme = "README.md"
 requires-python = ">=3.8"
