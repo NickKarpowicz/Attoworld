@@ -91,16 +91,16 @@ def uniform_derivative(data: np.ndarray, order: int = 1, neighbors: int = 1, bou
 
     return derivative
 
-def interpolate(x_in: np.ndarray, y_in:np.ndarray, x_out:np.ndarray, neighbors: int = 2, extrapolate: bool = False) -> np.ndarray:
+def interpolate(x_out:np.ndarray, x_in: np.ndarray, y_in:np.ndarray, neighbors: int = 2, extrapolate: bool = False) -> np.ndarray:
     """
     Use a Fornberg stencil containing a specified number of neighboring points to perform interpolation.
 
     Contributed by Nick Karpowicz
 
     Args:
+        x_out (np.ndarray): array of output x values, the array onto which y_in will be interpolated
         x_in (np.ndarray): array of input x values
         y_in (np.ndarray): array of input y values
-        x_out (np.ndarray): array of output x values, the array onto which y_in will be interpolated
         neighbors (int): number of nearest neighbors to include in the interpolation
         extrapolate (bool): unless set to true, values outside of the range of x_in will be zero
 
