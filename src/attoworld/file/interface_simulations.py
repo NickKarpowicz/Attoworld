@@ -1,12 +1,7 @@
-from copy import deepcopy
+
 import numpy as np
-from matplotlib.backends.backend_pdf import PdfPages
-import matplotlib
-import matplotlib.pyplot as plt
 import scipy.signal
 import h5py
-import pandas
-
 
 e = 1.602176462e-19
 hbar = 1.05457159682e-34
