@@ -1,4 +1,7 @@
 # Attoworld
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15525872.svg)](https://doi.org/10.5281/zenodo.15525872)
+
 Tools from the Attosecond science group at the Max Planck Institute of Quantum Optics, a.k.a. [Attoworld](https://www.attoworld.de)
 
 [Documentation available here!](http://nickkarpowicz.github.io/docs/attoworld)
