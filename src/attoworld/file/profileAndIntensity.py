@@ -1,6 +1,5 @@
 import numpy as np
 from matplotlib import pyplot as plt
-import matplotlib as mpl
 import pandas
 import scipy.optimize as opt
 import scipy.signal
