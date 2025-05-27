@@ -123,9 +123,9 @@ def interpolate(x_in: np.ndarray, y_in:np.ndarray, x_out:np.ndarray, neighbors: 
     def interpolate_rear_edge(x):
         stencil = fornberg_stencil(
             order = 0,
-            positions = x_in_sorted[(-1 - 2*neighbors):(-1)],
+            positions = x_in_sorted[(-1 - 2*neighbors)::],
             position_out=x)
-        return np.sum(stencil * y_in_sorted[(-1 - 2*neighbors):(-1)])
+        return np.sum(stencil * y_in_sorted[(-1 - 2*neighbors)::])
 
     def interpolate_point(x, location):
 

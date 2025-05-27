@@ -51,7 +51,7 @@ def _(aw, np, plt):
     x_fine = np.real(np.linspace(0.0,17.0,1024))
     y = np.sin(x)
     y_fine = np.sin(x_fine)
-    x2 = np.linspace(0.0,19.0,30)
+    x2 = np.linspace(0.0,19.0,60)
     plt.plot(x,y,'o')
     plt.plot(x_fine,y_fine)
     plt.plot(x2,aw.numeric.interpolate(x,y,x2, 3, extrapolate=False),'x')
