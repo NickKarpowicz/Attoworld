@@ -90,3 +90,76 @@ def uniform_derivative(data: np.ndarray, order: int = 1, neighbors: int = 1, bou
                 derivative[-1 -_i] = corrected_point_bottom(_i)
 
     return derivative
+
+def interpolate(x_out:np.ndarray, x_in: np.ndarray, y_in:np.ndarray, neighbors: int = 2, extrapolate: bool = False) -> np.ndarray:
+    """
+    Use a Fornberg stencil containing a specified number of neighboring points to perform interpolation.
+
+    Contributed by Nick Karpowicz
+
+    Args:
+        x_out (np.ndarray): array of output x values, the array onto which y_in will be interpolated
+        x_in (np.ndarray): array of input x values
+        y_in (np.ndarray): array of input y values
+        neighbors (int): number of nearest neighbors to include in the interpolation
+        extrapolate (bool): unless set to true, values outside of the range of x_in will be zero
+
+    Returns:
+        np.ndarray: the interpolated y_out
+    """
+    sort_order = np.argsort(x_in)
+    x_in_sorted = x_in[sort_order]
+    y_in_sorted = y_in[sort_order]
+    y_out = np.zeros(x_out.shape)
+    locations = np.searchsorted(x_in_sorted, x_out, side='left')
+
+    def interpolate_front_edge(x):
+        stencil = fornberg_stencil(
+            order = 0,
+            positions = x_in_sorted[0:(2*neighbors)],
+            position_out=x)
+        return np.sum(stencil * y_in_sorted[0:(2*neighbors)])
+
+    def interpolate_rear_edge(x):
+        stencil = fornberg_stencil(
+            order = 0,
+            positions = x_in_sorted[(-1 - 2*neighbors)::],
+            position_out=x)
+        return np.sum(stencil * y_in_sorted[(-1 - 2*neighbors)::])
+
+    def interpolate_point(x, location):
+
+        if (((location == 0) and x != x_in_sorted[0]) or (location >= len(x_in_sorted))):
+            #points outside the range of x_in (extrapolation)
+            if extrapolate:
+                if location == 0:
+                    return interpolate_front_edge(x)
+                else:
+                    return interpolate_rear_edge(x)
+            else:
+                return 0.0
+
+        elif x == x_in_sorted[location]:
+            #case if x is exactly in the x_in array
+            #if multiple points match, return average
+            return np.mean(y_in_sorted[location==x_in_sorted])
+
+        elif location < neighbors:
+            #use modified front-edge interp
+            return interpolate_front_edge(x)
+
+        elif location >= (len(x_in_sorted) - neighbors):
+            #use modified rear-edge interp
+            return interpolate_rear_edge(x)
+        else:
+            #normal interior point
+            stencil = fornberg_stencil(
+                order = 0,
+                positions = x_in_sorted[(location-neighbors):(location + neighbors)],
+                position_out=x)
+            return np.sum(stencil * y_in_sorted[(location-neighbors):(location + neighbors)])
+
+    for _i in range(len(x_out)):
+        y_out[_i] = interpolate_point(x_out[_i], locations[_i])
+
+    return y_out

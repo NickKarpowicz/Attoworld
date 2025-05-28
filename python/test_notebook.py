@@ -46,6 +46,26 @@ def _(aw, np, plt):
 
 
 @app.cell
+def _(mo):
+    mo.md(r"""## Check interpolate()""")
+    return
+
+
+@app.cell
+def _(aw, np, plt):
+    x = np.real(np.linspace(0.0,17.0,36))
+    x_fine = np.real(np.linspace(0.0,17.0,1024))
+    y = np.sin(x**2/10)
+    y_fine = np.sin(x_fine**2/10)
+    x2 = np.linspace(0.0,19.0,60)
+    plt.plot(x,y,'o')
+    plt.plot(x_fine,y_fine)
+    plt.plot(x2,aw.numeric.interpolate(x2, x,y, 3, extrapolate=False),'x')
+    aw.plot.showmo()
+    return
+
+
+@app.cell
 def _():
     return
 

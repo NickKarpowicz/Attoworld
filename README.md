@@ -1,4 +1,7 @@
 # Attoworld
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15525871.svg)](https://doi.org/10.5281/zenodo.15525871)
+
 Tools from the Attosecond science group at the Max Planck Institute of Quantum Optics, a.k.a. [Attoworld](https://www.attoworld.de)
 
 [Documentation available here!](http://nickkarpowicz.github.io/docs/attoworld)
@@ -6,6 +9,7 @@ Tools from the Attosecond science group at the Max Planck Institute of Quantum O
 ## Structure
 The module has several submodules to keep it organized:
 - *file*: functions for reading/writing the various data formats used across the labs
+- *numeric*: numerical tools
 - *personal*: a module where we can add our own functions that might not be of general interest, but are still good to have available to we can easily share work
 - *plot*: functions for plotting with a consistent style
 - *wave*: functions for processing waveforms

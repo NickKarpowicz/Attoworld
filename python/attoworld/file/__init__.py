@@ -3,4 +3,7 @@ This module will contain functions for loading the various data formats used acr
 """
 
 from .file_io import *
+from . import FROG_result
+from . import interface_simulations
+from . import profileAndIntensity
 __all__ = [name for name in globals() if callable(globals()[name]) and not name.startswith("_")]

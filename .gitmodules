@@ -1,3 +1,3 @@
-[submodule "src/attoworld/personal/nick"]
-	path = src/attoworld/personal/nick
+[submodule "python/attoworld/personal/nick"]
+	path = python/attoworld/personal/nick
 	url = https://github.com/NickKarpowicz/NickPython

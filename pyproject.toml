@@ -1,20 +1,34 @@
 [build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
+requires = ["maturin>=1.8,<2.0"]
+build-backend = "maturin"
 
 [project]
 name = "attoworld"
-version = "2025.0.11"
+version = "2025.0.14.3"
 authors = [{ name = "Nick Karpowicz", email = "nicholas.karpowicz@mpq.mpg.de" }]
-dependencies = ["numpy", "scipy", "matplotlib", "pyyaml", "marimo"]
+dependencies = [
+    "numpy",
+    "scipy",
+    "matplotlib",
+    "pyyaml",
+    "marimo",
+    "h5py",
+    "pandas",
+]
 description = "Tools from the Attosecond science group at the Max Planck Institute of Quantum Optics"
 readme = "README.md"
 requires-python = ">=3.8"
 classifiers = [
-    "Programming Language :: Python :: 3",
-    "Operating System :: OS Independent",
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
 ]
 license = { file = "LICENSE" }
+
+[tool.maturin]
+features = ["pyo3/extension-module"]
+python-source = "python"
+module-name = "attoworld.attoworld_rs"
 
 [project.urls]
 Homepage = "https://github.com/NickKarpowicz/Attoworld"
