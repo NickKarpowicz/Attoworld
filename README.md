@@ -54,3 +54,32 @@ git fetch upstream --prune
 ```
 
 Do this before you start a new wave of edits; it ensures that what you write is going to be compatible with the up-to-date version of the repo.
+
+## Developing locally
+To work with the repo, i.e. if you want to add functions and test them cleanly, here's how you can build and install it in a local virtual environment.
+
+First, you should have [Maturin](https://github.com/PyO3/maturin) installed (e.g. ```pipx install maturin```). This is the build system used, which converts the repository into a usuable python module, and can install it for you.
+
+Now, set up a [virtual environment](https://docs.python.org/3/library/venv.html). Navigate to wherever you want to create it and enter
+```
+python -m venv .venv
+```
+This will create a virtual environment in a folder named ".venv" (the dot at the front makes it hidden). You can enable this environment with
+
+Linux/Mac:
+```
+source .venv/bin/activate
+```
+Windows:
+```
+.venv\Scripts\activate.bat
+```
+(or .\.venv\Scripts\Activate.ps1 in PowerShell).
+
+Once your virtual environment is activated, you can build and install the package. This step is easy:
+
+```
+maturin develop
+```
+
+If it goes without errors, you'll have your working version of the package installed in a your virtual environment and can test with it. Of course, you can also quickly iterative live by placing your scripts in the python folder of the repository.
