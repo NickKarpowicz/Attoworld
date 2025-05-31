@@ -1,4 +1,14 @@
+<<<<<<< HEAD:python/attoworld/file/FROG_result.py
 import numpy as np
+=======
+from copy import deepcopy
+
+import numpy as np
+from matplotlib.backends.backend_pdf import PdfPages
+import matplotlib
+import matplotlib.pyplot as plt
+import h5py
+>>>>>>> cd68b82 (added functions and classes to plot beam profile, compute intensity, load FROG reconst., and Luna simulation results):src/attoworld/file/FROG_result.py
 import pandas
 
 class FrogResult:

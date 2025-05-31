@@ -1,7 +1,19 @@
+<<<<<<< HEAD:python/attoworld/file/interface_simulations.py
 
 import numpy as np
 import scipy.signal
 import h5py
+=======
+from copy import deepcopy
+import numpy as np
+from matplotlib.backends.backend_pdf import PdfPages
+import matplotlib
+import matplotlib.pyplot as plt
+import scipy.signal
+import h5py
+import pandas
+
+>>>>>>> cd68b82 (added functions and classes to plot beam profile, compute intensity, load FROG reconst., and Luna simulation results):src/attoworld/file/interface_simulations.py
 
 e = 1.602176462e-19
 hbar = 1.05457159682e-34
