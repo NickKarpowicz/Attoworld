@@ -291,7 +291,7 @@ class SpectrumHandler:
 
         Args:
             intercept: float,
-            Args: float
+            slope: float
             """
         if self.wvl is None or self.spectrum is None:
             raise ValueError("Spectrum not loaded.")
@@ -322,6 +322,13 @@ class SpectrumHandler:
             self.calibration_lamp_spectrum = self.calibration_lamp_spectrum * window
 
     def divide_by(self, spectrumObject, nm_smearing=0.):
+        """normalizes the current spectrum with another spectrum, and stores the result in the present object.
+
+        Args:
+            spectrumObject (either 'c'/'calib'/'calibration'/'lamp' or SpectrumHandler object):
+                the current spectrum is divided at each wavelength by the loaded calibration lamp data or by the spectrum passed as SpectrumHandler object.
+            nm_smearing (float): sigma in nm for the gaussian smoothing
+        """
         if spectrumObject == 'c' or spectrumObject == 'calib' or spectrumObject == 'calibration' or spectrumObject == 'lamp' or spectrumObject == 'calibration data':
             if self.calibration_lamp_wvl is None or self.calibration_lamp_spectrum is None:
                 raise ValueError("Calibration lamp data not loaded.")
@@ -342,6 +349,11 @@ class SpectrumHandler:
         self.spectrum = interpolated_original / interpolated_spd
 
     def add(self, spectrumObject):
+        """adds two spectra and stores the result in the present object
+
+        Args:
+            spectrumObject (SpectrumHandler): spectrum to be added
+        """
         if not isinstance(spectrumObject, SpectrumHandler):
             raise TypeError("Input of add must be a SpectrumHandler object.")
         wvl_add, spectrum_add = spectrumObject.get_spectrum()
@@ -352,6 +364,11 @@ class SpectrumHandler:
         self.spectrum = interpolated_original + interpolated_spd
 
     def multiply(self, spectrumObject):
+        """multiplies the current spectrum by a second one at each wavelength.
+
+        Args:
+            spectrumObject (SpectrumHandler)
+        """
         if not isinstance(spectrumObject, SpectrumHandler):
             raise TypeError("Input of multiply must be a SpectrumHandler object.")
         wvl_mult, spectrum_mult = spectrumObject.get_spectrum()
@@ -362,9 +379,19 @@ class SpectrumHandler:
         self.spectrum = interpolated_original * interpolated_spd
 
     def multiply_scalar(self, scalar):
+        """multiplies the current spectrum by a constant.
+
+        Args:
+            scalar (float)
+        """
         self.spectrum = self.spectrum * scalar
 
     def add_scalar(self, scalar):
+        """adds a constant offset.
+
+        Args:
+            scalar (float)
+        """
         self.spectrum = self.spectrum + scalar
 
     def compute_calibration_factor_spectrometer(self, transmission_additional_optics=None, smoothing='poly', extend_calibration: bool = False, wavelength_ROI: list = [420, 800]):
@@ -378,11 +405,11 @@ class SpectrumHandler:
             transmission_additional_optics: list of SpectrumHandler objects = list of transmission spectra of additional optics to be taken into account when computing the calibration factor.
                 The transmission ['reflection' for mirrors] spectra of additional optics will be included (multiplied) in the calibration factor
                 Additional optics are assumed to be in the beam path of any standard measurement (e.g. integrating sphere) BUT NOT PRESENT during the calibration lamp measurement.
-            smoothing = Type of smoothing to be applied to the calibration factor. Options are 'poly' (default) None or an integer number. If 'poly', a polynomial fit is applied to the calibration factor.
+            smoothing: Type of smoothing to be applied to the calibration factor. Options are 'poly' (default) None or an integer number. If 'poly', a polynomial fit is applied to the calibration factor.
                 If None, no smoothing is applied. If an integer number, a box filter of that size is applied to the calibration factor.
-            extend_calibration: bool = If True, the calibration factor is extended to the full wavelength range of the spectrometer (the first and last values of the calibration curve are used for the extension).
+            extend_calibration (bool): If True, the calibration factor is extended to the full wavelength range of the spectrometer (the first and last values of the calibration curve are used for the extension).
                 This is a quick and dirty solution to deal with the fact that the calibration lamp spectrum is not available for the full wavelength range of the spectrometer.
-            wavelength_ROI: list = [wvl1, wvl2] = Wavelength range for the normalization of the calibration factor (for display purposes).
+            wavelength_ROI (list): [wvl1, wvl2] Wavelength range for the normalization of the calibration factor (for display purposes).
                 Default is [420, 800] nm."""
         if self.calibration_lamp_wvl is None or self.calibration_lamp_spectrum is None:
             raise ValueError("Calibration lamp data not loaded.")
