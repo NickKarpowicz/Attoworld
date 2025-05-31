@@ -8,6 +8,7 @@ import scipy.special
 import scipy.signal
 import h5py
 import pandas
+import math
 
 
 e = 1.602176462e-19
@@ -285,7 +286,7 @@ class TraceHandler:
         # create proper freq axis for the fourier transform
         df = (freq[1]-freq[0])/4
         nf = int(np.ceil(3 * freq[-1]/df))
-        self.frequencyAxis = np.arange(-nf, nf) * df
+        self.frequencyAxis = np.concatenate((np.arange(0, nf), np.arange(-nf, 0))) * df
         # corresponding time window
         twin = 1./(df)
 
@@ -448,6 +449,40 @@ class TraceHandler:
         self.fieldV = self.fieldV * window
         self.update_fft()
 
+    def fourier_interpolation(self, ntimes_finer: int):
+        """shrinks the time step of the trace in time domain by a factor ntimes_finer.
+
+        this is done by 'zero-padding' the fourier transform of the trace, i.e., by extending the frequency axis by a factor ntimes_finer, and adding corresponding zeros to the FFT field.
+
+        Args:
+            ntimes_finer (int): the factor by which to shrink the time step of the trace in time domain. Must be >= 1.
+        """
+        if ntimes_finer < 1:
+            raise ValueError('in function TraceHandler.fourier_interpolation() ntimes_finer must be >= 1')
+        if self.frequencyAxis is None or self.fftFieldV is None:
+            raise ValueError('in function TraceHandler.fourier_interpolation() frequency axis or fft field is not defined')
+        # extend the frequency axis by a factor ntimes_finer
+        df = self.frequencyAxis[1] - self.frequencyAxis[0]
+        i_last_pos = math.ceil(len(self.frequencyAxis) / 2) - 1
+        if self.frequencyAxis[i_last_pos] < 0 or self.frequencyAxis[i_last_pos + 1] > 0:
+            print(self.frequencyAxis[0:i_last_pos + 1])
+            print(self.frequencyAxis[i_last_pos + 1:])
+            raise Exception('in function fourier_interpolation() frequency axes was not extended correctly')
+
+        appended_freqFFT = np.linspace(self.frequencyAxis[i_last_pos] + df, ntimes_finer * self.frequencyAxis[i_last_pos] + df,
+                                       round((ntimes_finer - 1) * self.frequencyAxis[i_last_pos] / df))
+        prepended_freqFFT = np.linspace(-(ntimes_finer - 1) * self.frequencyAxis[i_last_pos] + self.frequencyAxis[i_last_pos + 1],
+                                        +self.frequencyAxis[i_last_pos + 1], round((ntimes_finer - 1) * self.frequencyAxis[i_last_pos] / df))
+        self.frequencyAxis = np.concatenate(
+            (self.frequencyAxis[:i_last_pos + 1], appended_freqFFT, prepended_freqFFT, self.frequencyAxis[i_last_pos + 1:]))
+        self.fftFieldV = np.concatenate(
+            (self.fftFieldV[:i_last_pos + 1], np.zeros(len(appended_freqFFT)), np.zeros(len(prepended_freqFFT)),
+             self.fftFieldV[i_last_pos + 1:]))
+
+        self.update_trace_from_fft()
+        self.strip_from_trace()
+        self.update_fft_spectrum()
+
     def differentiate_trace(self, spectrally=True):
         """computes the time derivative of the trace.
 
@@ -469,7 +504,7 @@ class TraceHandler:
         spectrally: bool; if True (default) the integral will be computed in the spectral domain (maybe more stable numerically)
         """
         if spectrally:
-            if self.frequencyAxis[1] != 0:
+            if self.frequencyAxis[0] != 0:
                 print('WARNING: in function TraceHandler.integrate_trace() the FFT axis\' first element is not zero')
             self.fftFieldV[1:] = -1j / self.frequencyAxis[1:] * self.fftFieldV[1:]
             self.update_trace_from_fft()
@@ -505,9 +540,12 @@ class TraceHandler:
                                        self.wvlSpectrometer[:-1] < spectrum_range[1])]).sum()
         self.ISpectrometer /= n_factor
 
-    def normalize_fft_spectrum(self):
-        """normalizes the spectrum of the trace (|FFT{trace}|^2 * df/dλ) to its integral"""
-        spectrum_range = [60, 930]
+    def normalize_fft_spectrum(self, spectrum_range = [60, 930]):
+        """normalizes the spectrum of the trace (|FFT{trace}|^2 * df/dλ) to its integral (area)
+
+        Args:
+            spectrum_range (list): the range of wavelengths (nm) to consider for the normalization. Default is [60, 930] nm.
+        """
         n_factor = (np.abs(np.diff(self.wvlAxis)[(self.wvlAxis[:-1] > spectrum_range[0]) & (
                     self.wvlAxis[:-1] < spectrum_range[1])]) *
                                self.fftSpectrum[:-1][(self.wvlAxis[:-1] > spectrum_range[0]) & (
@@ -522,9 +560,30 @@ class TraceHandler:
         """returns the wavelength and spectral intensity corresponding to the fourier transform of the trace."""
         return self.wvlAxis, self.fftSpectrum
 
+    def get_spectral_phase(self):
+        """returns the wavelength array and the spectral phase array corresponding to the FFT of the trace."""
+        return self.wvlAxis, self.fftphase
+
     def get_stdev(self):
         """returns only the standard deviation (sigma) array"""
         return self.fieldStdevV
+
+    def get_positive_fft_field(self):
+        """returns the positive frequency axis f and the corresponding FFT field (complex).
+
+        Main task of this function is to 'smooth' the phase of the fft (= remove linear phase, corresponding to a time shift in the temporal domain), since the waveform is usually centered around t = 0"""
+        if self.frequencyAxis is None or self.fftFieldV is None:
+            raise ValueError('in function TraceHandler.get_positive_fft_field() frequency axis or fft field is not defined')
+        positive_freq = self.frequencyAxis[self.frequencyAxis >= 0]
+        positive_fft_field = self.fftFieldV[self.frequencyAxis >= 0]
+        # remove linear phase
+        tmax = self.get_zero_delay()
+        deltaT1 = tmax - self.fieldTimeV[0]
+        deltaT2 = self.fieldTimeV[-1] - tmax
+        ifft_twindow = 1 / (self.frequencyAxis[1] - self.frequencyAxis[0])
+        total_delay = ifft_twindow / 2 + (deltaT2 - deltaT1) / 2
+        positive_fft_field = positive_fft_field * np.exp(-1.j * 2 * np.pi * positive_freq * total_delay)
+        return positive_freq, positive_fft_field
 
     def get_fluence(self):
         """calculate the fluence of the trace.
@@ -836,12 +895,10 @@ class TraceHandler:
     def time_frequency_analysis(self, sigma_time, low_lim=None, up_lim=None, low_lim_freq=None, up_lim_freq=None):
         """performs time-frequency analysis by using scipy's short time fourier transform (fourier transform of the trace convoluted by a 'sigma_time' broad gaussian).
 
-        ARGUMENTS:
-            sigma_time = sigma of the gaussian window
-
-        OPTIONAL ARGUMENTS:
-            low_lim, up_lim: float = xaxis limits for plotting. Default None
-            low_lim_freq, up_lim_freq: float = xaxis limits for plotting. Default None
+        Args:
+            sigma_time: sigma of the gaussian window
+            low_lim, up_lim (float): xaxis limits for plotting. Default None
+            low_lim_freq, up_lim_freq (float): xaxis limits for plotting. Default None
 
         """
         dt = np.mean(np.diff(self.fieldTimeV))
@@ -880,7 +937,7 @@ class TraceHandler:
     def plot_trace(self, low_lim = None, up_lim = None, normalize: bool = True):
         """plots the field trace.
 
-        OPTIONAL ARGUMENTS:
+        Args:
             low_lim, up_lim: float = xaxis limits for plotting. Default None
             normalize: bool = if True (default) normalize the peak of the trace to 1
         """
@@ -906,8 +963,8 @@ class TraceHandler:
         """plots the trace spectrum and phase together with the spectrometer measurement [if provided].
 
         OPTIONAL ARGUMENTS:
-            low_lim, up_lim: float = xaxis limits for plotting. Default: 40, 1000
-            no_phase = if True, don't plot the phase. Default: False
+            low_lim, up_lim (float): xaxis limits for plotting. Default: 40, 1000
+            no_phase: if True, don't plot the phase. Default: False
         """
         fig, ax = plt.subplots(figsize=figureSize)
         if not no_phase:
@@ -948,7 +1005,7 @@ class MultiTraceHandler:
         - timeList AND fieldList: list of time arrays and field arrays (see TraceHandler constructor)
         - traceHandlerList: list of TraceHandler objects
 
-        ARGUMENTS (technically all optional):
+        Args:
             filenameList : list of filenames containing the field traces (see TraceHandler constructor)
             filenameSpectrumList : list of filenames containing the spectrum traces (spectrometer data; see TraceHandler constructor)
             timeList : list of time arrays (see TraceHandler constructor)
@@ -1021,7 +1078,7 @@ class MultiTraceHandler:
     def flip_trace(self, index: int):
         """flips the trace number 'index'
 
-        ARGUMENTS:
+        Args:
             index: int
         """
         if index >= len(self.traceHandlers):
@@ -1043,14 +1100,14 @@ class MultiTraceHandler:
     def plot_traces(self, low_lim=None, up_lim=None, labels=None, delay_shift=None, offset: float=2., errorbar: bool=False, normalize: bool=True):
         """plots all traces.
 
-        ARGUMENTS (Optional):
-            low_lim
-            up_lim
-            labels = list of labels for the legend
-            delay_shift = list of delay offsets (one per trace)
-            offset: float (y-axis offset between traces)
-            errorbar: bool = whether to plot errors. Default False
-            normalize: bool. Default True
+        Args:
+            low_lim (float): for xaxis
+            up_lim (float): for xaxis
+            labels (list): list of labels for the legend
+            delay_shift (list): list of delay offsets (one per trace)
+            offset (float): y-axis offset between traces
+            errorbar (bool): whether to plot errors. Default False
+            normalize (bool): Default True
         """
         fig, ax = plt.subplots(figsize=[figureSize[0], figureSize[1]*2])
         if delay_shift is None:

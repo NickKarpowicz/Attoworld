@@ -1,4 +1,3 @@
-
 import numpy as np
 import scipy.signal
 import h5py
@@ -10,7 +9,6 @@ eps0 = 8.854187817e-12
 kB = 1.380650324e-23
 c = 299792458
 
-#matplotlib.rcParams['figure.figsize'] = [30, 12]
 figureSize = [30,12]
 tickSize = 48
 fontSize = 55
@@ -105,7 +103,7 @@ class LunaResult:
         return timeV, fieldV
 
     def get_wavelength_spectrum(self, position=None):
-        """Get the COMPLEX electric field spectrum from the Luna result file
+        """Get the spectrum from the Luna result file (|FFT|^2 * (2 * pi * c / λ^2))
 
         Args:
             position (float): position along the fiber in m. If None, the end of the fiber is used.
@@ -121,8 +119,29 @@ class LunaResult:
         if position > np.max(self.z) or position < np.min(self.z):
             print("WARNING: position ", position, "m is out of range")
         wvl = 2 * np.pi * c / self.omega[::-1]
-        wvlSpectrum = self.fieldFT[index, ::-1] * (2 * np.pi * c/wvl**2 )
+        wvlSpectrum = np.abs(self.fieldFT[index, ::-1])**2 * (2 * np.pi * c/wvl**2 )
         return wvl, wvlSpectrum
+
+
+    def get_spectral_phase(self, position=None):
+        """Get the spectral phase from the Luna result file
+
+        Args:
+            position (float): position along the fiber in m. If None, the end of the fiber is used.
+
+        Returns:
+            wvl (numpy.ndarray): wavelength axis in m
+            phase (numpy.ndarray): spectral phase in rad
+        """
+        self.average_modes()
+        if position is None:
+            position = self.z[-1]
+        index = np.argmin(np.abs(self.z - position))
+        if position > np.max(self.z) or position < np.min(self.z):
+            print("WARNING: position ", position, "m is out of range")
+        wvl = 2 * np.pi * c / self.omega[::-1]
+        phase = np.angle(self.fieldFT[index, ::-1])
+        return wvl, phase
 
 
 

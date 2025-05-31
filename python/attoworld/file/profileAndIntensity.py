@@ -17,7 +17,7 @@ def get_fwhm(t, x, no_envelope: bool = False):
     This function calculates the full-width-at-half-maximum:
     FWHM is the full-width of the intensity profile I(t) = |A(t)|^2 at half-maximum, where A(t) is the envelope of the signal.
 
-    PARAMETERS:
+    Args:
     x: signal in time domain vector
     t: time vector
 
