@@ -17,12 +17,14 @@ fn rust_hello() -> PyResult<()> {
 }
 
 #[pyfunction]
+#[pyo3(signature = (order, positions, position_out = 0.0, /))]
 /// Generate a finite difference stencil using the algorithm described by B. Fornberg
 /// in Mathematics of Computation 51, 699-706 (1988).
 ///
 /// Args:
 ///     order (int): the order of the derivative
 ///     positions (np.ndarray): the positions at which the functions will be evaluated in the stencil. Must be larger than 2 elements in size.
+///     position_out (float): the position at which using the stencil will evaluate the derivative, default 0.0.
 /// Returns:
 ///     np.ndarray: the finite difference stencil with weights corresponding to the positions in the positions input array
 ///
@@ -81,7 +83,7 @@ fn fornberg_stencil_reference(order: usize, positions: &[f64], position_out: f64
 
         c1 = c2;
         if n < (n_pos - 1) {
-            delta_previous = delta_current.clone();
+            std::mem::swap(&mut delta_previous, &mut delta_current);
         }
     }
 
