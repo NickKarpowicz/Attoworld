@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 
-/// A Python module implemented in Rust.
+/// Function written in Rust for better performance and correctness.
 #[pymodule]
 #[pyo3(name = "attoworld_rs")]
 fn attoworld_rs_test(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -8,6 +8,7 @@ fn attoworld_rs_test(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
+/// Test function to make sure the Rust module is working
 #[pyfunction]
 fn rust_hello() -> PyResult<()> {
     println!("Hi from Rust!");
