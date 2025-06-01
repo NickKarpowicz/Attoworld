@@ -46,6 +46,7 @@ Once you've made your changes, to add them to the main repo, go to Github and ma
 Once your PR has been merged, it's a good idea to clean up your fork and synchronize with the main repo. Before you add new code, do this from the command line:
 
 ```
+git remote add upstream https://github.com/NickKarpowicz/Attoworld
 git fetch upstream
 git checkout main
 git reset --hard upstream/main
@@ -82,4 +83,4 @@ Once your virtual environment is activated, you can build and install the packag
 maturin develop
 ```
 
-If it goes without errors, you'll have your working version of the package installed in a your virtual environment and can test with it. Of course, you can also quickly iterative live by placing your scripts in the python folder of the repository.
+If it goes without errors, you'll have your working version of the package installed in a your virtual environment and can test with it. Of course, you can also quickly iterative live by importin the module in the python/attoworld folder of the repository. You will just have to run "maturin develop" once such that the compiled library is available.
