@@ -3,9 +3,9 @@ use pyo3::prelude::*;
 /// Functions written in Rust for improved performance and correctness.
 #[pymodule]
 #[pyo3(name = "attoworld_rs")]
-fn attoworld_rs_test(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn attoworld_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(rust_hello, m)?)?;
-    m.add_function(wrap_pyfunction!(fornberg_stencil, m)?)?;
+    m.add_function(wrap_pyfunction!(fornberg_stencil_wrapper, m)?)?;
     Ok(())
 }
 
@@ -17,6 +17,7 @@ fn rust_hello() -> PyResult<()> {
 }
 
 #[pyfunction]
+#[pyo3(name = "fornberg_stencil")]
 #[pyo3(signature = (order, positions, position_out = 0.0, /))]
 /// Generate a finite difference stencil using the algorithm described by B. Fornberg
 /// in Mathematics of Computation 51, 699-706 (1988).
@@ -33,12 +34,16 @@ fn rust_hello() -> PyResult<()> {
 ///     >>> stencil = fornberg_stencil(1, [-1,0,1])
 ///     >>> print(stencil)
 ///     [-0.5 0. 0.5]
-fn fornberg_stencil(order: usize, positions: Vec<f64>, position_out: f64) -> Vec<f64> {
-    fornberg_stencil_reference(order, &positions, position_out)
+fn fornberg_stencil_wrapper(
+    order: usize,
+    positions: Vec<f64>,
+    position_out: f64,
+) -> PyResult<Vec<f64>> {
+    Ok(fornberg_stencil(order, &positions, position_out))
 }
 
 /// Internal version of fornberg_stencil() which takes positions by reference
-fn fornberg_stencil_reference(order: usize, positions: &[f64], position_out: f64) -> Vec<f64> {
+fn fornberg_stencil(order: usize, positions: &[f64], position_out: f64) -> Vec<f64> {
     let n_pos = positions.len();
     let mut delta_current = vec![vec![0.0; order + 1]; n_pos];
     let mut delta_previous = vec![vec![0.0; order + 1]; n_pos];
