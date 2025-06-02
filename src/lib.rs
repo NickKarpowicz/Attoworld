@@ -183,21 +183,32 @@ fn clamp_index(x0: usize, lower_bound: usize, upper_bound: usize) -> usize {
 fn find_first_intercept(y: &[f64], intercept_value: f64, neighbors: usize) -> f64 {
     if let Some(intercept_index) = y.iter().position(|x| *x >= intercept_value) {
         let last = y.len() - 1usize;
+        println!("integer intercept {:?}", intercept_index);
         let range_start = clamp_index(intercept_index - neighbors, 0usize, last - 2 * neighbors);
-        let x_positions: Vec<f64> = (range_start..(range_start + 2 * neighbors))
-            .map(|x| x as f64)
-            .collect();
-        let stencil = fornberg_stencil(
-            0,
-            &y[range_start..(range_start + 2 * neighbors)],
-            intercept_value,
-        );
+        let range = (range_start..(range_start + 2 * neighbors)).filter(|x| {
+            if *x == 0usize {
+                true
+            } else if y[*x] > y[*x - 1] {
+                true
+            } else {
+                println!("Removed pt. {}", *x);
+                false
+            }
+        });
+        let x_positions: Vec<f64> = range.clone().map(|x| x as f64).collect();
+        let y_values: Vec<f64> = range.clone().map(|x| y[x]).collect();
+        println!("x_positions: {:?}", x_positions);
+        println!("y_values: {:?}", &y_values);
+        println!("roi size: {}", x_positions.len());
+        let stencil = fornberg_stencil(0, &y_values, intercept_value);
+        println!("stencil: {:?}", stencil);
         stencil
             .iter()
             .zip(x_positions.iter())
             .map(|(x, y)| x * y)
             .sum()
     } else {
+        println!("No intersection found.");
         f64::NAN
     }
 }
