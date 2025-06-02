@@ -187,7 +187,6 @@ fn find_maximum_location(y: &[f64], neighbors: i64) -> (f64, f64) {
             .map(|(x, y)| x * y)
             .sum();
     }
-    //println!("derivatives {:?}", derivatives);
 
     let zero_xing_positions: Vec<f64> = (0..=(2 * neighbors))
         .map(|x| (max_index - 1) as f64 + (x as f64) / (neighbors as f64))
@@ -219,12 +218,18 @@ fn clamp_index(x0: usize, lower_bound: usize, upper_bound: usize) -> usize {
     std::cmp::max(lower, std::cmp::min(x0, upper))
 }
 
-fn find_first_intercept(y: &[f64], intercept_value: f64, neighbors: usize) -> f64 {
-    let y_iter = y.iter();
-
+fn find_first_intercept_core<'a>(
+    y_iter: impl Iterator<Item = &'a f64> + Clone,
+    last_element_index: usize,
+    intercept_value: f64,
+    neighbors: usize,
+) -> f64 {
     if let Some(intercept_index) = y_iter.clone().position(|x| *x >= intercept_value) {
-        let last = y.len() - 1usize;
-        let range_start = clamp_index(intercept_index - neighbors, 0usize, last - 2 * neighbors);
+        let range_start = clamp_index(
+            intercept_index - neighbors,
+            0usize,
+            last_element_index - 2 * neighbors,
+        );
         let range_i: Vec<usize> = y_iter
             .clone()
             .enumerate()
@@ -243,8 +248,6 @@ fn find_first_intercept(y: &[f64], intercept_value: f64, neighbors: usize) -> f6
             })
             .flatten()
             .collect();
-
-        println!("range_i is {:?}", range_i);
 
         let x_positions: Vec<f64> = range_i.iter().map(|x| *x as f64).collect();
         let y_values: Vec<f64> = y_iter
@@ -260,54 +263,21 @@ fn find_first_intercept(y: &[f64], intercept_value: f64, neighbors: usize) -> f6
             .map(|(a, b)| a * b)
             .sum()
     } else {
-        println!("No intersection found.");
         f64::NAN
     }
 }
 
-fn find_last_intercept(y: &[f64], intercept_value: f64, neighbors: usize) -> f64 {
-    let y_iter = y.iter().rev();
+fn find_first_intercept(y: &[f64], intercept_value: f64, neighbors: usize) -> f64 {
+    find_first_intercept_core(y.iter(), y.len() - 1usize, intercept_value, neighbors)
+}
 
-    if let Some(intercept_index) = y_iter.clone().position(|x| *x >= intercept_value) {
-        let last = y.len() - 1usize;
-        let range_start = clamp_index(intercept_index - neighbors, 0usize, last - 2 * neighbors);
-        let range_i: Vec<usize> = y_iter
-            .clone()
-            .enumerate()
-            .skip(range_start)
-            .take(2 * neighbors)
-            .scan((None, None), |state, (index, value)| {
-                if state.0.is_none() || *value > state.1.unwrap() {
-                    state.0 = Some(index);
-                    state.1 = Some(*value);
-                    Some(Some(index))
-                } else {
-                    state.0 = Some(index);
-                    state.1 = Some(*value);
-                    Some(None)
-                }
-            })
-            .flatten()
-            .collect();
-
-        println!("range_i is {:?}", range_i);
-
-        let x_positions: Vec<f64> = range_i.iter().map(|x| *x as f64).collect();
-        let y_values: Vec<f64> = y_iter
-            .enumerate()
-            .skip(range_start)
-            .take(2 * neighbors)
-            .filter_map(|(index, value)| range_i.contains(&index).then(|| *value))
-            .collect();
-        let stencil = fornberg_stencil(0, &y_values, intercept_value);
-        let index: f64 = stencil
-            .iter()
-            .zip(x_positions.iter())
-            .map(|(a, b)| a * b)
-            .sum();
-        last as f64 - index
-    } else {
-        println!("No intersection found.");
-        f64::NAN
-    }
+fn find_last_intercept<'a>(y: &[f64], intercept_value: f64, neighbors: usize) -> f64 {
+    let last_element_index = y.len() - 1usize;
+    last_element_index as f64
+        - find_first_intercept_core(
+            y.iter().rev(),
+            last_element_index,
+            intercept_value,
+            neighbors,
+        )
 }
