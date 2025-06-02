@@ -148,7 +148,7 @@ def minimize_response_difference(response, reference):
 
 def get_effective_response(E_signal, E_reference, dt: float, filter_f0: float, filter_sigma: float, filter_order: int):
     """
-    Use the above three functions to calculate the effective impulse response with the reactive response removed
+    Calculate the effective impulse response with the reactive response removed
 
     Args:
         E_signal: the signal waveform array

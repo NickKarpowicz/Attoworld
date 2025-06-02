@@ -1,50 +1,5 @@
 import numpy as np
-
-def fornberg_stencil(order: int, positions: np.ndarray, position_out: float = 0.0) -> np.ndarray:
-    """
-    Generate a finite difference stencil using the algorithm described by B. Fornberg
-    in Mathematics of Computation 51, 699-706 (1988).
-
-    Args:
-        order (int): the order of the derivative
-        positions (np.ndarray): the positions at which the functions will be evaluated in the stencil.
-    Returns:
-        np.ndarray: the finite difference stencil with weights corresponding to the positions in the positions input array
-
-    Examples:
-
-        >>> stencil = fornberg_stencil(1, [-1,0,1])
-        >>> print(stencil)
-        [-0.5 0. 0.5]
-    """
-    # Contributed by Nick Karpowicz
-    number_of_positions = len(positions)
-    delta = np.zeros((number_of_positions, number_of_positions, order + 1), dtype=float)
-    delta[0, 0, 0] = 1.0
-    c1 = 1.0
-
-    for n in range(1, number_of_positions):
-        c2 = 1.0
-        for v in range(n):  # v from 0 to n-1
-            c3 = positions[n] - positions[v]
-            c2 *= c3
-            if n <= order:
-                delta[n-1, v, n] = 0.0
-            for m in range(min(n, order) + 1):
-                if m == 0:
-                    last_element = 0.0
-                else:
-                    last_element = m * delta[n-1, v, m-1]
-                delta[n, v, m] = ((positions[n] - position_out) * delta[n-1, v, m] - last_element) / c3
-        for m in range(min(n, order) + 1):
-            if m == 0:
-                first_element = 0.0
-            else:
-                first_element = m * delta[n-1, n-1, m-1]
-            delta[n, n, m] = (c1 / c2) * (first_element - (positions[n-1] - position_out) * delta[n-1, n-1, m])
-        c1 = c2
-
-    return delta[-1, :, -1].squeeze()
+from ..attoworld_rs import fornberg_stencil
 
 def uniform_derivative(data: np.ndarray, order: int = 1, neighbors: int = 1, boundary: str = 'internal') -> np.ndarray:
     """
@@ -115,16 +70,16 @@ def interpolate(x_out:np.ndarray, x_in: np.ndarray, y_in:np.ndarray, neighbors: 
 
     def interpolate_front_edge(x):
         stencil = fornberg_stencil(
-            order = 0,
-            positions = x_in_sorted[0:(2*neighbors)],
-            position_out=x)
+            0,
+            x_in_sorted[0:(2*neighbors)],
+            x)
         return np.sum(stencil * y_in_sorted[0:(2*neighbors)])
 
     def interpolate_rear_edge(x):
         stencil = fornberg_stencil(
-            order = 0,
-            positions = x_in_sorted[(-1 - 2*neighbors)::],
-            position_out=x)
+            0,
+            x_in_sorted[(-1 - 2*neighbors)::],
+            x)
         return np.sum(stencil * y_in_sorted[(-1 - 2*neighbors)::])
 
     def interpolate_point(x, location):
@@ -154,9 +109,9 @@ def interpolate(x_out:np.ndarray, x_in: np.ndarray, y_in:np.ndarray, neighbors: 
         else:
             #normal interior point
             stencil = fornberg_stencil(
-                order = 0,
-                positions = x_in_sorted[(location-neighbors):(location + neighbors)],
-                position_out=x)
+                0,
+                x_in_sorted[(location-neighbors):(location + neighbors)],
+                x)
             return np.sum(stencil * y_in_sorted[(location-neighbors):(location + neighbors)])
 
     for _i in range(len(x_out)):
