@@ -9,6 +9,8 @@ fn attoworld_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(fornberg_stencil_wrapper, m)?)?;
     m.add_function(wrap_pyfunction!(find_maximum_location_wrapper, m)?)?;
     m.add_function(wrap_pyfunction!(find_first_intercept_wrapper, m)?)?;
+    m.add_function(wrap_pyfunction!(find_last_intercept_wrapper, m)?)?;
+    m.add_function(wrap_pyfunction!(fwhm, m)?)?;
     Ok(())
 }
 
@@ -29,10 +31,47 @@ fn find_maximum_location_wrapper(y: Vec<f64>, neighbors: i64) -> (f64, f64) {
 
 /// Find the first intercept with a value
 /// Args:
+///     y (np.ndarray): the distribution data
+///     intercept_value (float): The value at which to take the intercept
+///     neighbors (int): The number of neighboring points in each direction to use when constructing interpolants. Higher values are more accurate, but only for smooth data.
+/// Returns:
+///     float: "index" of the intercept, a float with non-integer value, indicating where between the pixels the intercept is
 #[pyfunction]
 #[pyo3(name = "find_first_intercept")]
 fn find_first_intercept_wrapper(y: Vec<f64>, intercept_value: f64, neighbors: usize) -> f64 {
     find_first_intercept(&y, intercept_value, neighbors)
+}
+
+/// Find the last intercept with a value
+/// Args:
+///     y (np.ndarray): the distribution data
+///     intercept_value (float): The value at which to take the intercept
+///     neighbors (int): The number of neighboring points in each direction to use when constructing interpolants. Higher values are more accurate, but only for smooth data.
+/// Returns:
+///     float: "index" of the intercept, a float with non-integer value, indicating where between the pixels the intercept is
+#[pyfunction]
+#[pyo3(name = "find_last_intercept")]
+fn find_last_intercept_wrapper(y: Vec<f64>, intercept_value: f64, neighbors: usize) -> f64 {
+    find_last_intercept(&y, intercept_value, neighbors)
+}
+
+/// Find the full-width-at-half-maximum value of a continuously-spaced distribution.
+///
+/// Args:
+///     y (np.ndarray): the distribution data
+///     dx (float): the x step size of the data
+///     intercept_value (float): The value at which to take the intercepts (i.e. only full-width-at-HALF-max for 0.5)
+///     neighbors (int): The number of neighboring points in each direction to use when constructing interpolants. Higher values are more accurate, but only for smooth data.
+/// Returns:
+///     float: The full width at intercept_value maximum
+#[pyfunction]
+#[pyo3(name = "fwhm")]
+#[pyo3(signature = (y, dx = 1.0, intercept_value = 0.5, neighbors = 2))]
+fn fwhm(y: Vec<f64>, dx: f64, intercept_value: f64, neighbors: usize) -> f64 {
+    let (_, max_value) = find_maximum_location(&y, neighbors as i64);
+    let first_intercept = find_first_intercept(&y, max_value * intercept_value, neighbors);
+    let last_intercept = find_last_intercept(&y, max_value * intercept_value, neighbors);
+    dx * (last_intercept - first_intercept)
 }
 
 /// Generate a finite difference stencil using the algorithm described by B. Fornberg
@@ -181,32 +220,92 @@ fn clamp_index(x0: usize, lower_bound: usize, upper_bound: usize) -> usize {
 }
 
 fn find_first_intercept(y: &[f64], intercept_value: f64, neighbors: usize) -> f64 {
-    if let Some(intercept_index) = y.iter().position(|x| *x >= intercept_value) {
+    let y_iter = y.iter();
+
+    if let Some(intercept_index) = y_iter.clone().position(|x| *x >= intercept_value) {
         let last = y.len() - 1usize;
-        println!("integer intercept {:?}", intercept_index);
         let range_start = clamp_index(intercept_index - neighbors, 0usize, last - 2 * neighbors);
-        let range = (range_start..(range_start + 2 * neighbors)).filter(|x| {
-            if *x == 0usize {
-                true
-            } else if y[*x] > y[*x - 1] {
-                true
-            } else {
-                println!("Removed pt. {}", *x);
-                false
-            }
-        });
-        let x_positions: Vec<f64> = range.clone().map(|x| x as f64).collect();
-        let y_values: Vec<f64> = range.clone().map(|x| y[x]).collect();
-        println!("x_positions: {:?}", x_positions);
-        println!("y_values: {:?}", &y_values);
-        println!("roi size: {}", x_positions.len());
+        let range_i: Vec<usize> = y_iter
+            .clone()
+            .enumerate()
+            .skip(range_start)
+            .take(2 * neighbors)
+            .scan((None, None), |state, (index, value)| {
+                if state.0.is_none() || *value > state.1.unwrap() {
+                    state.0 = Some(index);
+                    state.1 = Some(*value);
+                    Some(Some(index))
+                } else {
+                    state.0 = Some(index);
+                    state.1 = Some(*value);
+                    Some(None)
+                }
+            })
+            .flatten()
+            .collect();
+
+        println!("range_i is {:?}", range_i);
+
+        let x_positions: Vec<f64> = range_i.iter().map(|x| *x as f64).collect();
+        let y_values: Vec<f64> = y_iter
+            .enumerate()
+            .skip(range_start)
+            .take(2 * neighbors)
+            .filter_map(|(index, value)| range_i.contains(&index).then(|| *value))
+            .collect();
         let stencil = fornberg_stencil(0, &y_values, intercept_value);
-        println!("stencil: {:?}", stencil);
         stencil
             .iter()
             .zip(x_positions.iter())
-            .map(|(x, y)| x * y)
+            .map(|(a, b)| a * b)
             .sum()
+    } else {
+        println!("No intersection found.");
+        f64::NAN
+    }
+}
+
+fn find_last_intercept(y: &[f64], intercept_value: f64, neighbors: usize) -> f64 {
+    let y_iter = y.iter().rev();
+
+    if let Some(intercept_index) = y_iter.clone().position(|x| *x >= intercept_value) {
+        let last = y.len() - 1usize;
+        let range_start = clamp_index(intercept_index - neighbors, 0usize, last - 2 * neighbors);
+        let range_i: Vec<usize> = y_iter
+            .clone()
+            .enumerate()
+            .skip(range_start)
+            .take(2 * neighbors)
+            .scan((None, None), |state, (index, value)| {
+                if state.0.is_none() || *value > state.1.unwrap() {
+                    state.0 = Some(index);
+                    state.1 = Some(*value);
+                    Some(Some(index))
+                } else {
+                    state.0 = Some(index);
+                    state.1 = Some(*value);
+                    Some(None)
+                }
+            })
+            .flatten()
+            .collect();
+
+        println!("range_i is {:?}", range_i);
+
+        let x_positions: Vec<f64> = range_i.iter().map(|x| *x as f64).collect();
+        let y_values: Vec<f64> = y_iter
+            .enumerate()
+            .skip(range_start)
+            .take(2 * neighbors)
+            .filter_map(|(index, value)| range_i.contains(&index).then(|| *value))
+            .collect();
+        let stencil = fornberg_stencil(0, &y_values, intercept_value);
+        let index: f64 = stencil
+            .iter()
+            .zip(x_positions.iter())
+            .map(|(a, b)| a * b)
+            .sum();
+        last as f64 - index
     } else {
         println!("No intersection found.");
         f64::NAN
