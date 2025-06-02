@@ -1,19 +1,14 @@
+use std::f64;
+
 use pyo3::prelude::*;
 
 /// Functions written in Rust for improved performance and correctness.
 #[pymodule]
 #[pyo3(name = "attoworld_rs")]
 fn attoworld_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(rust_hello, m)?)?;
     m.add_function(wrap_pyfunction!(fornberg_stencil_wrapper, m)?)?;
     m.add_function(wrap_pyfunction!(find_maximum_location_wrapper, m)?)?;
-    Ok(())
-}
-
-/// Test function to make sure the Rust module is working
-#[pyfunction]
-fn rust_hello() -> PyResult<()> {
-    println!("Hi from Rust!");
+    m.add_function(wrap_pyfunction!(find_first_intercept_wrapper, m)?)?;
     Ok(())
 }
 
@@ -30,6 +25,14 @@ fn rust_hello() -> PyResult<()> {
 #[pyo3(signature = (y, neighbors = 3, /))]
 fn find_maximum_location_wrapper(y: Vec<f64>, neighbors: i64) -> (f64, f64) {
     find_maximum_location(&y, neighbors)
+}
+
+/// Find the first intercept with a value
+/// Args:
+#[pyfunction]
+#[pyo3(name = "find_first_intercept")]
+fn find_first_intercept_wrapper(y: Vec<f64>, intercept_value: f64, neighbors: usize) -> f64 {
+    find_first_intercept(&y, intercept_value, neighbors)
 }
 
 /// Generate a finite difference stencil using the algorithm described by B. Fornberg
@@ -167,4 +170,34 @@ fn find_maximum_location(y: &[f64], neighbors: i64) -> (f64, f64) {
         .sum();
 
     (location, interpolated_max)
+}
+fn clamp_index(x0: usize, lower_bound: usize, upper_bound: usize) -> usize {
+    let (lower, upper) = if lower_bound <= upper_bound {
+        (lower_bound, upper_bound)
+    } else {
+        (upper_bound, lower_bound)
+    };
+    std::cmp::max(lower, std::cmp::min(x0, upper))
+}
+
+fn find_first_intercept(y: &[f64], intercept_value: f64, neighbors: usize) -> f64 {
+    if let Some(intercept_index) = y.iter().position(|x| *x >= intercept_value) {
+        let last = y.len() - 1usize;
+        let range_start = clamp_index(intercept_index - neighbors, 0usize, last - 2 * neighbors);
+        let x_positions: Vec<f64> = (range_start..(range_start + 2 * neighbors))
+            .map(|x| x as f64)
+            .collect();
+        let stencil = fornberg_stencil(
+            0,
+            &y[range_start..(range_start + 2 * neighbors)],
+            intercept_value,
+        );
+        stencil
+            .iter()
+            .zip(x_positions.iter())
+            .map(|(x, y)| x * y)
+            .sum()
+    } else {
+        f64::NAN
+    }
 }
