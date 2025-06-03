@@ -14,6 +14,7 @@ dependencies = [
     "marimo",
     "h5py",
     "pandas",
+    "pytest",
 ]
 description = "Tools from the Attosecond science group at the Max Planck Institute of Quantum Optics"
 readme = "README.md"
