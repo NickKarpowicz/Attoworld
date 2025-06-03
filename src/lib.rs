@@ -209,13 +209,13 @@ fn find_maximum_location(y: &[f64], neighbors: i64) -> (f64, f64) {
 
     (location, interpolated_max)
 }
-fn clamp_index(x0: usize, lower_bound: usize, upper_bound: usize) -> usize {
+fn clamp_index(x0: i64, lower_bound: i64, upper_bound: i64) -> usize {
     let (lower, upper) = if lower_bound <= upper_bound {
         (lower_bound, upper_bound)
     } else {
         (upper_bound, lower_bound)
     };
-    std::cmp::max(lower, std::cmp::min(x0, upper))
+    std::cmp::max(lower, std::cmp::min(x0, upper)) as usize
 }
 
 fn find_first_intercept_core<'a>(
@@ -226,9 +226,9 @@ fn find_first_intercept_core<'a>(
 ) -> f64 {
     if let Some(intercept_index) = y_iter.clone().position(|x| *x >= intercept_value) {
         let range_start = clamp_index(
-            intercept_index - neighbors,
-            0usize,
-            last_element_index - 2 * neighbors,
+            intercept_index as i64 - neighbors as i64,
+            0,
+            last_element_index as i64 - 2 * neighbors as i64,
         );
         let range_i: Vec<usize> = y_iter
             .clone()
