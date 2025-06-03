@@ -64,10 +64,10 @@ jobs:
           pip install pytest
           pytest
       - name: pytest
-        if: ${{ !startsWith(matrix.platform.target, 'x86') && matrix.platform.target != 'ppc64' }}
+        if: ${{ matrix.platform.target == 'x86_64' }}
         uses: uraimo/run-on-arch-action@v2
         with:
-          arch: x86_64
+          arch: ${{ matrix.platform.target }}
           distro: ubuntu22.04
           githubToken: ${{ github.token }}
           install: |
@@ -136,7 +136,7 @@ jobs:
           name: wheels-windows-${{ matrix.platform.target }}
           path: dist
       - name: pytest
-        if: ${{ startsWith(matrix.platform.target, 'x86_64') }}
+        if: ${{ matrix.platform.target == x64 }}
         shell: bash
         run: |
           set -e
