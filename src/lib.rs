@@ -281,3 +281,14 @@ fn find_last_intercept<'a>(y: &[f64], intercept_value: f64, neighbors: usize) ->
             neighbors,
         )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_clamp() {
+        assert_eq!(clamp_index(-1, 0, 10), 0);
+        assert_eq!(clamp_index(11, 0, 10), 10);
+    }
+}

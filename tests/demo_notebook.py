@@ -70,7 +70,7 @@ def _(aw, np, plt):
 
 @app.cell
 def _(aw, np, plt):
-    ix = np.linspace(-5, 5, 15)
+    ix = np.linspace(-5, 5, 65)
     _dx = ix[1]-ix[0]
     iy = np.exp(-ix**2/2)
     plt.plot(iy)

@@ -1,6 +1,5 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from numpy.core.records import ndarray
 from scipy.ndimage import gaussian_filter1d
 import pandas
 
@@ -23,7 +22,7 @@ def eliminate_outliers(y, threshold: float=3, window_points: int=20):
         threshold (float): Threshold in units of sigma for outlier detection. Default is 3.
         window_points (int): Number of points to consider for the mean and sigma calculation. Default is 20.
     """
-    if not isinstance(y, ndarray):
+    if not isinstance(y, np.ndarray):
         raise TypeError("Input of eliminate_outliers must be a numpy array.")
     n_outliers = 0
     for i in range(len(y)):
