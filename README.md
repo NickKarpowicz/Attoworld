@@ -83,4 +83,4 @@ Once your virtual environment is activated, you can build and install the packag
 maturin develop
 ```
 
-If it goes without errors, you'll have your working version of the package installed in a your virtual environment and can test with it. Of course, you can also quickly iterative live by importin the module in the python/attoworld folder of the repository. You will just have to run "maturin develop" once such that the compiled library is available.
+If it goes without errors, you'll have your working version of the package installed in a your virtual environment and can test with it. You will just have to run "maturin develop" once such that the compiled library is available, and now you can work. Changes made to the python code will affect the python module in the virtual environment.
