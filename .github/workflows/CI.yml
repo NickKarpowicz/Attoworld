@@ -61,6 +61,8 @@ jobs:
           python3 -m venv .venv
           source .venv/bin/activate
           pip install attoworld --find-links dist --force-reinstall
+          pip uninstall attoworld
+          pip install attoworld --no-index --find-links dist
           pip install pytest
           pytest
   musllinux:
