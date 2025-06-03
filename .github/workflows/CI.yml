@@ -62,7 +62,7 @@ jobs:
           source .venv/bin/activate
           pip install attoworld --find-links dist --force-reinstall
           pip uninstall -y attoworld
-          pip install attoworld --no-index --find-links dist
+          pip install attoworld --no-deps --no-index --find-links dist
           pip install pytest
           pytest
   musllinux:
@@ -129,6 +129,8 @@ jobs:
           python3 -m venv .venv
           source .venv/Scripts/activate
           pip install attoworld --find-links dist --force-reinstall
+          pip uninstall -y attoworld
+          pip install attoworld --no-deps --no-index --find-links dist
           pip install pytest
           pytest
 
@@ -163,6 +165,8 @@ jobs:
           python3 -m venv .venv
           source .venv/bin/activate
           pip install attoworld --find-links dist --force-reinstall
+          pip uninstall -y attoworld
+          pip install attoworld --no-deps --no-index --find-links dist
           pip install pytest
           pytest
 
