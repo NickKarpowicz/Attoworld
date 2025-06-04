@@ -2,6 +2,7 @@ use std::f64;
 
 use pyo3::prelude::*;
 use rayon::prelude::*;
+
 /// Functions written in Rust for improved performance and correctness.
 #[pymodule]
 #[pyo3(name = "attoworld_rs")]
@@ -12,6 +13,8 @@ fn attoworld_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(find_last_intercept_wrapper, m)?)?;
     m.add_function(wrap_pyfunction!(fwhm, m)?)?;
     m.add_function(wrap_pyfunction!(interpolate_sorted_1d, m)?)?;
+    m.add_function(wrap_pyfunction!(derivative_wrapper, m)?)?;
+    m.add_function(wrap_pyfunction!(derivative_periodic_wrapper, m)?)?;
     Ok(())
 }
 
@@ -288,6 +291,90 @@ fn interpolate_sorted_1d_slice(
                     .map(|(a, b)| a * b)
                     .sum()
             }
+        })
+        .collect()
+}
+
+///     Use a Fornberg stencil to take a derivative of arbitrary order and accuracy, handling the edge
+/// by using modified stencils that only use internal points.
+///
+/// Args:
+///     data (np.ndarray): the data whose derivative should be taken
+///     order (int): the order of the derivative
+///     neighbors (int): the number of nearest neighbors to consider in each direction.
+/// Returns:
+///     np.ndarray: the derivative
+#[pyfunction]
+#[pyo3(name = "derivative")]
+#[pyo3(signature = (y, order, /, neighbors=3))]
+fn derivative_wrapper(y: Vec<f64>, order: usize, neighbors: usize) -> Vec<f64> {
+    derivative(&y, order, neighbors)
+}
+///     Use a Fornberg stencil to take a derivative of arbitrary order and accuracy, handling the edge
+/// by treating it as a periodic boundary
+///
+/// Args:
+///     data (np.ndarray): the data whose derivative should be taken
+///     order (int): the order of the derivative
+///     neighbors (int): the number of nearest neighbors to consider in each direction.
+/// Returns:
+///     np.ndarray: the derivative
+#[pyfunction]
+#[pyo3(name = "derivative_periodic")]
+#[pyo3(signature = (y, order, /, neighbors=3))]
+fn derivative_periodic_wrapper(y: Vec<f64>, order: usize, neighbors: usize) -> Vec<f64> {
+    derivative_periodic(&y, order, neighbors)
+}
+
+fn derivative(y: &[f64], order: usize, neighbors: usize) -> Vec<f64> {
+    let positions: Vec<f64> = (0..(2 * neighbors + 1))
+        .map(|a| a as f64 - neighbors as f64)
+        .collect();
+    let front_edge_positions: Vec<f64> = (0..=(2 * neighbors + 2)).map(|a| a as f64).collect();
+    let rear_edge_positions: Vec<f64> = front_edge_positions
+        .iter()
+        .map(|a| a + (y.len() - 2 * neighbors - 3) as f64)
+        .collect();
+    let inner_stencil = fornberg_stencil(order, &positions, 0.0);
+    (0..y.len())
+        .map(|index| {
+            if index < neighbors {
+                let stencil = fornberg_stencil(order, &front_edge_positions, index as f64);
+                stencil
+                    .iter()
+                    .zip(y.iter())
+                    .map(|(stencil_val, y_val)| *stencil_val * (*y_val))
+                    .sum()
+            } else if index > y.len() - neighbors - 1 {
+                let stencil = fornberg_stencil(order, &rear_edge_positions, index as f64);
+                stencil
+                    .iter()
+                    .zip(y.iter().skip(y.len() - 2 * neighbors - 3))
+                    .map(|(stencil_val, y_val)| *stencil_val * *y_val)
+                    .sum()
+            } else {
+                y[index - neighbors..index + neighbors + 1]
+                    .iter()
+                    .zip(inner_stencil.iter())
+                    .map(|(stencil_val, y_val)| *stencil_val * *y_val)
+                    .sum()
+            }
+        })
+        .collect()
+}
+
+fn derivative_periodic(y: &[f64], order: usize, neighbors: usize) -> Vec<f64> {
+    let positions: Vec<f64> = (0..(2 * neighbors + 1))
+        .map(|a| a as f64 - neighbors as f64)
+        .collect();
+    let stencil = fornberg_stencil(order, &positions, 0.0);
+    (0..y.len())
+        .map(|index| {
+            stencil
+                .iter()
+                .zip(y.iter().cycle().skip(y.len() - neighbors + index))
+                .map(|(a, b)| *a * *b)
+                .sum()
         })
         .collect()
 }

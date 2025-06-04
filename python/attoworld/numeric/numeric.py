@@ -1,51 +1,6 @@
 import numpy as np
 from ..attoworld_rs import fornberg_stencil, interpolate_sorted_1d
 
-def uniform_derivative(data: np.ndarray, order: int = 1, neighbors: int = 1, boundary: str = 'internal') -> np.ndarray:
-    """
-    Use a Fornberg stencil to take a derivative of arbitrary order and accuracy, handling the edge
-    by using modified stencils that only use internal points.
-
-    Args:
-        data (np.ndarray): the data whose derivative should be taken
-        order (int): the order of the derivative
-        neighbors (int): the number of nearest neighbors to consider.
-        boundary (str): How to treat the boundary: 'internal' will use only internal points (default). 'periodic' will assume periodic boundary. 'zero' will assume the data is zero outsize the grid.
-
-    Returns:
-        np.ndarray: the derivative
-    """
-
-    positions = np.array(range(-neighbors,neighbors+1))
-    stencil = fornberg_stencil(order, positions)
-    derivative = np.convolve(data, np.flip(stencil), mode='same')
-
-    match boundary:
-        case 'zero':
-            return derivative
-        case 'periodic':
-            boundary_array = np.concatenate((data[-2*neighbors::],data[0:(2*neighbors + 1)]))
-            for _i in range(2*neighbors + 1):
-                derivative[-neighbors + _i] = np.sum(boundary_array[_i:(_i + 2*neighbors + 1)] * stencil)
-            return derivative
-        case 'internal':
-            # increase number of included neighbors to improve accuracy
-            neighbors += 1
-            positions = np.array(range(-neighbors,neighbors+1))
-            def corrected_point_top(index: int):
-                boundary_stencil = fornberg_stencil(order, positions + neighbors - index)
-                return np.sum(boundary_stencil*data[0:len(positions)])
-
-            def corrected_point_bottom(index: int):
-                boundary_stencil = fornberg_stencil(order, positions-neighbors+index)
-                return np.sum(boundary_stencil*data[(-len(positions))::])
-
-            for _i in range(neighbors):
-                derivative[_i] = corrected_point_top(_i)
-                derivative[-1 -_i] = corrected_point_bottom(_i)
-
-    return derivative
-
 
 def interpolate(x_out:np.ndarray, x_in: np.ndarray, y_in:np.ndarray, neighbors: int = 3, extrapolate: bool = False, derivative_order: int = 0, input_is_sorted: bool = True) -> np.ndarray:
     """

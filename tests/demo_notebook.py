@@ -28,7 +28,8 @@ def _(aw, np, plt):
         dx = x[1]-x[0]
         y = np.cos(x)
         y_derivative_analytic = -np.sin(x)
-        y_derivative = aw.numeric.uniform_derivative(y,1,order,boundary='periodic')/dx
+        y_derivative = aw.numeric.derivative(y,1,order)/dx
+        #y_derivative = aw.numeric.derivative_periodic(y,1,order)/dx
         return np.max(np.abs(y_derivative - y_derivative_analytic))
 
     N_pts_range = [16, 24, 32, 48, 64, 96, 128, 192, 256, 384, 512]
@@ -61,7 +62,7 @@ def _(mo):
 @app.cell
 def _(aw, np, plt, scipy):
     def plot_interpolate_test():
-        beta = 10.0
+        beta = 9.0
         x = np.real(np.linspace(0.0,16.0,64))
         x_fine = np.real(np.linspace(0.0,16.0,512))
         x2 = np.linspace(0.1,15.99,333)
@@ -75,7 +76,7 @@ def _(aw, np, plt, scipy):
 
         fig,ax = plt.subplots(2,1)
         ax[0].plot(x,y,'o', label="Input data")
-        ax[0].plot(x2,interpolated_rs, label="aw.numeric.interpolate")
+        ax[0].plot(x2, interpolated_rs, label="aw.numeric.interpolate")
         ax[0].plot(x2,interpolated_scipy,'--',label="scipy.interpolate.CubicSpline")
         ax[0].set_xlabel("x")
         ax[0].set_ylabel("y")
