@@ -209,6 +209,12 @@ fn find_maximum_location(y: &[f64], neighbors: i64) -> (f64, f64) {
 
     (location, interpolated_max)
 }
+
+fn interpolate_point_sorted_slice(x: f64, x_in: &[f64], y_in: &[f64]) -> f64 {
+    let stencil = fornberg_stencil(0, x_in, x);
+    stencil.iter().zip(y_in.iter()).map(|(a, b)| a * b).sum()
+}
+
 fn clamp_index(x0: i64, lower_bound: i64, upper_bound: i64) -> usize {
     let (lower, upper) = if lower_bound <= upper_bound {
         (lower_bound, upper_bound)
