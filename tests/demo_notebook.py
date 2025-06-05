@@ -12,7 +12,7 @@ def _():
     import matplotlib.pyplot as plt
     import scipy
     import timeit
-    return aw, mo, np, plt, scipy
+    return aw, mo, np, plt, scipy, timeit
 
 
 @app.cell
@@ -60,7 +60,7 @@ def _(mo):
 
 
 @app.cell
-def _(aw, np, plt, scipy):
+def _(aw, np, plt, scipy, timeit):
     def plot_interpolate_test():
         beta = 9.0
         x = np.real(np.linspace(0.0,16.0,64))
@@ -71,7 +71,7 @@ def _(aw, np, plt, scipy):
 
         y2 = np.sin(x2**2/beta)
 
-        interpolated_rs = aw.numeric.interpolate(x2, x,y, neighbors=3, extrapolate=False)
+        interpolated_rs = aw.numeric.interpolate(x2, x, y, neighbors=3, extrapolate=False)
         interpolated_scipy = scipy.interpolate.CubicSpline(x,y, extrapolate=False)(x2)
 
         fig,ax = plt.subplots(2,1)
@@ -87,7 +87,17 @@ def _(aw, np, plt, scipy):
         ax[1].set_ylabel("Error")
         ax[1].legend()
 
+    def benchmark_interpolations():
+        beta = 9.0
+        x = np.real(np.linspace(0.0,16.0,1600))
+        x2 = np.linspace(0.1,15.99,1700)
+        y = np.sin(x**2/beta)
+        y2 = np.sin(x2**2/beta)
+        print(f"aw.numeric.interpolate (s): {timeit.timeit(lambda: aw.numeric.interpolate(x2, x, y, neighbors=3), number=1000)}")
+        print(f"scipy.interpolate.CubicSpline (s) : {timeit.timeit(lambda: scipy.interpolate.CubicSpline(x,y, extrapolate=False)(x2), number=1000)}")
+
     plot_interpolate_test()
+    benchmark_interpolations()
     aw.plot.showmo()
     return
 
