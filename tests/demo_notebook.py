@@ -60,19 +60,20 @@ def _(mo):
 
 
 @app.cell
-def _(aw, np, plt, scipy, timeit):
+def _(aw, np, plt, scipy):
     def plot_interpolate_test():
-        beta = 9.0
+        def test_function(_x):
+            beta = 9.0
+            return np.sin(_x**2/beta)
         x = np.real(np.linspace(0.0,16.0,64))
         x_fine = np.real(np.linspace(0.0,16.0,512))
-        x2 = np.linspace(0.1,15.99,333)
-        y = np.sin(x**2/beta)
-        y_fine = np.sin(x_fine**2/beta)
+        x2 = np.linspace(0.01,15.99,333)
+        y = test_function(x)
+        y_fine = test_function(x_fine)
+        y2 = test_function(x2)
 
-        y2 = np.sin(x2**2/beta)
-
-        interpolated_rs = aw.numeric.interpolate(x2, x, y, neighbors=3, extrapolate=False)
-        interpolated_scipy = scipy.interpolate.CubicSpline(x,y, extrapolate=False)(x2)
+        interpolated_rs = aw.numeric.interpolate(x2, x, y, neighbors=3)
+        interpolated_scipy = scipy.interpolate.CubicSpline(x,y)(x2)
 
         fig,ax = plt.subplots(2,1)
         ax[0].plot(x,y,'o', label="Input data")
@@ -81,24 +82,29 @@ def _(aw, np, plt, scipy, timeit):
         ax[0].set_xlabel("x")
         ax[0].set_ylabel("y")
         ax[0].legend()
-        ax[1]. semilogy(x2, np.abs(y2 - interpolated_rs),label="aw.numeric.interpolate")
-        ax[1]. plot(x2, np.abs(y2 - interpolated_scipy),label="scipy.interpolate.CubicSpline")
+        ax[1].semilogy(x2, np.abs(y2 - interpolated_rs),label="aw.numeric.interpolate")
+        ax[1].plot(x2, np.abs(y2 - interpolated_scipy),label="scipy.interpolate.CubicSpline")
         ax[1].set_xlabel("x")
         ax[1].set_ylabel("Error")
         ax[1].legend()
 
+    plot_interpolate_test()
+    aw.plot.showmo()
+    return
+
+
+@app.cell
+def _(aw, np, scipy, timeit):
     def benchmark_interpolations():
         beta = 9.0
-        x = np.real(np.linspace(0.0,16.0,1600))
-        x2 = np.linspace(0.1,15.99,1700)
+        x = np.real(np.linspace(0.0,16.0,333))
+        x2 = np.linspace(0.1,15.99,777)
         y = np.sin(x**2/beta)
         y2 = np.sin(x2**2/beta)
-        print(f"aw.numeric.interpolate (s): {timeit.timeit(lambda: aw.numeric.interpolate(x2, x, y, neighbors=3), number=1000)}")
-        print(f"scipy.interpolate.CubicSpline (s) : {timeit.timeit(lambda: scipy.interpolate.CubicSpline(x,y, extrapolate=False)(x2), number=1000)}")
+        print(f"aw.numeric.interpolate: {timeit.timeit(lambda: aw.numeric.interpolate(x2, x, y, neighbors=3), number=10000)} seconds")
+        print(f"scipy.interpolate.CubicSpline: {timeit.timeit(lambda: scipy.interpolate.CubicSpline(x,y, extrapolate=False)(x2), number=10000)} seconds")
 
-    plot_interpolate_test()
     benchmark_interpolations()
-    aw.plot.showmo()
     return
 
 

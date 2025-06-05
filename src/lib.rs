@@ -282,14 +282,12 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
                 if (*index == 0 || *index as usize == x_in.len()) && !extrapolate {
                     0.0
                 } else {
-                    let mut clamped_index: usize =
-                        clamp_index(*index as i64, neighbors, x_in.len() as i64 - neighbors)
+                    let clamped_index: usize =
+                        clamp_index(*index as i64, neighbors, x_in.len() as i64 - neighbors - 1)
                             - neighbors as usize;
-
-                    let stencil_size: usize = if clamped_index == 0 {
-                        (2 * neighbors + 1) as usize
-                    } else if clamped_index as i64 == x_in.len() as i64 - 2 * neighbors {
-                        clamped_index -= 1usize;
+                    let stencil_size: usize = if clamped_index == 0
+                        || clamped_index as i64 == x_in.len() as i64 - 2 * neighbors - 1
+                    {
                         (2 * neighbors + 1) as usize
                     } else {
                         (2 * neighbors) as usize
@@ -301,10 +299,9 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
                         &x_in[clamped_index..(clamped_index + stencil_size)],
                         *x,
                     );
-                    y_in.iter()
-                        .skip(clamped_index)
-                        .take(stencil_size)
-                        .zip(stencil)
+                    stencil
+                        .iter()
+                        .zip(y_in.iter().skip(clamped_index))
                         .map(|(a, b)| a * b)
                         .sum()
                 }
