@@ -249,7 +249,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         x_out: PyReadonlyArrayDyn<'py, f64>,
         x_in: PyReadonlyArrayDyn<'py, f64>,
         y_in: PyReadonlyArrayDyn<'py, f64>,
-        locations: PyReadonlyArrayDyn<'py, usize>,
+        locations: PyReadonlyArrayDyn<'py, i64>,
         neighbors: i64,
         extrapolate: bool,
         derivative_order: usize,
@@ -270,7 +270,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         x_out: &[f64],
         x_in: &[f64],
         y_in: &[f64],
-        locations: &[usize],
+        locations: &[i64],
         neighbors: i64,
         extrapolate: bool,
         derivative_order: usize,
@@ -279,7 +279,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
             .par_iter()
             .zip(locations.par_iter())
             .map(|(x, index)| {
-                if (*index == 0 || *index == x_in.len()) && !extrapolate {
+                if (*index == 0 || *index as usize == x_in.len()) && !extrapolate {
                     0.0
                 } else {
                     let mut clamped_index: usize =
