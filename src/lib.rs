@@ -121,8 +121,8 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
     /// Internal version of fornberg_stencil() which takes positions by reference
     fn fornberg_stencil(order: usize, positions: &[f64], position_out: f64) -> Vec<f64> {
         let n_pos = positions.len();
-        let mut delta_current = vec![vec![0.0; order + 1]; n_pos];
-        let mut delta_previous = vec![vec![0.0; order + 1]; n_pos];
+        let mut delta_current = vec![vec![0.0; n_pos]; order + 1];
+        let mut delta_previous = vec![vec![0.0; n_pos]; order + 1];
         delta_current[0][0] = 1.0;
 
         let mut c1 = 1.0;
@@ -134,7 +134,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
                 c2 *= c3;
 
                 if n <= order {
-                    delta_previous[v][n] = 0.0;
+                    delta_previous[n][v] = 0.0;
                 }
 
                 let min_n_order = std::cmp::min(n, order);
@@ -142,11 +142,11 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
                     let last_element = if m == 0 {
                         0.0
                     } else {
-                        m as f64 * delta_previous[v][m - 1]
+                        m as f64 * delta_previous[m - 1][v]
                     };
 
-                    delta_current[v][m] =
-                        ((positions[n] - position_out) * delta_previous[v][m] - last_element) / c3;
+                    delta_current[m][v] =
+                        ((positions[n] - position_out) * delta_previous[m][v] - last_element) / c3;
                 }
             }
 
@@ -155,18 +155,17 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
                 let first_element = if m == 0 {
                     0.0
                 } else {
-                    m as f64 * delta_previous[n - 1][m - 1]
+                    m as f64 * delta_previous[m - 1][n - 1]
                 };
 
-                delta_current[n][m] = (c1 / c2)
+                delta_current[m][n] = (c1 / c2)
                     * (first_element
-                        - (positions[n - 1] - position_out) * delta_previous[n - 1][m]);
+                        - (positions[n - 1] - position_out) * delta_previous[m][n - 1]);
             }
 
             c1 = c2;
         }
-
-        (0..n_pos).map(|v| delta_current[v][order]).collect()
+        delta_current[order].clone()
     }
 
     fn find_maximum_location(y: &[f64], neighbors: i64) -> (f64, f64) {
