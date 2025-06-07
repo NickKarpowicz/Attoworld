@@ -22,7 +22,6 @@ def interpolate(x_out:np.ndarray, x_in: np.ndarray, y_in:np.ndarray, neighbors: 
             x_out,
             x_in,
             y_in,
-            np.searchsorted(x_in, x_out, side='left'),
             neighbors,
             extrapolate,
             derivative_order)
@@ -33,7 +32,6 @@ def interpolate(x_out:np.ndarray, x_in: np.ndarray, y_in:np.ndarray, neighbors: 
         x_out,
         x_in_sorted,
         y_in_sorted,
-        np.searchsorted(x_in_sorted, x_out, side='left'),
         neighbors,
         extrapolate,
         derivative_order)

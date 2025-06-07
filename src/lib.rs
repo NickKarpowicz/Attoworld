@@ -246,13 +246,12 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
     /// Returns:
     ///     np.ndarray: the interpolated y_out
     #[pyfn(m)]
-    #[pyo3(signature = (x_out, x_in, y_in, locations, /, neighbors=2, extrapolate=false, derivative_order=0))]
+    #[pyo3(signature = (x_out, x_in, y_in, /, neighbors=2, extrapolate=false, derivative_order=0))]
     fn interpolate_sorted_1d<'py>(
         py: Python<'py>,
         x_out: PyReadonlyArrayDyn<'py, f64>,
         x_in: PyReadonlyArrayDyn<'py, f64>,
         y_in: PyReadonlyArrayDyn<'py, f64>,
-        locations: PyReadonlyArrayDyn<'py, i64>,
         neighbors: i64,
         extrapolate: bool,
         derivative_order: usize,
@@ -261,7 +260,6 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
             x_out.as_slice().unwrap(),
             x_in.as_slice().unwrap(),
             y_in.as_slice().unwrap(),
-            locations.as_slice().unwrap(),
             neighbors,
             extrapolate,
             derivative_order,
@@ -273,7 +271,6 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         x_out: &[f64],
         x_in: &[f64],
         y_in: &[f64],
-        locations: &[i64],
         neighbors: i64,
         extrapolate: bool,
         derivative_order: usize,
@@ -281,13 +278,16 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         let core_stencil_size: usize = 2 * neighbors as usize;
         x_out
             .par_iter()
-            .zip(locations.par_iter())
-            .map(|(x, index)| {
-                if (*index == 0 || *index as usize == x_in.len()) && !extrapolate {
+            .map(|x| {
+                let index: usize = match x_in.binary_search_by(|a| a.partial_cmp(&x).unwrap()) {
+                    Ok(index) => index,
+                    Err(index) => index,
+                };
+                if (index == 0 || index == x_in.len()) && !extrapolate {
                     0.0
                 } else {
                     let clamped_index: usize =
-                        clamp_index(*index, neighbors, x_in.len() as i64 - neighbors - 1)
+                        clamp_index(index as i64, neighbors, x_in.len() as i64 - neighbors)
                             - neighbors as usize;
                     let stencil_size: usize = if clamped_index == 0
                         || clamped_index == x_in.len() - (core_stencil_size - 1) as usize

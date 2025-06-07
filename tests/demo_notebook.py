@@ -63,7 +63,7 @@ def _(mo):
 def _(aw, np, plt, scipy):
     def plot_interpolate_test():
         def test_function(_x):
-            beta = 9.0
+            beta = 11.0
             return np.sin(_x**2/beta)
         x = np.real(np.linspace(0.0,16.0,64))
         x_fine = np.real(np.linspace(0.0,16.0,512))
