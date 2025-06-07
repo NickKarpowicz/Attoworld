@@ -53,7 +53,7 @@ def _(mo):
     mo.md(
         r"""
     ## Check interpolate()
-    The interpolate function uses Fornberg's algorithm to generate interpolation stencils. It should have performance and accuracy similar to scipy's CubicSpline when neighbors=3.
+    The interpolate function uses Fornberg's algorithm to generate interpolation stencils. It should have performance and accuracy similar to scipy's CubicSpline when neighbors=3. It will be comparatively slower if you would have reused the same CubicSpline object for multiple interpolations, however.
     """
     )
     return
@@ -98,7 +98,7 @@ def _(aw, np, scipy, timeit):
     def benchmark_interpolations():
         beta = 9.0
         x = np.real(np.linspace(0.0,16.0,333))
-        x2 = np.linspace(0.1,15.99,777)
+        x2 = np.linspace(0.1,15.99,3333)
         y = np.sin(x**2/beta)
         y2 = np.sin(x2**2/beta)
         print(f"aw.numeric.interpolate: {timeit.timeit(lambda: aw.numeric.interpolate(x2, x, y, neighbors=3), number=10000)} seconds")

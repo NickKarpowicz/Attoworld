@@ -121,51 +121,55 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
     /// Internal version of fornberg_stencil() which takes positions by reference
     fn fornberg_stencil(order: usize, positions: &[f64], position_out: f64) -> Vec<f64> {
         let n_pos = positions.len();
-        let mut delta_current = vec![vec![0.0; n_pos]; order + 1];
-        let mut delta_previous = vec![vec![0.0; n_pos]; order + 1];
-        delta_current[0][0] = 1.0;
+        let cols = order + 1;
+        let mut delta_current = vec![0.0; n_pos * cols];
+        let mut delta_previous = vec![0.0; n_pos * cols];
+        delta_current[0] = 1.0;
 
         let mut c1 = 1.0;
+
         for n in 1..n_pos {
             std::mem::swap(&mut delta_previous, &mut delta_current);
             let mut c2 = 1.0;
+            let zero_previous = n <= order;
+            let min_n_order = std::cmp::min(n, order);
             for v in 0..n {
                 let c3 = positions[n] - positions[v];
                 c2 *= c3;
 
-                if n <= order {
-                    delta_previous[n][v] = 0.0;
+                if zero_previous {
+                    delta_previous[n * n_pos + v] = 0.0;
                 }
 
-                let min_n_order = std::cmp::min(n, order);
                 for m in 0..=min_n_order {
                     let last_element = if m == 0 {
                         0.0
                     } else {
-                        m as f64 * delta_previous[m - 1][v]
+                        m as f64 * delta_previous[(m - 1) * n_pos + v]
                     };
 
-                    delta_current[m][v] =
-                        ((positions[n] - position_out) * delta_previous[m][v] - last_element) / c3;
+                    delta_current[m * n_pos + v] = ((positions[n] - position_out)
+                        * delta_previous[m * n_pos + v]
+                        - last_element)
+                        / c3;
                 }
             }
 
-            let min_n_order = std::cmp::min(n, order);
             for m in 0..=min_n_order {
                 let first_element = if m == 0 {
                     0.0
                 } else {
-                    m as f64 * delta_previous[m - 1][n - 1]
+                    m as f64 * delta_previous[(m - 1) * n_pos + n - 1]
                 };
 
-                delta_current[m][n] = (c1 / c2)
+                delta_current[m * n_pos + n] = (c1 / c2)
                     * (first_element
-                        - (positions[n - 1] - position_out) * delta_previous[m][n - 1]);
+                        - (positions[n - 1] - position_out) * delta_previous[m * n_pos + n - 1]);
             }
 
             c1 = c2;
         }
-        delta_current[order].clone()
+        delta_current[order * n_pos..(order + 1) * n_pos].to_vec()
     }
 
     fn find_maximum_location(y: &[f64], neighbors: i64) -> (f64, f64) {
@@ -274,6 +278,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         extrapolate: bool,
         derivative_order: usize,
     ) -> Vec<f64> {
+        let core_stencil_size: usize = 2 * neighbors as usize;
         x_out
             .par_iter()
             .zip(locations.par_iter())
@@ -282,27 +287,26 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
                     0.0
                 } else {
                     let clamped_index: usize =
-                        clamp_index(*index as i64, neighbors, x_in.len() as i64 - neighbors - 1)
+                        clamp_index(*index, neighbors, x_in.len() as i64 - neighbors - 1)
                             - neighbors as usize;
                     let stencil_size: usize = if clamped_index == 0
-                        || clamped_index as i64 == x_in.len() as i64 - 2 * neighbors - 1
+                        || clamped_index == x_in.len() - (core_stencil_size - 1) as usize
                     {
-                        (2 * neighbors + 1) as usize
+                        core_stencil_size + 1
                     } else {
-                        (2 * neighbors) as usize
+                        core_stencil_size
                     };
 
                     //finite difference stencil with order 0 is interpolation
-                    let stencil = fornberg_stencil(
+                    fornberg_stencil(
                         derivative_order,
                         &x_in[clamped_index..(clamped_index + stencil_size)],
                         *x,
-                    );
-                    stencil
-                        .iter()
-                        .zip(y_in.iter().skip(clamped_index))
-                        .map(|(a, b)| a * b)
-                        .sum()
+                    )
+                    .iter()
+                    .zip(y_in.iter().skip(clamped_index))
+                    .map(|(a, b)| a * b)
+                    .sum()
                 }
             })
             .collect()
