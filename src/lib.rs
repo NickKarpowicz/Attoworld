@@ -232,13 +232,24 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         (location, interpolated_max)
     }
 
+    fn sort_paired_xy(x_in: &[f64], y_in: &[f64]) -> (Vec<f64>, Vec<f64>) {
+        let mut pairs: Vec<(f64, f64)> = x_in
+            .iter()
+            .zip(y_in.iter())
+            .map(|(a, b)| (*a, *b))
+            .collect();
+
+        pairs.par_sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        pairs.into_iter().unzip()
+    }
+
     /// Interpolate sorted data, given a list of intersection locations
     ///
     /// Args:
     ///     x_out (np.ndarray): array of output x values, the array onto which y_in will be interpolated
     ///     x_in (np.ndarray): array of input x values
     ///     y_in (np.ndarray): array of input y values
-    ///     locations (np.ndarray): array of approximate intersection points, np.searchsorted(x_in, x_out, side='left')
+    ///     inputs_are_sorted (bool): true is x_in values are in ascending order (default). Set to false for unsorted data.
     ///     neighbors (int): number of nearest neighbors to include in the interpolation
     ///     extrapolate (bool): unless set to true, values outside of the range of x_in will be zero
     ///     derivative_order(int): order of derivative to take. 0 (default) is plain interpolation, 1 takes first derivative, and so on.
@@ -246,25 +257,40 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
     /// Returns:
     ///     np.ndarray: the interpolated y_out
     #[pyfn(m)]
-    #[pyo3(signature = (x_out, x_in, y_in, /, neighbors=2, extrapolate=false, derivative_order=0))]
-    fn interpolate_sorted_1d<'py>(
+    #[pyo3(signature = (x_out, x_in, y_in,/, inputs_are_sorted=true, neighbors=2, extrapolate=false, derivative_order=0))]
+    fn interpolate<'py>(
         py: Python<'py>,
         x_out: PyReadonlyArrayDyn<'py, f64>,
         x_in: PyReadonlyArrayDyn<'py, f64>,
         y_in: PyReadonlyArrayDyn<'py, f64>,
+        inputs_are_sorted: bool,
         neighbors: i64,
         extrapolate: bool,
         derivative_order: usize,
     ) -> Bound<'py, PyArray1<f64>> {
-        interpolate_sorted_1d_slice(
-            x_out.as_slice().unwrap(),
-            x_in.as_slice().unwrap(),
-            y_in.as_slice().unwrap(),
-            neighbors,
-            extrapolate,
-            derivative_order,
-        )
-        .into_pyarray(py)
+        if inputs_are_sorted {
+            interpolate_sorted_1d_slice(
+                x_out.as_slice().unwrap(),
+                x_in.as_slice().unwrap(),
+                y_in.as_slice().unwrap(),
+                neighbors,
+                extrapolate,
+                derivative_order,
+            )
+            .into_pyarray(py)
+        } else {
+            let (x_in_sorted, y_in_sorted) =
+                sort_paired_xy(x_in.as_slice().unwrap(), y_in.as_slice().unwrap());
+            interpolate_sorted_1d_slice(
+                x_out.as_slice().unwrap(),
+                &x_in_sorted,
+                &y_in_sorted,
+                neighbors,
+                extrapolate,
+                derivative_order,
+            )
+            .into_pyarray(py)
+        }
     }
 
     fn interpolate_sorted_1d_slice(
