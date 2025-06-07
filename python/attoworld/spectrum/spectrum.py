@@ -26,8 +26,7 @@ def wavelength_to_frequency(wavelengths_nm: np.ndarray, spectrum: np.ndarray, fr
     #apply Jakobian scaling and use W/THz
     scaled_spectrum = 1e12 * constants.speed_of_light * spectrum / (input_frequencies**2)
 
-    indicies = np.argsort(input_frequencies)
-    scaled_spectrum = interpolate(frequencies, input_frequencies[indicies], scaled_spectrum[indicies])
+    scaled_spectrum = interpolate(frequencies, input_frequencies, scaled_spectrum, inputs_are_sorted=False)
 
     return frequencies, scaled_spectrum
 

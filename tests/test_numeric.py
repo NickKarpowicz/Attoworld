@@ -3,7 +3,7 @@ import numpy as np
 
 def test_fornberg_stencil():
     np.testing.assert_allclose(
-        aw.numeric.fornberg_stencil(2, np.array([-1, 0, 1])),
+        aw.numeric.fornberg_stencil(2, np.array([-1.0, 0.0, 1.0])),
         np.array([1.0, -2.0, 1.0])
     )
 
