@@ -6,13 +6,11 @@ def dark_plot():
     """
     rcParams['font.family'] = 'sans-serif'
     rcParams['font.sans-serif'] = ['Helvetica', 'Arial', 'Verdana', 'DejaVu Sans', 'Liberation Sans', 'Bitstream Vera Sans', 'sans-serif']
-    rcParams['axes.prop_cycle'] = cycler(color=["cyan", "magenta", "orange", "purple"])
-    rcParams['font.family'] = 'sans-serif'
-    rcParams['font.sans-serif'] = ['Helvetica', 'Arial', 'Verdana', 'DejaVu Sans', 'Liberation Sans', 'Bitstream Vera Sans', 'sans-serif']
-    rcParams['figure.facecolor'] = 'black'
-    rcParams['figure.edgecolor'] = 'black'
-    rcParams['savefig.facecolor'] = 'black'
-    rcParams['savefig.edgecolor'] = 'black'
+    rcParams['axes.prop_cycle'] = cycler(color=["cyan", "magenta", "orange", "blueviolet", "lime"])
+    rcParams['figure.facecolor'] = '#171717'
+    rcParams['figure.edgecolor'] = rcParams['figure.facecolor']
+    rcParams['savefig.facecolor'] = rcParams['figure.facecolor']
+    rcParams['savefig.edgecolor'] = rcParams['figure.facecolor']
     rcParams['axes.facecolor'] = 'black'
     rcParams['text.color'] = 'white'
     rcParams['axes.edgecolor'] = 'white'

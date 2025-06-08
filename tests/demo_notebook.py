@@ -12,6 +12,7 @@ def _():
     import matplotlib.pyplot as plt
     import scipy
     import timeit
+    aw.plot.set_style('light')
     return aw, mo, np, plt, scipy, timeit
 
 

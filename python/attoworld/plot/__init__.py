@@ -3,8 +3,8 @@ This module will contain functions for plotting, and for formatting plots, with 
 more easily obtaining a consistent style across plots made by different co-authors.
 """
 
-from .plot import showmo
+from .plot import showmo, set_style
 
 __all__ = [
-    "showmo"
+    "showmo", "set_style"
 ]
