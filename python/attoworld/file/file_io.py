@@ -11,7 +11,7 @@ def load_waves_from_matfile(phase: float, filename: str):
         time_delay: array of time delay values
         signal: signals corresponding to the time delays
     """
-    # Contributed by Nick Karpowicz
+
     datablob = sio.loadmat(filename)
     stage_position = datablob['xdata'][0,:]
     time_delay = -2e-3 * stage_position/2.9979e8

@@ -6,8 +6,8 @@ from .UVSpectrumAnalysis import load_calibration_data, smooth, tukey_f, tukey_wi
 from .VISSpectrumAnalysis import eliminate_outliers, read_spectrum_maya, read_spectrum_ocean_optics, asymmetric_tukey_f, asymmetric_tukey_window, SpectrumHandler, MultiSpectrumHandler
 
 __all__ = [
-    "wavelength_to_frequency"
-    "transform_limited_pulse_from_spectrometer"
+    "wavelength_to_frequency",
+    "transform_limited_pulse_from_spectrometer",
     "load_calibration_data",
     "smooth",
     "tukey_f",

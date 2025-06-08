@@ -103,9 +103,9 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
     ///
     /// Examples:
     ///
-    ///     >>> stencil = fornberg_stencil(1, [-1,0,1])
+    ///     >>> stencil = fornberg_stencil(1, np.array([-1.0, 0.0, 1.0]))
     ///     >>> print(stencil)
-    ///     [-0.5 0. 0.5]
+    ///     [-0.5  0.   0.5]
     #[pyfn(m)]
     #[pyo3(name = "fornberg_stencil")]
     #[pyo3(signature = (order, positions, position_out = 0.0, /))]

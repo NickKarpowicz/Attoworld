@@ -14,7 +14,7 @@ def align_waves(waves, dt: float, frequency_roi_start: float, frequency_roi_stop
     Returns:
         np.ndarray: set of aligned waves
     """
-    # Contributed by Nick Karpowicz
+
     waves_f = np.array(waves)
 
     #windowing and offset removal
@@ -66,7 +66,7 @@ def mean_offset_tukey(signal):
     Returns:
         np.ndarray: the modified signal
     """
-    # Contributed by Nick Karpowicz
+
     mean_signal = np.mean(signal,axis=0)
     mean_signal -= np.mean(mean_signal)
     mean_signal *= sig.windows.tukey(mean_signal.shape[0])
@@ -90,7 +90,7 @@ def filtered_impulse_response(E_signal, E_reference, dt: float, filter_f0: float
     Returns:
         np.ndarray: the impuse response
     """
-    # Contributed by Nick Karpowicz
+
     E_signal_f = np.fft.fft(E_signal)
     E_reference_f = np.fft.fft(E_reference)
     f = np.fft.fftfreq(E_signal.shape[0], dt)
@@ -128,7 +128,7 @@ def minimize_response_difference(response, reference):
     Returns:
         np.ndarray: The modified reference field
     """
-    # Contributed by Nick Karpowicz
+
     #construct initial guess of the time, phase, and amplitude offsets
     peak_location_response = np.argmax(np.abs(response))
     peak_location_reference = np.argmax(np.abs(reference))
@@ -161,7 +161,7 @@ def get_effective_response(E_signal, E_reference, dt: float, filter_f0: float, f
     Returns:
         np.ndarray: the impuse response
     """
-    # Contributed by Nick Karpowicz
+
     analytic_signal = sig.hilbert(np.real(E_signal))
     analytic_reference = sig.hilbert(np.real(E_reference))
 
