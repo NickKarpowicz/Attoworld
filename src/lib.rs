@@ -21,8 +21,8 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
     fn find_maximum_location_wrapper<'py>(
         y: PyReadonlyArrayDyn<'py, f64>,
         neighbors: i64,
-    ) -> (f64, f64) {
-        find_maximum_location(y.as_slice().unwrap(), neighbors)
+    ) -> PyResult<(f64, f64)> {
+        Ok(find_maximum_location(y.as_slice()?, neighbors))
     }
 
     /// Find the first intercept with a value
@@ -38,8 +38,12 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         y: PyReadonlyArrayDyn<'py, f64>,
         intercept_value: f64,
         neighbors: usize,
-    ) -> f64 {
-        find_first_intercept(y.as_slice().unwrap(), intercept_value, neighbors)
+    ) -> PyResult<f64> {
+        Ok(find_first_intercept(
+            y.as_slice()?,
+            intercept_value,
+            neighbors,
+        ))
     }
 
     /// Find the last intercept with a value
@@ -55,8 +59,12 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         y: PyReadonlyArrayDyn<'py, f64>,
         intercept_value: f64,
         neighbors: usize,
-    ) -> f64 {
-        find_last_intercept(y.as_slice().unwrap(), intercept_value, neighbors)
+    ) -> PyResult<f64> {
+        Ok(find_last_intercept(
+            y.as_slice()?,
+            intercept_value,
+            neighbors,
+        ))
     }
 
     /// Find the full-width-at-half-maximum value of a continuously-spaced distribution.
@@ -76,19 +84,13 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         dx: f64,
         intercept_value: f64,
         neighbors: usize,
-    ) -> f64 {
-        let (_, max_value) = find_maximum_location(y.as_slice().unwrap(), neighbors as i64);
-        let first_intercept = find_first_intercept(
-            y.as_slice().unwrap(),
-            max_value * intercept_value,
-            neighbors,
-        );
-        let last_intercept = find_last_intercept(
-            y.as_slice().unwrap(),
-            max_value * intercept_value,
-            neighbors,
-        );
-        dx * (last_intercept - first_intercept)
+    ) -> PyResult<f64> {
+        let (_, max_value) = find_maximum_location(y.as_slice()?, neighbors as i64);
+        let first_intercept =
+            find_first_intercept(y.as_slice()?, max_value * intercept_value, neighbors);
+        let last_intercept =
+            find_last_intercept(y.as_slice()?, max_value * intercept_value, neighbors);
+        Ok(dx * (last_intercept - first_intercept))
     }
 
     /// Generate a finite difference stencil using the algorithm described by B. Fornberg
@@ -114,8 +116,8 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         order: usize,
         positions: PyReadonlyArrayDyn<'py, f64>,
         position_out: f64,
-    ) -> Bound<'py, PyArray1<f64>> {
-        fornberg_stencil(order, positions.as_slice().unwrap(), position_out).into_pyarray(py)
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
+        Ok(fornberg_stencil(order, positions.as_slice()?, position_out).into_pyarray(py))
     }
 
     /// Internal version of fornberg_stencil() which takes positions by reference
@@ -267,29 +269,28 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         neighbors: i64,
         extrapolate: bool,
         derivative_order: usize,
-    ) -> Bound<'py, PyArray1<f64>> {
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
         if inputs_are_sorted {
-            interpolate_sorted_1d_slice(
-                x_out.as_slice().unwrap(),
-                x_in.as_slice().unwrap(),
-                y_in.as_slice().unwrap(),
+            Ok(interpolate_sorted_1d_slice(
+                x_out.as_slice()?,
+                x_in.as_slice()?,
+                y_in.as_slice()?,
                 neighbors,
                 extrapolate,
                 derivative_order,
             )
-            .into_pyarray(py)
+            .into_pyarray(py))
         } else {
-            let (x_in_sorted, y_in_sorted) =
-                sort_paired_xy(x_in.as_slice().unwrap(), y_in.as_slice().unwrap());
-            interpolate_sorted_1d_slice(
-                x_out.as_slice().unwrap(),
+            let (x_in_sorted, y_in_sorted) = sort_paired_xy(x_in.as_slice()?, y_in.as_slice()?);
+            Ok(interpolate_sorted_1d_slice(
+                x_out.as_slice()?,
                 &x_in_sorted,
                 &y_in_sorted,
                 neighbors,
                 extrapolate,
                 derivative_order,
             )
-            .into_pyarray(py)
+            .into_pyarray(py))
         }
     }
 
@@ -355,8 +356,8 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         y: PyReadonlyArrayDyn<'py, f64>,
         order: usize,
         neighbors: usize,
-    ) -> Bound<'py, PyArray1<f64>> {
-        derivative(y.as_slice().unwrap(), order, neighbors).into_pyarray(py)
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
+        Ok(derivative(y.as_slice()?, order, neighbors).into_pyarray(py))
     }
     ///     Use a Fornberg stencil to take a derivative of arbitrary order and accuracy, handling the edge
     /// by treating it as a periodic boundary
@@ -375,8 +376,8 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         y: PyReadonlyArrayDyn<'py, f64>,
         order: usize,
         neighbors: usize,
-    ) -> Bound<'py, PyArray1<f64>> {
-        derivative_periodic(y.as_slice().unwrap(), order, neighbors).into_pyarray(py)
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
+        Ok(derivative_periodic(y.as_slice()?, order, neighbors).into_pyarray(py))
     }
 
     fn derivative(y: &[f64], order: usize, neighbors: usize) -> Vec<f64> {
