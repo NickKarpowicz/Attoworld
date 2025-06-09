@@ -139,9 +139,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         let mut delta_current = vec![0.0; n_pos * cols];
         let mut delta_previous = vec![0.0; n_pos * cols];
         delta_current[0] = 1.0;
-
         let mut c1 = 1.0;
-
         for n in 1..n_pos {
             std::mem::swap(&mut delta_previous, &mut delta_current);
             let mut c2 = 1.0;
@@ -183,7 +181,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
 
             c1 = c2;
         }
-        delta_current[order * n_pos..(order + 1) * n_pos].to_vec()
+        delta_current[order * n_pos..cols * n_pos].to_vec()
     }
 
     fn find_maximum_location(y: &[f64], neighbors: i64) -> Result<(f64, f64), ()> {
@@ -212,32 +210,28 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
             .collect();
         let mut derivatives: Vec<f64> = vec![0.0; (2 * neighbors) as usize + 1usize];
         for n in 0usize..=((2 * neighbors) as usize) {
-            let stencil = fornberg_stencil(
+            derivatives[n] = fornberg_stencil(
                 1usize,
                 &stencil_positions,
                 (max_index - 1) as f64 + (n as f64) / (neighbors as f64),
-            );
-            derivatives[n] = stencil
-                .iter()
-                .zip(y[start_index..(start_index + 2 * neighbors as usize)].iter())
-                .map(|(x, y)| x * y)
-                .sum();
+            )
+            .iter()
+            .zip(y[start_index..(start_index + 2 * neighbors as usize)].iter())
+            .map(|(x, y)| x * y)
+            .sum();
         }
 
         let zero_xing_positions: Vec<f64> = (0..=(2 * neighbors))
             .map(|x| (max_index - 1) as f64 + (x as f64) / (neighbors as f64))
             .collect();
-        let zero_xing_stencil = fornberg_stencil(0, &derivatives, 0.0);
 
-        let location: f64 = zero_xing_stencil
+        let location: f64 = fornberg_stencil(0, &derivatives, 0.0)
             .iter()
             .zip(zero_xing_positions.iter())
             .map(|(x, y)| x * y)
             .sum();
 
-        let interpolation_stencil = fornberg_stencil(0usize, &stencil_positions, location);
-
-        let interpolated_max = interpolation_stencil
+        let interpolated_max = fornberg_stencil(0usize, &stencil_positions, location)
             .iter()
             .zip(y[start_index..(start_index + 2 * neighbors as usize)].iter())
             .map(|(x, y)| x * y)
@@ -246,13 +240,13 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         Ok((location, interpolated_max))
     }
 
+    /// Sort x,y values in two slices such that x values are in ascending order
     fn sort_paired_xy(x_in: &[f64], y_in: &[f64]) -> (Vec<f64>, Vec<f64>) {
         let mut pairs: Vec<(f64, f64)> = x_in
             .iter()
             .zip(y_in.iter())
             .map(|(a, b)| (*a, *b))
             .collect();
-
         pairs.par_sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Greater));
         pairs.into_iter().unzip()
     }
@@ -318,12 +312,9 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         x_out
             .par_iter()
             .map(|x| {
-                let index: usize = match x_in
+                let index: usize = x_in
                     .binary_search_by(|a| a.partial_cmp(&x).unwrap_or(std::cmp::Ordering::Greater))
-                {
-                    Ok(index) => index,
-                    Err(index) => index,
-                };
+                    .unwrap_or_else(|e| e);
                 if (index == 0 || index == x_in.len()) && !extrapolate {
                     0.0
                 } else {
@@ -352,7 +343,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
             .collect()
     }
 
-    ///     Use a Fornberg stencil to take a derivative of arbitrary order and accuracy, handling the edge
+    /// Use a Fornberg stencil to take a derivative of arbitrary order and accuracy, handling the edge
     /// by using modified stencils that only use internal points.
     ///
     /// Args:
@@ -372,7 +363,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
     ) -> PyResult<Bound<'py, PyArray1<f64>>> {
         Ok(derivative(y.as_slice()?, order, neighbors).into_pyarray(py))
     }
-    ///     Use a Fornberg stencil to take a derivative of arbitrary order and accuracy, handling the edge
+    /// Use a Fornberg stencil to take a derivative of arbitrary order and accuracy, handling the edge
     /// by treating it as a periodic boundary
     ///
     /// Args:
