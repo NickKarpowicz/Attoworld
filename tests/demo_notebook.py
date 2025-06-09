@@ -136,7 +136,7 @@ def _(N_pts_range, aw, np, plt):
             x = np.linspace(-5, 5, N_pts_range[i])
             dx = x[1]-x[0]
             y = np.exp(-x**2/2)
-            fwhm.append(aw.attoworld_rs.fwhm(y, dx))
+            fwhm.append(aw.attoworld_rs.fwhm(y, dx,neighbors=2))
             fwhm_th.append(old_fwhm(y,x))
             dx_array.append(dx)
         plt.loglog(N_pts_range, dx_array, label="time step")

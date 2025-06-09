@@ -22,7 +22,12 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         y: PyReadonlyArrayDyn<'py, f64>,
         neighbors: i64,
     ) -> PyResult<(f64, f64)> {
-        Ok(find_maximum_location(y.as_slice()?, neighbors))
+        match find_maximum_location(y.as_slice()?, neighbors) {
+            Ok(result) => Ok(result),
+            Err(()) => Err(pyo3::PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "No maximum value possible; does the array contain a NaN value?",
+            )),
+        }
     }
 
     /// Find the first intercept with a value
@@ -85,7 +90,14 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         intercept_value: f64,
         neighbors: usize,
     ) -> PyResult<f64> {
-        let (_, max_value) = find_maximum_location(y.as_slice()?, neighbors as i64);
+        let (_, max_value) = match find_maximum_location(y.as_slice()?, neighbors as i64) {
+            Ok(value) => value,
+            Err(_) => {
+                return Err(pyo3::PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                    "No maximum value possible; does the array contain a NaN value?",
+                ))
+            }
+        };
         let first_intercept =
             find_first_intercept(y.as_slice()?, max_value * intercept_value, neighbors);
         let last_intercept =
@@ -174,12 +186,12 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         delta_current[order * n_pos..(order + 1) * n_pos].to_vec()
     }
 
-    fn find_maximum_location(y: &[f64], neighbors: i64) -> (f64, f64) {
+    fn find_maximum_location(y: &[f64], neighbors: i64) -> Result<(f64, f64), ()> {
         let max_index: i64 = y
             .iter()
             .enumerate()
-            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-            .unwrap()
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Greater))
+            .ok_or(())?
             .0 as i64;
 
         let start_index: usize =
@@ -231,7 +243,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
             .map(|(x, y)| x * y)
             .sum();
 
-        (location, interpolated_max)
+        Ok((location, interpolated_max))
     }
 
     fn sort_paired_xy(x_in: &[f64], y_in: &[f64]) -> (Vec<f64>, Vec<f64>) {
@@ -241,7 +253,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
             .map(|(a, b)| (*a, *b))
             .collect();
 
-        pairs.par_sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        pairs.par_sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Greater));
         pairs.into_iter().unzip()
     }
 
@@ -306,7 +318,9 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         x_out
             .par_iter()
             .map(|x| {
-                let index: usize = match x_in.binary_search_by(|a| a.partial_cmp(&x).unwrap()) {
+                let index: usize = match x_in
+                    .binary_search_by(|a| a.partial_cmp(&x).unwrap_or(std::cmp::Ordering::Greater))
+                {
                     Ok(index) => index,
                     Err(index) => index,
                 };
@@ -323,7 +337,6 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
                     } else {
                         core_stencil_size
                     };
-
                     //finite difference stencil with order 0 is interpolation
                     fornberg_stencil(
                         derivative_order,
@@ -459,15 +472,25 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
                 .enumerate()
                 .skip(range_start)
                 .take(2 * neighbors)
-                .scan((None, None), |state, (index, value)| {
-                    if state.0.is_none() || *value > state.1.unwrap() {
+                .scan((None, None), |state, (index, value)| match state.0 {
+                    Some(_) => match state.1 {
+                        Some(v) => {
+                            if *value > v {
+                                state.0 = Some(index);
+                                state.1 = Some(*value);
+                                Some(Some(index))
+                            } else {
+                                state.0 = Some(index);
+                                state.1 = Some(*value);
+                                Some(None)
+                            }
+                        }
+                        None => Some(Some(index)),
+                    },
+                    None => {
                         state.0 = Some(index);
                         state.1 = Some(*value);
                         Some(Some(index))
-                    } else {
-                        state.0 = Some(index);
-                        state.1 = Some(*value);
-                        Some(None)
                     }
                 })
                 .flatten()
