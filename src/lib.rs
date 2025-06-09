@@ -133,7 +133,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
     }
 
     /// Internal version of fornberg_stencil() which takes positions by reference
-    fn fornberg_stencil(order: usize, positions: &[f64], position_out: f64) -> Vec<f64> {
+    fn fornberg_stencil(order: usize, positions: &[f64], position_out: f64) -> Box<[f64]> {
         let n_pos = positions.len();
         let cols = order + 1;
         let mut delta_current = vec![0.0; n_pos * cols];
@@ -181,7 +181,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
 
             c1 = c2;
         }
-        delta_current[order * n_pos..cols * n_pos].to_vec()
+        delta_current[order * n_pos..cols * n_pos].into()
     }
 
     fn find_maximum_location(y: &[f64], neighbors: i64) -> Result<(f64, f64), ()> {
@@ -307,7 +307,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         neighbors: i64,
         extrapolate: bool,
         derivative_order: usize,
-    ) -> Vec<f64> {
+    ) -> Box<[f64]> {
         let core_stencil_size: usize = 2 * neighbors as usize;
         x_out
             .par_iter()
@@ -384,12 +384,13 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         Ok(derivative_periodic(y.as_slice()?, order, neighbors).into_pyarray(py))
     }
 
-    fn derivative(y: &[f64], order: usize, neighbors: usize) -> Vec<f64> {
-        let positions: Vec<f64> = (0..(2 * neighbors + 1))
+    fn derivative(y: &[f64], order: usize, neighbors: usize) -> Box<[f64]> {
+        let positions: Box<[f64]> = (0..(2 * neighbors + 1))
             .map(|a| a as f64 - neighbors as f64)
             .collect();
-        let front_edge_positions: Vec<f64> = (0..=(2 * neighbors + 2)).map(|a| a as f64).collect();
-        let rear_edge_positions: Vec<f64> = front_edge_positions
+        let front_edge_positions: Box<[f64]> =
+            (0..=(2 * neighbors + 2)).map(|a| a as f64).collect();
+        let rear_edge_positions: Box<[f64]> = front_edge_positions
             .iter()
             .map(|a| a + (y.len() - 2 * neighbors - 3) as f64)
             .collect();
@@ -421,8 +422,8 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
             .collect()
     }
 
-    fn derivative_periodic(y: &[f64], order: usize, neighbors: usize) -> Vec<f64> {
-        let positions: Vec<f64> = (0..(2 * neighbors + 1))
+    fn derivative_periodic(y: &[f64], order: usize, neighbors: usize) -> Box<[f64]> {
+        let positions: Box<[f64]> = (0..(2 * neighbors + 1))
             .map(|a| a as f64 - neighbors as f64)
             .collect();
         let stencil = fornberg_stencil(order, &positions, 0.0);
@@ -487,15 +488,14 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
                 .flatten()
                 .collect();
 
-            let x_positions: Vec<f64> = range_i.iter().map(|x| *x as f64).collect();
-            let y_values: Vec<f64> = y_iter
+            let x_positions: Box<[f64]> = range_i.iter().map(|x| *x as f64).collect();
+            let y_values: Box<[f64]> = y_iter
                 .enumerate()
                 .skip(range_start)
                 .take(2 * neighbors)
                 .filter_map(|(index, value)| range_i.contains(&index).then(|| *value))
                 .collect();
-            let stencil = fornberg_stencil(0, &y_values, intercept_value);
-            stencil
+            fornberg_stencil(0, &y_values, intercept_value)
                 .iter()
                 .zip(x_positions.iter())
                 .map(|(a, b)| a * b)
