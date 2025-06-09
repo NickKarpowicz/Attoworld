@@ -1,4 +1,5 @@
-from matplotlib import rcParams, cycler
+from matplotlib import rcParams
+from cycler import cycler
 
 def dark_plot():
     """
