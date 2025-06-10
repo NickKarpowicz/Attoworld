@@ -11,49 +11,88 @@ def showmo():
     plt.savefig(svg_buffer, format='svg')
     return mo.Html(svg_buffer.getvalue())
 
-def set_style(mode: str = 'light'):
+def set_style(theme: str = 'light', font_size: int = 11):
     """
     Set colors and fonts for matplotlib plots
 
     Args:
-        mode (str): Select font and colors.
+        mode (str): Select color theme.
                     Options:
                         ```light```: color-blind friendly colors (default)
                         ```nick_dark```: dark mode that matches Nick's slides
     """
-    match mode:
+    plt.rcParams.update({
+    'font.size': font_size,
+    'xtick.labelsize': 0.9 * font_size,
+    'ytick.labelsize': 0.9 * font_size,
+    'legend.fontsize': 0.9 * font_size})
+    match theme:
         case 'nick_dark':
-            plt.rcParams.update({'font.sans-serif': ['Helvetica', 'Arial', 'Verdana', 'DejaVu Sans', 'Liberation Sans', 'Bitstream Vera Sans', 'sans-serif']})
-            plt.rcParams.update({'font.family': 'sans-serif'})
-            plt.rcParams.update({'axes.prop_cycle': cycler(color=["cyan", "magenta", "orange", "blueviolet", "lime"])})
-            plt.rcParams.update({'figure.facecolor': '#171717'})
-            plt.rcParams.update({'figure.edgecolor': '#171717'})
-            plt.rcParams.update({'savefig.facecolor': '#171717'})
-            plt.rcParams.update({'savefig.edgecolor': '#171717'})
-            plt.rcParams.update({'axes.facecolor': 'black'})
-            plt.rcParams.update({'text.color': 'white'})
-            plt.rcParams.update({'axes.edgecolor': 'white'})
-            plt.rcParams.update({'axes.labelcolor': 'white'})
-            plt.rcParams.update({'xtick.color': 'white'})
-            plt.rcParams.update({'ytick.color': 'white'})
-            plt.rcParams.update({'grid.color': 'white'})
-            plt.rcParams.update({'lines.color': 'white'})
+            plt.rcParams.update({
+            'font.sans-serif': ['Helvetica', 'Arial', 'Verdana', 'DejaVu Sans', 'Liberation Sans', 'Bitstream Vera Sans', 'sans-serif'],
+            'font.family': 'sans-serif',
+            'axes.prop_cycle': cycler(color=["cyan", "magenta", "orange", "blueviolet", "lime"]),
+            'figure.facecolor': '#171717',
+            'figure.edgecolor': '#171717',
+            'savefig.facecolor': '#171717',
+            'savefig.edgecolor': '#171717',
+            'axes.facecolor': 'black',
+            'text.color': 'white',
+            'axes.edgecolor': 'white',
+            'axes.labelcolor': 'white',
+            'xtick.color': 'white',
+            'ytick.color': 'white',
+            'grid.color': 'white',
+            'lines.color': 'white',
+            'figure.autolayout': True
+            })
         # Light case is combined with _, which will capture anything else that didn't match.
         # It must be the last case, for that reason.
         case 'light' | _:
-            plt.rcParams.update({'font.sans-serif': ['Helvetica', 'Arial', 'Verdana', 'DejaVu Sans', 'Liberation Sans', 'Bitstream Vera Sans', 'sans-serif']})
-            plt.rcParams.update({'font.family': 'sans-serif'})
+            plt.rcParams.update({'font.sans-serif': ['Helvetica', 'Arial', 'Verdana', 'DejaVu Sans', 'Liberation Sans', 'Bitstream Vera Sans', 'sans-serif'],
+            'font.family': 'sans-serif',
             #colorblind-friendly color cycle from https://gist.github.com/thriveth/8560036
-            plt.rcParams.update({'axes.prop_cycle': cycler(color=['#377eb8', '#ff7f00', '#4daf4a', '#f781bf', '#a65628', '#984ea3', '#999999', '#e41a1c', '#dede00'])})
-            plt.rcParams.update({'figure.facecolor': 'white'})
-            plt.rcParams.update({'figure.edgecolor':'white'})
-            plt.rcParams.update({'savefig.facecolor': 'white'})
-            plt.rcParams.update({'savefig.edgecolor': 'white'})
-            plt.rcParams.update({'axes.facecolor': 'white'})
-            plt.rcParams.update({'text.color': 'black'})
-            plt.rcParams.update({'axes.edgecolor': 'black'})
-            plt.rcParams.update({'axes.labelcolor': 'black'})
-            plt.rcParams.update({'xtick.color': 'black'})
-            plt.rcParams.update({'ytick.color': 'black'})
-            plt.rcParams.update({'grid.color': 'black'})
-            plt.rcParams.update({'lines.color': 'black'})
+            'axes.prop_cycle': cycler(color=['#377eb8', '#ff7f00', '#4daf4a', '#f781bf', '#a65628', '#984ea3', '#999999', '#e41a1c', '#dede00']),
+            'figure.facecolor': 'white',
+            'figure.edgecolor':'white',
+            'savefig.facecolor': 'white',
+            'savefig.edgecolor': 'white',
+            'axes.facecolor': 'white',
+            'text.color': 'black',
+            'axes.edgecolor': 'black',
+            'axes.labelcolor': 'black',
+            'xtick.color': 'black',
+            'ytick.color': 'black',
+            'grid.color': 'black',
+            'lines.color': 'black'})
+
+def label_letter(
+    axis = plt.gca(),
+    letter: str = 'a',
+    style: str = 'Nature',
+    x_position: float = -0.14,
+    y_position: float = 1.08):
+        """
+        Put a letter in the corner of a set of axes to label them
+
+        Args:
+            axis: The axes to use (default is current ones)
+            letter (str): The letter to use
+            style (str): The journal style to apply. Options are ```Nature```, ```Science```, and ```OSA```
+            x_position (float): where to put the label horizontally relative to the axes of the figure
+            y_position (float): vertical position
+
+        """
+        letter_string = f'{letter}'
+        fontweight = 'normal'
+        match style:
+            case 'Nature':
+                fontweight = 'bold'
+            case 'Science':
+                fontweight = 'bold'
+                letter_string = letter_string.upper()
+            case 'OSA':
+                letter_string = '('+letter_string+')'
+                fontweight = 'bold'
+
+        axis.text(x_position, y_position, letter_string, transform=axis.transAxes, fontweight=fontweight)

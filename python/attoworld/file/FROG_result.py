@@ -223,7 +223,7 @@ class FrogResult:
         fig, ax = plt.subplots(figsize=[6.4, 4.8])
         ax.set_title('Reconstruction')
         X, Y = np.meshgrid(self.rec_taxis, self.rec_faxis)
-        ax.pcolormesh(X, Y * 1.e-3, self.reconstruct)
+        ax.pcolormesh(X, Y * 1.e-3, self.reconstruct, rasterized=True)
         ax.set_xlabel('time (fs)')
         ax.set_ylabel('frequency (PHz)')
         if low_lim_t is not None and up_lim_t is not None:
