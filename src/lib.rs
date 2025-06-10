@@ -184,6 +184,10 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         delta_current[order * n_pos..cols * n_pos].into()
     }
 
+    /// find the interpolated location and maximum value of a distribution
+    /// Returns:
+    ///     (location , interpolated maximum) both as f64, where the digits after location
+    ///     indicate where between the pixels the interpolated position sits
     fn find_maximum_location(y: &[f64], neighbors: i64) -> Result<(f64, f64), ()> {
         let max_index: i64 = y
             .iter()
@@ -301,7 +305,18 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
             .into_pyarray(py))
         }
     }
-
+    /// Interpolate sorted data, given a list of intersection locations
+    ///
+    /// Args:
+    ///     x_out: array of output x values, the array onto which y_in will be interpolated
+    ///     x_in: array of input x values
+    ///     y_in: array of input y values
+    ///     neighbors: number of nearest neighbors to include in the interpolation
+    ///     extrapolate: unless set to true, values outside of the range of x_in will be zero
+    ///     derivative_order: order of derivative to take. 0 (default) is plain interpolation, 1 takes first derivative, and so on.
+    ///
+    /// Returns:
+    ///     the interpolated y_out
     fn interpolate_sorted_1d_slice(
         x_out: &[f64],
         x_in: &[f64],
@@ -385,7 +400,15 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
     ) -> PyResult<Bound<'py, PyArray1<f64>>> {
         Ok(derivative_periodic(y.as_slice()?, order, neighbors).into_pyarray(py))
     }
-
+    /// Use a Fornberg stencil to take a derivative of arbitrary order and accuracy, handling the edge
+    /// by treating it as a periodic boundary
+    ///
+    /// Args:
+    ///     data: the data whose derivative should be taken
+    ///     order: the order of the derivative
+    ///     neighbors: the number of nearest neighbors to consider in each direction.
+    /// Returns:
+    ///     the derivative
     fn derivative(y: &[f64], order: usize, neighbors: usize) -> Box<[f64]> {
         let positions: Box<[f64]> = (0..(2 * neighbors + 1))
             .map(|a| a as f64 - neighbors as f64)
@@ -424,6 +447,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
             .collect()
     }
 
+    /// similar to derivative() but the boundary conditions are periodic
     fn derivative_periodic(y: &[f64], order: usize, neighbors: usize) -> Box<[f64]> {
         let positions: Box<[f64]> = (0..(2 * neighbors + 1))
             .map(|a| a as f64 - neighbors as f64)
@@ -440,6 +464,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
             .collect()
     }
 
+    /// give a usize index based on an i64, clamping it within bounds
     fn clamp_index(x0: i64, lower_bound: i64, upper_bound: i64) -> usize {
         let (lower, upper) = if lower_bound <= upper_bound {
             (lower_bound, upper_bound)
@@ -449,6 +474,9 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         std::cmp::max(lower, std::cmp::min(x0, upper)) as usize
     }
 
+    /// finds the first intercept between the values contained in y_iter and intercept_value. last_element_index provides the index
+    /// of the last element of the iter.
+    /// neighbors specifies the number of nearest neighbors in each direction to use for finite difference stencils.
     fn find_first_intercept_core<'a>(
         y_iter: impl Iterator<Item = &'a f64> + Clone,
         last_element_index: usize,
@@ -507,10 +535,11 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         }
     }
 
+    /// find the first intercept between intercept_value and y, using a finite difference stencil defined by neighbors
     fn find_first_intercept(y: &[f64], intercept_value: f64, neighbors: usize) -> f64 {
         find_first_intercept_core(y.iter(), y.len() - 1usize, intercept_value, neighbors)
     }
-
+    /// find the last intercept between intercept_value and y, using a finite difference stencil defined by neighbors
     fn find_last_intercept(y: &[f64], intercept_value: f64, neighbors: usize) -> f64 {
         let last_element_index = y.len() - 1usize;
         last_element_index as f64
