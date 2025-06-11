@@ -21,7 +21,7 @@ def get_fwhm(t, x, no_envelope: bool = False):
     """
     if no_envelope and np.min(x) < 0:
         raise ValueError('tried to compute FWHM of an envelope with negative values')
-    envelope = np.abs(scipy.signal.hilbert(x))2
+    envelope = np.abs(scipy.signal.hilbert(x))**2
     return fwhm(envelope, t[1]-t[0])
 
 def gaussian(height, center_x, center_y, width_x, width_y, offset):
