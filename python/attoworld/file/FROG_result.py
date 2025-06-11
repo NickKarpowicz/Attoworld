@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas
 from ..numeric import fwhm
+from ..plot import label_letter
 class FrogResult:
     """Loads the FROG reconstructed spectra and traces together with the measured spectrogram
 
@@ -190,7 +191,6 @@ class FrogResult:
             ax.set_xlim(low_lim,up_lim)
         ax2 = ax.twinx()
         min_phase_intensity = phase_blanking_level * np.max(self.envelope)
-        ax.set_title('Reconstruction')
         intensity_line = ax.plot(self.time[(self.time>low_lim)&(self.time<up_lim)],
             self.envelope[(self.time>low_lim)&(self.time<up_lim)],
             label='Intensity')
@@ -210,7 +210,6 @@ class FrogResult:
         if low_lim is not None and up_lim is not None:
             ax.set_xlim(low_lim,up_lim)
         ax2 = ax.twinx()
-        ax.set_title('Reconstruction')
         min_phase_intensity = phase_blanking_level * np.max(self.spectrum)
         intensity_line = ax.plot(self.wvl[(self.wvl>low_lim)&(self.wvl<up_lim)], self.spectrum[(self.wvl>low_lim)&(self.wvl<up_lim)]*(1/self.wvl[(self.wvl>low_lim)&(self.wvl<up_lim)]**2), label="Intensity")
         ax2.plot([],[])
@@ -222,29 +221,29 @@ class FrogResult:
         ax.legend(lines, [l.get_label() for l in lines])
         return fig
 
-    def plot_spectrograms(self, low_lim_t = None, up_lim_t = None, low_lim_f = None, up_lim_f = None):
+    def plot_spectrograms(self, low_lim_t = None, up_lim_t = None, low_lim_f = None, up_lim_f = None, letter_style='Nature'):
         original_figsize = plt.rcParams.get('figure.figsize')
         double_figsize = (original_figsize[0],2*original_figsize[1])
         fig, ax = plt.subplots(2,1,figsize=double_figsize)
-        ax[0].set_title('Reconstruction')
         X, Y = np.meshgrid(self.rec_taxis, self.rec_faxis)
-        ax[0].pcolormesh(X, Y * 1.e-3, self.reconstruct, rasterized=True)
-        ax[0].set_xlabel('time (fs)')
-        ax[0].set_ylabel('frequency (PHz)')
-        if low_lim_t is not None and up_lim_t is not None:
-            ax[0].set_xlim(low_lim_t, up_lim_t)
-        if low_lim_f is not None and up_lim_f is not None:
-            ax[0].set_ylim(low_lim_f, up_lim_f)
-
-        ax[1].set_title('Measurement')
-        X, Y = np.meshgrid(self.meas_taxis, self.meas_faxis)
-        print(self.meas_taxis.shape, X.shape, self.measurement.shape)
-        ax[1].pcolormesh(X, Y * 1.e-3, self.measurement, rasterized=True)
-        ax[1].set_xlabel('time (fs)')
-        ax[1].set_ylabel('frequency (PHz)')
+        ax[1].pcolormesh(X, Y * 1.e-3, self.reconstruct, rasterized=True)
+        ax[1].set_xlabel('Time (fs)')
+        ax[1].set_ylabel('Frequency (PHz)')
         if low_lim_t is not None and up_lim_t is not None:
             ax[1].set_xlim(low_lim_t, up_lim_t)
         if low_lim_f is not None and up_lim_f is not None:
             ax[1].set_ylim(low_lim_f, up_lim_f)
+        label_letter('a',axis=ax[0], style=letter_style)
+
+        X, Y = np.meshgrid(self.meas_taxis, self.meas_faxis)
+        print(self.meas_taxis.shape, X.shape, self.measurement.shape)
+        ax[0].pcolormesh(X, Y * 1.e-3, self.measurement, rasterized=True)
+        ax[0].set_xlabel('Time (fs)')
+        ax[0].set_ylabel('Frequency (PHz)')
+        if low_lim_t is not None and up_lim_t is not None:
+            ax[0].set_xlim(low_lim_t, up_lim_t)
+        if low_lim_f is not None and up_lim_f is not None:
+            ax[0].set_ylim(low_lim_f, up_lim_f)
+        label_letter('b',axis=ax[1], style=letter_style)
         plt.rcParams.update({'figure.figsize': original_figsize})
         return fig

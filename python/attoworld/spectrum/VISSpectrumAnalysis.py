@@ -263,7 +263,6 @@ class SpectrumHandler:
                 label='actual lamp spectrum')
         if self.calibration_factor is not None:
             ax.plot(self.wvl, self.calibration_factor, label='calibration factor')
-        ax.set_title('Calibration measurement maya Oceanoptics')
         ax.set_xlabel('Wavelength (nm)')
         ax.set_ylabel('Intensity (Arb. unit)')
         ax.legend(loc='upper right')
@@ -453,7 +452,6 @@ class SpectrumHandler:
             ax.plot(self.wvl[(self.wvl>low_lim)&(self.wvl<up_lim)], self.spectrum[(self.wvl>low_lim)&(self.wvl<up_lim)])
         else:
             ax.plot(self.wvl, self.spectrum)
-        ax.set_title('Spectrum')
         ax.set_xlabel('Wavelength (nm)')
         ax.set_ylabel('Intensity (Arb. unit)')
         return fig
@@ -500,7 +498,6 @@ class MultiSpectrumHandler:
                 ax.plot(wvl[(wvl>low_lim)&(wvl<up_lim)], spectrum[(wvl>low_lim)&(wvl<up_lim)], label=f'Spectrum {i+1}')
             else:
                 ax.plot(wvl, spectrum, label=f'Spectrum {i+1}')
-        ax.set_title('Spectra')
         ax.set_xlabel('Wavelength (nm)')
         ax.set_ylabel('Intensity (Arb. unit)')
         ax.legend(loc='upper right')

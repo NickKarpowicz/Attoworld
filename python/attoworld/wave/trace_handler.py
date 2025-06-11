@@ -894,10 +894,10 @@ class TraceHandler:
             low_lim_freq = 0
         if up_lim_freq is None:
             up_lim_freq = 3.0
-        ax.set_title('time-frequency analysis')
+
         ax.set( xlim=(low_lim, up_lim),
                 ylim=(low_lim_freq, up_lim_freq))
-        ax.set_xlabel('time (fs)')
+        ax.set_xlabel('Time (fs)')
         ax.set_ylabel('Frequency (PHz)')
         im1 = ax.imshow(abs(TFData)/np.max(abs(TFData)), origin='lower', aspect='auto',
                          extent=(t_lo+self.fieldTimeV[0], t_hi+self.fieldTimeV[0], f_lo, f_hi), cmap='viridis')
@@ -923,16 +923,15 @@ class TraceHandler:
         main_line = ax.plot(self.fieldTimeV, self.fieldV/norm_plot, label='Field trace')
         if self.fieldStdevV is not None:
             ax.fill_between(self.fieldTimeV, (self.fieldV - self.fieldStdevV)/norm_plot,
-                            (self.fieldV + self.fieldStdevV)/norm_plot, color=main_line[0].get_color(), alpha=0.2)
+                            (self.fieldV + self.fieldStdevV)/norm_plot, color=main_line[0].get_color(), alpha=0.3)
         ax.set_xlabel('Time (fs)')
         ax.set_ylabel('Field (Arb. unit)')
-        ax.set_title('Field trace')
 
         if low_lim is not None and up_lim is not None:
             ax.set_xlim(low_lim, up_lim)
         return fig
 
-    def plot_spectrum(self, low_lim = 40, up_lim = 1000, no_phase: bool = False):
+    def plot_spectrum(self, low_lim = 40, up_lim = 1000, no_phase: bool = False, phase_blanking_level = 0.05):
         """plots the trace spectrum and phase together with the spectrometer measurement [if provided].
 
         OPTIONAL ARGUMENTS:
@@ -943,25 +942,26 @@ class TraceHandler:
 
         if not no_phase:
             ax2 = ax.twinx()
-
-        ax.plot(self.wvlAxis[(self.wvlAxis>low_lim) & (self.wvlAxis<up_lim)], self.fftSpectrum[(self.wvlAxis>low_lim) & (self.wvlAxis<up_lim)],
-                label='FFT')
+        lines = []
+        min_intensity = phase_blanking_level * np.max(self.fftSpectrum)
+        lines += ax.plot(self.wvlAxis[(self.wvlAxis>low_lim) & (self.wvlAxis<up_lim)], self.fftSpectrum[(self.wvlAxis>low_lim) & (self.wvlAxis<up_lim)],
+                label='Fourier transform')
         if not no_phase:
             ax2.plot([],[])
             if self.wvlSpectrometer is not None:
                 ax2.plot([],[])
-            ax2.plot(self.wvlAxis[(self.wvlAxis>low_lim)&(self.wvlAxis<up_lim)], self.fftphase[(self.wvlAxis>low_lim)&(self.wvlAxis<up_lim)],'--',
+            lines += ax2.plot(self.wvlAxis[(self.wvlAxis>low_lim)&(self.wvlAxis<up_lim)&(self.fftSpectrum>min_intensity)], self.fftphase[(self.wvlAxis>low_lim)&(self.wvlAxis<up_lim)&(self.fftSpectrum>min_intensity)],'--',
                      label='Phase')
         if self.wvlSpectrometer is not None:
-            ax.plot(self.wvlSpectrometer[(self.wvlSpectrometer>low_lim)&(self.wvlSpectrometer<up_lim)], self.ISpectrometer[(self.wvlSpectrometer>low_lim)&(self.wvlSpectrometer<up_lim)],
+            lines += ax.plot(self.wvlSpectrometer[(self.wvlSpectrometer>low_lim)&(self.wvlSpectrometer<up_lim)], self.ISpectrometer[(self.wvlSpectrometer>low_lim)&(self.wvlSpectrometer<up_lim)],
                     label='Spectrometer')
         ax.set_xlabel('Wavelength (nm)')
         ax.set_ylabel('Intensity (Arb. unit)')
-        ax.set_title('Fourier Transform of the field trace')
         ax.tick_params(axis='both')
         if not no_phase:
             ax2.set_ylabel('Phase (rad)')
             ax2.tick_params(axis='y')
+        ax.legend(lines, [l.get_label() for l in lines])
         return fig
 
 
@@ -1101,13 +1101,12 @@ class MultiTraceHandler:
             if errorbar and stdev_field is not None:
                 last_fill = ax.fill_between(t-delay_shift[i], offset*i + (field-stdev_field)/norm_plot,
                                 offset*i + (field+stdev_field)/norm_plot,
-                                label='_nolegend_', alpha=0.2)
+                                label='_nolegend_', alpha=0.3)
                 ax.plot(t-delay_shift[i], offset*i + field/norm_plot, label='Trace '+str(i), color=last_fill.get_facecolor(), alpha=1.0)
             else:
                 ax.plot(t-delay_shift[i], offset*i + field/norm_plot, label='Trace '+str(i))
         ax.set_xlabel('Time (fs)')
         ax.set_ylabel('Field (Arb. unit)')
-        ax.set_title('Field traces')
 
         if labels is not None:
             handles, labels_dump = ax.get_legend_handles_labels()
@@ -1134,7 +1133,6 @@ class MultiTraceHandler:
             ax.plot(wvl, i*offset + spctr)
         ax.set_xlabel('Wavelength (nm)')
         ax.set_ylabel('Intensity (Arb. unit)')
-        ax.set_title('FFT of the traces')
         if labels is not None:
             handles, labels_dump = ax.get_legend_handles_labels()
             plt.legend(handles[::-1], labels[::-1], loc='upper right')

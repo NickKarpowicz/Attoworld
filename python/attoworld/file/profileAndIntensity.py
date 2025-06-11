@@ -3,14 +3,7 @@ from matplotlib import pyplot as plt
 import pandas
 import scipy.optimize as opt
 import scipy.signal
-
-e = 1.602176462e-19
-hbar = 1.05457159682e-34
-m = 9.1093818872e-31
-eps0 = 8.854187817e-12
-kB = 1.380650324e-23
-c = 299792458
-
+import scipy.constants as constants
 
 def get_fwhm(t, x, no_envelope: bool = False):
     """
@@ -145,10 +138,8 @@ def twoD_Gaussian(xy, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
 def profile_analysis(profile_file, trace_file = None, magnification=1., pixelsize=5., power=20., reprate=4., ROI_diam:int=100, forced_background=None, trace_cutoff_radius = 50., cutoff_gaus_fit_profile = 25.):
     """if trace_file is None, this function only loads, fits and plots the beam profile; if trace_file is given, the function additionally calculates the peak intensity and field.
 
-    ARGUMENTS:
+    Args:
         profile_file: name of the file containing the beam profile; the file (txt or csv) contains the 2D array of the beam profile
-
-    OPTIONAL ARGUMENTS:
         trace_file: None; name of the file containing the trace; the file (txt or csv) contains the time and field arrays as tab-separated columns
         magnification: 1.; ratio of lens-camera/lens-z0 lengths; This is used to give the correct size of the beam profile at z0 in um
         pixelsize: 5. um; pixel size of the camera
@@ -193,7 +184,7 @@ def profile_analysis(profile_file, trace_file = None, magnification=1., pixelsiz
     param = fitgaussian(cut_tail(dataval, cutoff_gaus_fit_profile))
     X, Y = np.indices(dataval.shape)
     fitted_funct = gaussian(*param)(X, Y)
-    print('beam w [um], resp. in x and y axis:', 2*param[3]*pixelsize, 2*param[4]*pixelsize)
+    print('beam w (um), resp. in x and y axis:', 2*param[3]*pixelsize, 2*param[4]*pixelsize)
     print('beam 1/e^2 diameter [um]: ', 4*param[3]*pixelsize, 4*param[4]*pixelsize)
 
     if  trace_file is not None:
@@ -216,17 +207,17 @@ def profile_analysis(profile_file, trace_file = None, magnification=1., pixelsiz
 
         print('\nusing the gaussian fit of the beam profile and the integral of the trace^2:\n '
             'peak intensity (sub-cycle, W/cm2): {i:.3e}'.format(**{'i':intensity}))
-        peak_field = np.sqrt(intensity*1e4 /c/eps0)
+        peak_field = np.sqrt(intensity*1e4 /constants.speed_of_light/constants.epsilon_0)
         print('peak field (sub-cycle, V/m): {f:.3e}'.format(**{'f':peak_field}))
 
         print('\nusing directly camera data, and the integral of the trace^2:\n '
               'peak intensity (sub-cycle, W/cm2): {i:.3e}'.format(**{'i':intensityFromRawCameraData}))
-        peak_field = np.sqrt(intensityFromRawCameraData*1e4 /c/eps0)
+        peak_field = np.sqrt(intensityFromRawCameraData*1e4 /constants.speed_of_light/constants.epsilon_0)
         print('peak field (sub-cycle, V/m): {f:.3e}'.format(**{'f':peak_field}))
 
         print('\nusing directly camera data, and the temporal FWHM retrieved from the trace:\n '
               'peak intensity (sub-cycle, W/cm2): {i:.3e}'.format(**{'i':intensityFromTemporalFWHM}))
-        peak_field = np.sqrt(intensityFromTemporalFWHM*1e4 /c/eps0)
+        peak_field = np.sqrt(intensityFromTemporalFWHM*1e4 /constants.speed_of_light/constants.epsilon_0)
         print('peak field (sub-cycle, V/m): {f:.3e}'.format(**{'f':peak_field}))
 
         fig, ax = plt.subplots(1, 1)
