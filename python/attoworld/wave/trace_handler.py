@@ -564,7 +564,7 @@ class TraceHandler:
         """Calculates the fluence of the trace.
 
         convention: field [V/Å], time [fs], fluence [J/cm²]
-        F = c\*eps_0\*integral(E^2)dt
+        F = c*eps_0*integral(E^2)dt
 
 
         Returns:
@@ -578,7 +578,7 @@ class TraceHandler:
 
         Convention: field [V/Å], time [fs], fluence [J/cm²]
 
-        F = c\*eps_0\*integral(E^2)dt"""
+        F = c eps_0 integral(E^2)dt"""
         F = constants.speed_of_light*constants.epsilon_0 * np.trapz(self.fieldV**2, self.fieldTimeV)* 1e1
         self.fieldV *= np.sqrt(fluence/F)
         self.update_fft()

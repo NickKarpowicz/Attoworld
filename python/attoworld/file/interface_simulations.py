@@ -1,8 +1,7 @@
 import numpy as np
-import scipy.signal
 import h5py
 import matplotlib.pyplot as plt
-
+from ..plot import Char
 e = 1.602176462e-19
 hbar = 1.05457159682e-34
 m = 9.1093818872e-31
@@ -210,7 +209,7 @@ class LunaResult:
             ax2.plot(self.stats_z, np.sum(self.stats_energy, axis=1)*1e6, color='r')
         else:
             ax2.plot(self.stats_z, self.stats_energy*1e6, color='r')
-        ax2.set_ylabel('pulse energy ($\mu J$)', color='r')
+        ax2.set_ylabel(f'pulse energy ({Char.mu}J)', color='r')
         ax2.tick_params(axis='y', colors='r')
         ax2.yaxis.label.set_color('r')
         if self.stats_peakpower is not None:
