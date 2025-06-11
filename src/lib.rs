@@ -335,9 +335,9 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
                 if (index == 0 || index == x_in.len()) && !extrapolate {
                     0.0
                 } else {
-                    let clamped_index: usize =
-                        clamp_index(index as i64, neighbors, x_in.len() as i64 - neighbors)
-                            - neighbors as usize;
+                    let clamped_index: usize = index
+                        .clamp(neighbors as usize, (x_in.len() as i64 - neighbors) as usize)
+                        - neighbors as usize;
                     let stencil_size: usize = if clamped_index == 0
                         || clamped_index == x_in.len() - (core_stencil_size - 1)
                     {
@@ -464,16 +464,6 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
             .collect()
     }
 
-    /// give a usize index based on an i64, clamping it within bounds
-    fn clamp_index(x0: i64, lower_bound: i64, upper_bound: i64) -> usize {
-        let (lower, upper) = if lower_bound <= upper_bound {
-            (lower_bound, upper_bound)
-        } else {
-            (upper_bound, lower_bound)
-        };
-        std::cmp::max(lower, std::cmp::min(x0, upper)) as usize
-    }
-
     /// finds the first intercept between the values contained in y_iter and intercept_value. last_element_index provides the index
     /// of the last element of the iter.
     /// neighbors specifies the number of nearest neighbors in each direction to use for finite difference stencils.
@@ -484,11 +474,9 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         neighbors: usize,
     ) -> f64 {
         if let Some(intercept_index) = y_iter.clone().position(|x| *x >= intercept_value) {
-            let range_start = clamp_index(
-                intercept_index as i64 - neighbors as i64,
-                0,
-                last_element_index as i64 - 2 * neighbors as i64,
-            );
+            let range_start = (intercept_index as i64 - neighbors as i64)
+                .clamp(0, last_element_index as i64 - 2 * neighbors as i64)
+                as usize;
             let range_i: Vec<usize> = y_iter
                 .clone()
                 .enumerate()
