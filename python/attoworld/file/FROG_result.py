@@ -1,10 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas
-
+from ..numeric import fwhm
 class FrogResult:
     """Loads the FROG reconstructed spectra and traces together with the measured spectrogram
-    
+
     files are in the format:
     filename.A.dat: measured spectrogram
     filename.Arecon.dat: reconstructed spectrogram
@@ -41,7 +41,7 @@ class FrogResult:
     def test_FROG_result_format_spectrum(self, low_lim=None, up_lim=None):
         """checks (by plotting) that the quantities stored in the file are the expected ones"""
 
-        fig, ax = plt.subplots(figsize=[6.4, 4.8])
+        fig, ax = plt.subplots()
         if low_lim is not None and up_lim is not None:
             ax.set_xlim(low_lim,up_lim)
         ax2 = ax.twinx()
@@ -54,19 +54,19 @@ class FrogResult:
         limited_phase_r_i = -np.unwrap(limited_phase_r_i)
         ax.plot(limited_wvl, limited_spectrum/np.max(limited_spectrum), label='direct spectrum from file')
         ax.plot(limited_wvl, limited_spectrum_r_i/np.max(limited_spectrum_r_i), label='sp. from re/im FFT field')
-        ax2.plot(limited_wvl, limited_phase, label='direct phase from file', color='r')
-        ax2.plot(limited_wvl, limited_phase_r_i, label='phase from re/im FFT field', color='g')
-        ax.set_xlabel('wavelength (nm)')
-        ax.set_ylabel('amplitude (a.u.)')
-        ax2.set_ylabel('phase (rad)', color='r')
-        ax2.tick_params(axis='y', colors='r')
-        ax2.yaxis.label.set_color('r')
-        plt.show()
+        ax2.plot([],[])
+        ax2.plot([],[])
+        ax2.plot(limited_wvl, limited_phase, label='direct phase from file')
+        ax2.plot(limited_wvl, limited_phase_r_i, label='phase from re/im FFT field')
+        ax.set_xlabel('Wavelength (nm)')
+        ax.set_ylabel('Amplitude (Arb. unit)')
+        ax2.set_ylabel('Phase (rad)')
+        ax2.tick_params(axis='y')
 
     def test_FROG_result_format_envelope(self, low_lim=None, up_lim=None):
         """checks (by plotting) that the quantities stored in the file are the expected ones"""
 
-        fig, ax = plt.subplots(figsize=[6.4, 4.8])
+        fig, ax = plt.subplots()
         if low_lim is not None and up_lim is not None:
             ax.set_xlim(low_lim,up_lim)
         ax2 = ax.twinx()
@@ -79,26 +79,21 @@ class FrogResult:
         limited_tphase_r_i = -np.unwrap(limited_tphase_r_i)
         ax.plot(limited_time, limited_envelope/np.max(limited_envelope), label='direct env. from file')
         ax.plot(limited_time, limited_envelope_r_i/np.max(limited_envelope_r_i), label='sp. from re/im field')
-        ax2.plot(limited_time, limited_tphase, label='direct phase from file', color='r')
-        ax2.plot(limited_time, limited_tphase_r_i, label='phase from re/im field', color='g')
-        ax.set_xlabel('time (fs)')
-        ax.set_ylabel('amplitude (a.u.)')
-        ax2.set_ylabel('phase (rad)', color='r')
-        ax2.tick_params(axis='y', colors='r')
-        ax2.yaxis.label.set_color('r')
-        plt.show()
+        ax2.plot([],[])
+        ax2.plot([],[])
+        ax2.plot(limited_time, limited_tphase, label='direct phase from file')
+        ax2.plot(limited_time, limited_tphase_r_i, label='phase from re/im field')
+        ax.set_xlabel('Time (fs)')
+        ax.set_ylabel('Amplitude (Arb. unit)')
+        ax2.set_ylabel('Phase (rad)')
 
     def get_squared_envelope(self):
         """returns time (fs), intensity envelope of the reconstructed pulse (square of the field envelope)"""
         return self.time, self.envelope
 
     def get_FWHM(self):
-        tfine = np.linspace(self.time[0], self.time[-1], len(self.time)*20)
-        enSquare = np.interp(tfine ,self.time, self.envelope)
-        i_max = np.argmax(enSquare)
-        hm = enSquare[i_max] / 2
-        fwhm = (np.max(tfine[np.argwhere(enSquare >= hm)]) - np.min(tfine[np.argwhere(enSquare >= hm)]))
-        return fwhm
+        return fwhm(self.envelope, self.time[1] - self.time[2])
+
 
     def get_spectral_phase(self):
         """returns wavelength in nm, reconstructed spectral phase in rad"""
@@ -189,61 +184,67 @@ class FrogResult:
         self.imagFFT = self.imagFFT[self.wvl>0]
         self.wvl = self.wvl[self.wvl>0]
 
-    def plot_temporal_profile(self, low_lim = None, up_lim = None):
-        fig, ax = plt.subplots(figsize=[6.4, 4.8])
+    def plot_temporal_profile(self, low_lim = None, up_lim = None, phase_blanking_level=0.05):
+        fig, ax = plt.subplots()
         if low_lim is not None and up_lim is not None:
             ax.set_xlim(low_lim,up_lim)
         ax2 = ax.twinx()
+        min_phase_intensity = phase_blanking_level * np.max(self.envelope)
         ax.set_title('Reconstruction')
-        ax.plot(self.time[(self.time>low_lim)&(self.time<up_lim)], self.envelope[(self.time>low_lim)&(self.time<up_lim)])
-        ax2.plot(self.time[(self.time>low_lim)&(self.time<up_lim)], self.tphase[(self.time>low_lim)&(self.time<up_lim)], color='r')
-        ax.set_xlabel('time (fs)')
-        ax.set_ylabel('intensity envelope (a.u.)')
-        ax2.set_ylabel('phase (rad)', color='r')
-        ax2.tick_params(axis='y', colors='r')
-        ax2.yaxis.label.set_color('r')
-        plt.show()
+        intensity_line = ax.plot(self.time[(self.time>low_lim)&(self.time<up_lim)],
+            self.envelope[(self.time>low_lim)&(self.time<up_lim)],
+            label='Intensity')
+        ax2.plot([],[])
+        phase_line = ax2.plot(self.time[(self.time>low_lim)&(self.time<up_lim)&(self.envelope>min_phase_intensity)],
+            self.tphase[(self.time>low_lim)&(self.time<up_lim)&(self.envelope>min_phase_intensity)],
+            '--',label='Phase')
+        ax.set_xlabel('Time (fs)')
+        ax.set_ylabel('Intensity envelope (Arb. unit)')
+        ax2.set_ylabel('Phase (rad)')
+        lines = intensity_line+phase_line
+        ax.legend(lines, [l.get_label() for l in lines])
+        return fig
 
-    def plot_spectrum(self, low_lim = None, up_lim = None):
-        fig, ax = plt.subplots(figsize=[6.4, 4.8])
+    def plot_spectrum(self, low_lim = None, up_lim = None, phase_blanking_level=0.05):
+        fig, ax = plt.subplots()
         if low_lim is not None and up_lim is not None:
             ax.set_xlim(low_lim,up_lim)
         ax2 = ax.twinx()
         ax.set_title('Reconstruction')
-        ax.plot(self.wvl[(self.wvl>low_lim)&(self.wvl<up_lim)], self.spectrum[(self.wvl>low_lim)&(self.wvl<up_lim)]*(1/self.wvl[(self.wvl>low_lim)&(self.wvl<up_lim)]**2))
-        ax2.plot(self.wvl[(self.wvl>low_lim)&(self.wvl<up_lim)], self.sphase[(self.wvl>low_lim)&(self.wvl<up_lim)], color='r')
-        ax.set_xlabel('wavelength (nm)')
-        ax.set_ylabel('amplitude (a.u.)')
-        ax2.set_ylabel('phase (rad)', color='r')
-        ax2.tick_params(axis='y', colors='r')
-        ax2.yaxis.label.set_color('r')
-        plt.show()
+        min_phase_intensity = phase_blanking_level * np.max(self.spectrum)
+        intensity_line = ax.plot(self.wvl[(self.wvl>low_lim)&(self.wvl<up_lim)], self.spectrum[(self.wvl>low_lim)&(self.wvl<up_lim)]*(1/self.wvl[(self.wvl>low_lim)&(self.wvl<up_lim)]**2), label="Intensity")
+        ax2.plot([],[])
+        phase_line = ax2.plot(self.wvl[(self.wvl>low_lim)&(self.wvl<up_lim)&(self.spectrum>min_phase_intensity)], self.sphase[(self.wvl>low_lim)&(self.wvl<up_lim)&(self.spectrum>min_phase_intensity)], '--', label="Phase")
+        ax.set_xlabel('Wavelength (nm)')
+        ax.set_ylabel('Amplitude (Arb. unit)')
+        ax2.set_ylabel('Phase (rad)')
+        lines = intensity_line+phase_line
+        ax.legend(lines, [l.get_label() for l in lines])
+        return fig
 
     def plot_spectrograms(self, low_lim_t = None, up_lim_t = None, low_lim_f = None, up_lim_f = None):
-        fig, ax = plt.subplots(figsize=[6.4, 4.8])
-        ax.set_title('Reconstruction')
+        original_figsize = plt.rcParams.get('figure.figsize')
+        double_figsize = (original_figsize[0],2*original_figsize[1])
+        fig, ax = plt.subplots(2,1,figsize=double_figsize)
+        ax[0].set_title('Reconstruction')
         X, Y = np.meshgrid(self.rec_taxis, self.rec_faxis)
-        ax.pcolormesh(X, Y * 1.e-3, self.reconstruct, rasterized=True)
-        ax.set_xlabel('time (fs)')
-        ax.set_ylabel('frequency (PHz)')
+        ax[0].pcolormesh(X, Y * 1.e-3, self.reconstruct, rasterized=True)
+        ax[0].set_xlabel('time (fs)')
+        ax[0].set_ylabel('frequency (PHz)')
         if low_lim_t is not None and up_lim_t is not None:
-            ax.set_xlim(low_lim_t, up_lim_t)
+            ax[0].set_xlim(low_lim_t, up_lim_t)
         if low_lim_f is not None and up_lim_f is not None:
-            ax.set_ylim(low_lim_f, up_lim_f)
-        plt.show()
+            ax[0].set_ylim(low_lim_f, up_lim_f)
 
-        fig, ax = plt.subplots(figsize=[6.4, 4.8])
-        ax.set_title('Measurement')
+        ax[1].set_title('Measurement')
         X, Y = np.meshgrid(self.meas_taxis, self.meas_faxis)
         print(self.meas_taxis.shape, X.shape, self.measurement.shape)
-        ax.pcolormesh(X, Y * 1.e-3, self.measurement)
-        ax.set_xlabel('time (fs)')
-        ax.set_ylabel('frequency (PHz)')
+        ax[1].pcolormesh(X, Y * 1.e-3, self.measurement, rasterized=True)
+        ax[1].set_xlabel('time (fs)')
+        ax[1].set_ylabel('frequency (PHz)')
         if low_lim_t is not None and up_lim_t is not None:
-            ax.set_xlim(low_lim_t, up_lim_t)
+            ax[1].set_xlim(low_lim_t, up_lim_t)
         if low_lim_f is not None and up_lim_f is not None:
-            ax.set_ylim(low_lim_f, up_lim_f)
-        plt.show()
-
-
-
+            ax[1].set_ylim(low_lim_f, up_lim_f)
+        plt.rcParams.update({'figure.figsize': original_figsize})
+        return fig

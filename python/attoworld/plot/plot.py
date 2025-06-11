@@ -1,6 +1,7 @@
 import marimo as mo
 import io
 import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
 from cycler import cycler
 
 def showmo():
@@ -9,7 +10,7 @@ def showmo():
     """
     svg_buffer = io.StringIO()
     plt.savefig(svg_buffer, format='svg')
-    return mo.Html(svg_buffer.getvalue())
+    return mo.output.append(mo.Html(svg_buffer.getvalue()))
 
 def set_style(theme: str = 'light', font_size: int = 11):
     """
@@ -25,11 +26,12 @@ def set_style(theme: str = 'light', font_size: int = 11):
     'font.size': font_size,
     'xtick.labelsize': 0.9 * font_size,
     'ytick.labelsize': 0.9 * font_size,
-    'legend.fontsize': 0.9 * font_size})
+    'legend.fontsize': 0.9 * font_size,
+    'figure.autolayout': True})
     match theme:
         case 'nick_dark':
             plt.rcParams.update({
-            'font.sans-serif': ['Helvetica', 'Arial', 'Verdana', 'DejaVu Sans', 'Liberation Sans', 'Bitstream Vera Sans', 'sans-serif'],
+            'font.sans-serif': ['Helvetica', 'Nimbus Sans L', 'Arial', 'Verdana', 'Nimbus Sans L', 'DejaVu Sans', 'Liberation Sans', 'Bitstream Vera Sans', 'sans-serif'],
             'font.family': 'sans-serif',
             'axes.prop_cycle': cycler(color=["cyan", "magenta", "orange", "blueviolet", "lime"]),
             'figure.facecolor': '#171717',
@@ -43,13 +45,12 @@ def set_style(theme: str = 'light', font_size: int = 11):
             'xtick.color': 'white',
             'ytick.color': 'white',
             'grid.color': 'white',
-            'lines.color': 'white',
-            'figure.autolayout': True
+            'lines.color': 'white'
             })
         # Light case is combined with _, which will capture anything else that didn't match.
         # It must be the last case, for that reason.
         case 'light' | _:
-            plt.rcParams.update({'font.sans-serif': ['Helvetica', 'Arial', 'Verdana', 'DejaVu Sans', 'Liberation Sans', 'Bitstream Vera Sans', 'sans-serif'],
+            plt.rcParams.update({'font.sans-serif': ['Helvetica', 'Nimbus Sans L', 'Arial', 'Verdana', 'DejaVu Sans', 'Liberation Sans', 'Bitstream Vera Sans', 'sans-serif'],
             'font.family': 'sans-serif',
             #colorblind-friendly color cycle from https://gist.github.com/thriveth/8560036
             'axes.prop_cycle': cycler(color=['#377eb8', '#ff7f00', '#4daf4a', '#f781bf', '#a65628', '#984ea3', '#999999', '#e41a1c', '#dede00']),
@@ -67,8 +68,8 @@ def set_style(theme: str = 'light', font_size: int = 11):
             'lines.color': 'black'})
 
 def label_letter(
-    axis = plt.gca(),
     letter: str = 'a',
+    axis: Axes = plt.gca(),
     style: str = 'Nature',
     x_position: float = -0.14,
     y_position: float = 1.08):
@@ -87,12 +88,13 @@ def label_letter(
         fontweight = 'normal'
         match style:
             case 'Nature':
+                letter_string = letter_string.lower()
                 fontweight = 'bold'
             case 'Science':
-                fontweight = 'bold'
                 letter_string = letter_string.upper()
+                fontweight = 'bold'
             case 'OSA':
-                letter_string = '('+letter_string+')'
+                letter_string = '('+letter_string.lower()+')'
                 fontweight = 'bold'
 
-        axis.text(x_position, y_position, letter_string, transform=axis.transAxes, fontweight=fontweight)
+        axis.text(x_position, y_position, letter_string, ha='center', transform=axis.transAxes, fontweight=fontweight)

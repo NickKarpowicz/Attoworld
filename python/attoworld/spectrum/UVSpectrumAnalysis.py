@@ -255,8 +255,6 @@ def calibrate(data, column: int, calibration_file_path="./calibration_data/Reso_
 
         plt.plot(data[:, 7*column +1]*cal_slope+cal_intercept, data[:, 7*column +2])
         plt.plot(wavelength, spectrum)
-        #plt.savefig('diagnostics_stitching_UVspectrometer.pdf')
-        plt.show()
 
         if w < 0:
             raise ValueError('in function calibrate(), the spectra to be stitched do not overlap')
@@ -450,4 +448,4 @@ def plot_spectra_UVsp(filenameList, columnList, pdfFilename, legendItemList = No
         ax[0].legend(legendHandles, legendItemList)
 
     fig.savefig(pdfFilename)
-    plt.show()
+    return fig
