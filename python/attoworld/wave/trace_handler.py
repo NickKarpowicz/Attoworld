@@ -434,30 +434,11 @@ class TraceHandler:
         Args:
             ntimes_finer (int): the factor by which to shrink the time step of the trace in time domain. Must be >= 1.
         """
-        if ntimes_finer < 1:
-            raise ValueError('in function TraceHandler.fourier_interpolation() ntimes_finer must be >= 1')
-        if self.frequencyAxis is None or self.fftFieldV is None:
-            raise ValueError('in function TraceHandler.fourier_interpolation() frequency axis or fft field is not defined')
-        # extend the frequency axis by a factor ntimes_finer
-        df = self.frequencyAxis[1] - self.frequencyAxis[0]
-        i_last_pos = int(np.ceil(len(self.frequencyAxis) / 2) - 1)
-        if self.frequencyAxis[i_last_pos] < 0 or self.frequencyAxis[i_last_pos + 1] > 0:
-            print(self.frequencyAxis[0:i_last_pos + 1])
-            print(self.frequencyAxis[i_last_pos + 1:])
-            raise Exception('in function fourier_interpolation() frequency axes was not extended correctly')
 
-        appended_freqFFT = np.linspace(self.frequencyAxis[i_last_pos] + df, ntimes_finer * self.frequencyAxis[i_last_pos] + df,
-                                       round((ntimes_finer - 1) * self.frequencyAxis[i_last_pos] / df))
-        prepended_freqFFT = np.linspace(-(ntimes_finer - 1) * self.frequencyAxis[i_last_pos] + self.frequencyAxis[i_last_pos + 1],
-                                        +self.frequencyAxis[i_last_pos + 1], round((ntimes_finer - 1) * self.frequencyAxis[i_last_pos] / df))
-        self.frequencyAxis = np.concatenate(
-            (self.frequencyAxis[:i_last_pos + 1], appended_freqFFT, prepended_freqFFT, self.frequencyAxis[i_last_pos + 1:]))
-        self.fftFieldV = np.concatenate(
-            (self.fftFieldV[:i_last_pos + 1], np.zeros(len(appended_freqFFT)), np.zeros(len(prepended_freqFFT)),
-             self.fftFieldV[i_last_pos + 1:]))
-
+        self.fieldV = scipy.signal.resample(self.fieldV, self.fieldV.shape[0] * ntimes_finer)
+        self.fieldTimeV = np.linspace(self.fieldTimeV[0], self.fieldTimeV[-1], self.fieldTimeV.shape[0] * ntimes_finer)
+        self.update_fft()
         self.update_trace_from_fft()
-        self.strip_from_trace()
         self.update_fft_spectrum()
 
     def differentiate_trace(self, spectrally=True):
