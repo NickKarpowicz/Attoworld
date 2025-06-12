@@ -177,6 +177,27 @@ def _(aw, np, plt):
 
 
 @app.cell
+def _(mo):
+    mo.md(r"""## Data containers""")
+    return
+
+
+@app.cell
+def _(aw, np, plt):
+    _t = 1e-15*np.linspace(-15.0, 15.0, 256)
+    _E = np.exp(-_t**2/(2*3e-15**2))*np.cos(2*np.pi*400e12*_t)
+    _w = aw.file.Waveform(wave = _E, time=_t, dt=(_t[1]-_t[0]),is_uniformly_spaced=True)
+    _s = _w.to_complex_spectrum().to_intensity_spectrum()
+    print(_w.get_envelope_fwhm())
+    plt.semilogx(1e6*_s.wavelength, _s.spectrum)
+    _s2 = _s.clone()
+    print(_s2.freq[1])
+    _s.freq *= 0.0
+    print(_s2.freq[1])
+    return
+
+
+@app.cell
 def _():
     return
 

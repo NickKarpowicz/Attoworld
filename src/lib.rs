@@ -102,7 +102,10 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
             find_first_intercept(y.as_slice()?, max_value * intercept_value, neighbors);
         let last_intercept =
             find_last_intercept(y.as_slice()?, max_value * intercept_value, neighbors);
-        Ok(dx * (last_intercept - first_intercept))
+        if first_intercept > last_intercept {
+            println!("Warning: internal calculation give a negative width, data may be too coarse to be reliable.");
+        }
+        Ok((dx * (last_intercept - first_intercept)).abs())
     }
 
     /// Generate a finite difference stencil using the algorithm described by B. Fornberg

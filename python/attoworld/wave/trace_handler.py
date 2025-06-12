@@ -306,7 +306,7 @@ class TraceHandler:
         """
         if fname is not None:
             self.filename_spectrum = fname
-        if self.filename_spectrum is not None
+        if self.filename_spectrum is not None:
             data = pandas.read_csv(self.filename_spectrum, sep='\t')
             self.wvlSpectrometer = data['wavelength (nm)'].to_numpy()
             self.ISpectrometer = data['intensity (a.u.)'].to_numpy()
