@@ -16,14 +16,17 @@ def check_equal_length(*arg):
             print('Error: vector size mismatch')
             raise Exception('Vector size mismatch')
 
-def fourier_transform(TimeV, FieldV):   # complex!!!
-
-    freq = np.fft.fftfreq(TimeV.size, d=TimeV[1]-TimeV[0])
-    fft = np.fft.fft(FieldV)
+def fourier_transform(TimeV, FieldV, paddedLength: int = 0):   # complex!!!
+    if paddedLength == 0:
+        fft = np.fft.rfft(FieldV)
+    else:
+        fft = np.fft.rfft(FieldV, paddedLength
+        )
+    freq = np.fft.rfftfreq(fft.size, d=TimeV[1]-TimeV[0])
     return freq, fft
 
-def inverse_fourier_transform(freq, fullSpectrum):  # complex!!!
-
+def inverse_fourier_transform(freq, fullSpectrum):  # NO-LONGER-complex!!!
+    #TODO: use rfft
     timeV = np.fft.fftfreq(len(freq), freq[1]-freq[0])
     if len(timeV)%2 == 0:
         timeV = np.concatenate((timeV[int(len(timeV)/2):], timeV[:int(len(timeV)/2)]))
@@ -34,6 +37,7 @@ def inverse_fourier_transform(freq, fullSpectrum):  # complex!!!
     return timeV, fieldV
 
 def zero_padding(signalTimeV, signalV, fsExtension=50):
+    #TODO: base everything on padding with numpy/scipy, eliminate most of this.
     timestep = signalTimeV[1] - signalTimeV[0]
     nPointsExtension = int(fsExtension / timestep)
     fsExtension = nPointsExtension * timestep
@@ -53,7 +57,7 @@ def zero_padding(signalTimeV, signalV, fsExtension=50):
     return newTimeV, newSignalV
 
 def asymmetric_tukey_f(x: float, edge1: float, edge2: float, edge1_width: float, edge2_width: float):
-
+    #TODO: replace this with supergaussian windows
     if edge1_width < 0 or edge2_width < 0:
         edge1_width = 0
         edge2_width = 0
@@ -86,7 +90,7 @@ def asymmetric_tukey_f(x: float, edge1: float, edge2: float, edge1_width: float,
     return y
 
 def asymmetric_tukey_window(x, edge1: float, edge2: float, edge1_width: float, edge2_width: float):
-
+    #TODO: replace with supergaussians
     if isinstance(x, np.ndarray):
         y = []
         for xi in x:
@@ -156,11 +160,10 @@ class TraceHandler:
         self.fsZeroPadding = 150
         self.filename = filename
         self.filename_spectrum = filename_spectrum
-
         self.fieldTimeV = None
+        self.timeStep = None
         self.fieldV = None
         self.fieldStdevV = None
-
         self.frequencyAxis = None
         self.fftFieldV = None
         self.complexFieldTimeV = None
@@ -217,6 +220,7 @@ class TraceHandler:
         if np.max(np.abs(fieldTimeV)) < 1.:
             print('\n\nWARNING: do you remember that the time axis of TraceHandler is in fs?\n\n')
         self.fieldTimeV = np.array(fieldTimeV)
+        self.timeStep = np.abs(np.mean(np.diff(self.fieldTimeV)))
         self.fieldV = np.array(fieldV)
         if fieldStdevV is not None:
             self.fieldStdevV = np.array(fieldStdevV)
@@ -227,12 +231,14 @@ class TraceHandler:
         """loads from file"""
         if fname is not None:
             self.filename = fname
-        data = pandas.read_csv(self.filename, sep='\t')
-        self.fieldTimeV = data['delay (fs)'].to_numpy()
-        self.fieldV = data['field (a.u.)'].to_numpy()
-        self.fieldStdevV = data['stdev field'].to_numpy()
-        self.normalization_trace = np.max(np.abs(self.fieldV))
-        self.update_fft()
+        if self.filename is not None:
+            data = pandas.read_csv(self.filename, sep='\t')
+            self.fieldTimeV = data['delay (fs)'].to_numpy()
+            self.timeStep = np.abs(np.mean(np.diff(self.fieldTimeV)))
+            self.fieldV = data['field (a.u.)'].to_numpy()
+            self.fieldStdevV = data['stdev field'].to_numpy()
+            self.normalization_trace = np.max(np.abs(self.fieldV))
+            self.update_fft()
 
     def load_trace_from_spectral_data(self, wvl_FFT_trace, spectrum_FFT_trace, phase_FFT_trace):
         """loads the trace from wavelength, spectrum, and spectral phase arrays and stores it in the class.
@@ -300,10 +306,11 @@ class TraceHandler:
         """
         if fname is not None:
             self.filename_spectrum = fname
-        data = pandas.read_csv(self.filename_spectrum, sep='\t')
-        self.wvlSpectrometer = data['wavelength (nm)'].to_numpy()
-        self.ISpectrometer = data['intensity (a.u.)'].to_numpy()
-        self.normalize_spectrum()
+        if self.filename_spectrum is not None
+            data = pandas.read_csv(self.filename_spectrum, sep='\t')
+            self.wvlSpectrometer = data['wavelength (nm)'].to_numpy()
+            self.ISpectrometer = data['intensity (a.u.)'].to_numpy()
+            self.normalize_spectrum()
 
     def update_fft(self, zero_pad_field = True):
         """updates the fft of the trace from the time domain data.

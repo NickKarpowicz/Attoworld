@@ -4,6 +4,8 @@
 
 Tools from the Attosecond science group at the Max Planck Institute of Quantum Optics, a.k.a. [Attoworld](https://www.attoworld.de)
 
+**We are still in the building phase. Things may change, and haven't been validated; use at your own risk!**
+
 [Documentation available here!](http://nickkarpowicz.github.io/docs/attoworld)
 
 ## Structure
