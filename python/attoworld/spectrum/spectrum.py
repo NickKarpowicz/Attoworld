@@ -2,6 +2,26 @@ import numpy as np
 from scipy import constants
 from typing import Optional
 from ..numeric import interpolate
+
+def frequency_to_wavelength(frequencies: np.ndarray, spectrum: np.ndarray, wavelengths: Optional[np.ndarray]=None):
+    """Convert a frequency spectrum in W/Hz into a wavelength spectrum in W/m.
+    SI units.
+    Args:
+        frequencies (np.ndarray): the frequencies included in the data, in Hz
+        spectrum (np.ndarray): the spectrum corresponding to the input frequency scale
+        wavelengths: (optional) wavelength vector for the output. If not specified, a the output data will be on the same grid, but scaled
+    Returns:
+        wavelengths: wavelengths in m
+        scaled_spectrum: the wavelength-domain spectrum
+    """
+    if wavelengths is None:
+        wavelengths = constants.speed_of_light / frequencies[frequencies > 0.0]
+        spectrum = spectrum[frequencies>0.0]
+    else:
+        wavelengths = wavelengths[wavelengths>0.0]
+
+    return wavelengths, spectrum/(wavelengths**2)
+        
 def wavelength_to_frequency(wavelengths_nm: np.ndarray, spectrum: np.ndarray, frequencies: Optional[np.ndarray]=None):
     """Convert a wavelength spectrum in W/nm into a frequency spectrum in W/THz
 

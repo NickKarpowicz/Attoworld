@@ -184,16 +184,15 @@ def _(mo):
 
 @app.cell
 def _(aw, np, plt):
-    _t = 1e-15*np.linspace(-15.0, 15.0, 256)
-    _E = np.exp(-_t**2/(2*3e-15**2))*np.cos(2*np.pi*400e12*_t)
+    _t = 1e-15*np.linspace(-50.0, 105.0, 512)
+    _E = np.exp(-_t**2/(2*5e-15**2))*np.cos(2*np.pi*200e12*_t)
     _w = aw.file.Waveform(wave = _E, time=_t, dt=(_t[1]-_t[0]),is_uniformly_spaced=True)
-    _s = _w.to_complex_spectrum().to_intensity_spectrum()
+    e1 = _w.to_intensity_spectrum().get_transform_limited_pulse().envelope **2
+    plt.plot(_w.to_intensity_spectrum().get_transform_limited_pulse().time, e1/np.max(e1))
+    e2= np.abs(_w.to_complex_envelope().envelope)**4
+    plt.plot(_w.to_complex_envelope().time,e2/np.max(e2))
+    print(_w.to_intensity_spectrum().get_transform_limited_pulse().get_fwhm())
     print(_w.get_envelope_fwhm())
-    plt.semilogx(1e6*_s.wavelength, _s.spectrum)
-    _s2 = _s.clone()
-    print(_s2.freq[1])
-    _s.freq *= 0.0
-    print(_s2.freq[1])
     return
 
 
