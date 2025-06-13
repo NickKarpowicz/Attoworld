@@ -194,12 +194,19 @@ def _(aw, np, plt):
     _ax[0].plot(1e15*_w.time,_w.to_windowed('tukey').to_bandpassed(400e12,20e12,4).wave)
     _ax[0].set_xlabel('Time (fs)')
     _ax[1].loglog(1e6*_s.wavelength, _s.spectrum)
-    _ax[1].loglog(1e6*_s.wavelength,1e9*_w.to_intensity_spectrum(wavelength_scaled=False).spectrum)
+    _ax[1].loglog(1e6*_s.wavelength,1e9*_w
+        .to_intensity_spectrum(wavelength_scaled=False)
+        .spectrum)
     _ax[1].loglog(1e6*_s.wavelength, _w.to_windowed('tukey').to_intensity_spectrum().spectrum)
     _ax[1].loglog(1e6*_s.wavelength, _w.to_windowed('blackman').to_intensity_spectrum().spectrum)
     _ax[1].set_ylim(1,1e18)
     _ax[1].set_xlabel(aw.plot.Char.wavelength_micron)
     aw.plot.showmo()
+    return
+
+
+@app.cell
+def _():
     return
 
 

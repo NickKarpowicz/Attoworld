@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 import numpy as np
 from typing import Optional
-from ..numeric import interpolate, fwhm
+from ..numeric import interpolate, fwhm, find_maximum_location
 from ..spectrum import wavelength_to_frequency, frequency_to_wavelength, transform_limited_pulse_from_spectrometer
 from scipy import constants
 import scipy.signal as sig
@@ -30,6 +30,12 @@ class Waveform:
         Returns a deep copy
         """
         return copy.deepcopy(self)
+
+    def time_fs(self):
+        if self.time is not None:
+            return 1e15 * self.time
+        else:
+            raise Exception("No data")
 
     def to_uniformly_spaced(self):
         """
@@ -92,7 +98,7 @@ class Waveform:
                     self.wave,
                     n = self.wave.shape[0] * padding_factor,
                     axis = 0)
-                spec.freq = np.fft.rfftfreq(self.wave.shape[0], d = self.dt/padding_factor)
+                spec.freq = np.fft.rfftfreq(self.wave.shape[0] * padding_factor, d = self.dt)
             else:
                 uniform_self = self.to_uniformly_spaced()
                 if uniform_self.wave is not None and uniform_self.dt is not None:
@@ -100,20 +106,29 @@ class Waveform:
                         uniform_self.wave,
                         n = uniform_self.wave.shape[0] * padding_factor,
                         axis = 0)
-                    spec.freq = np.fft.rfftfreq(uniform_self.wave.shape[0], d = uniform_self.dt/padding_factor)
+                    spec.freq = np.fft.rfftfreq(uniform_self.wave.shape[0] * padding_factor, d = uniform_self.dt)
                 else:
                     raise Exception("Interpolation failure.")
             return spec
         else:
             raise Exception("No data to transform.")
-    def to_intensity_spectrum(self, wavelength_scaled: bool = True):
+    def to_intensity_spectrum(self, wavelength_scaled: bool = True, padding_factor: int = 1):
         """
         Converts to an intensity spectrum
 
         Args:
             wavelength_scaled (bool): Correct the spectral intensities for plotting on a wavelength scale
         """
-        return self.to_complex_spectrum().to_intensity_spectrum(wavelength_scaled)
+        return self.to_complex_spectrum(padding_factor).to_intensity_spectrum(wavelength_scaled)
+    def to_time_derivative(self):
+        return self.to_complex_spectrum().time_derivative().to_waveform()
+
+    def to_normalized(self):
+        if self.wave is not None:
+            max_loc ,max_val = find_maximum_location(np.abs(sig.hilbert(self.wave)))
+            return Waveform(wave=self.wave/max_val, time=self.time, dt=self.dt, is_uniformly_spaced = self.is_uniformly_spaced)
+        else:
+            raise Exception("No data")
 
     def to_complex_envelope(self, f0: float = 0.0):
         """
@@ -163,6 +178,13 @@ class ComplexSpectrum:
 
     def copy(self):
         return copy.deepcopy(self)
+    def time_derivative(self):
+        if self.spectrum is not None and self.freq is not None:
+            d_dt = 1j * 2 * np.pi * self.freq * self.spectrum
+            return ComplexSpectrum(spectrum=d_dt, freq=np.array(self.freq))
+        else:
+            raise Exception("No data.")
+
     def to_bandpassed(self, frequency: float, sigma: float, order:int = 4):
         r"""
         Apply a supergaussian bandpass filter to the spectrum, of the form
@@ -181,7 +203,7 @@ class ComplexSpectrum:
     def to_waveform(self):
         if self.spectrum is not None and self.freq is not None:
             wave = np.fft.irfft(self.spectrum, axis=0)
-            dt = wave.shape[0]/(self.freq[1]-self.freq[0])
+            dt = 0.5/(self.freq[-1]-self.freq[0])
             time = dt * np.array(range(wave.shape[0]))
             return Waveform(wave=wave,time=time,dt=dt, is_uniformly_spaced=True)
         else:
@@ -190,10 +212,10 @@ class ComplexSpectrum:
     def to_intensity_spectrum(self, wavelength_scaled: bool = True):
         if self.spectrum is not None and self.freq is not None:
             output = IntensitySpectrum(
-                spectrum = np.abs(self.spectrum[self.freq>0.0])**2,
-                phase = np.angle(self.spectrum[self.freq>0.0]),
-                freq = self.freq[self.freq>0.0],
-                wavelength = constants.speed_of_light/self.freq[self.freq>0.0],
+                spectrum = np.array(np.abs(self.spectrum[self.freq>0.0])**2),
+                phase = np.array(np.angle(self.spectrum[self.freq>0.0])),
+                freq = np.array(self.freq[self.freq>0.0]),
+                wavelength = constants.speed_of_light/np.array(self.freq[self.freq>0.0]),
                 is_frequency_scaled = wavelength_scaled)
             if wavelength_scaled and output.wavelength is not None:
                 output.spectrum /= output.wavelength**2
@@ -210,6 +232,16 @@ class IntensitySpectrum:
     is_frequency_scaled: bool = False
     def copy(self):
         return copy.deepcopy(self)
+    def wavelength_nm(self):
+        if self.wavelength is not None:
+            return 1e9 * self.wavelength
+        else:
+           return None
+    def wavelength_micron(self):
+        if self.wavelength is not None:
+            return 1e6 * self.wavelength
+        else:
+           return None
     def from_spectrometer_spectrum_nanometers(self, wavelengths_nanometers: np.ndarray, spectrum: np.ndarray):
         self.spectrum = spectrum
         self.wavelength = 1e-9 * wavelengths_nanometers
@@ -259,7 +291,11 @@ class IntensitySpectrum:
                 return wavelength_to_frequency(1e9*self.wavelength, self.spectrum)
             else:
                 raise Exception("Missing data")
-
+    def to_normalized(self):
+        normalized_self = self.copy()
+        if normalized_self.spectrum is not None:
+            normalized_self.spectrum /= np.max(normalized_self.spectrum)
+        return normalized_self
 @dataclass
 class ComplexEnvelope:
     envelope: Optional[np.ndarray] = None

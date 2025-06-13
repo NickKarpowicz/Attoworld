@@ -1,7 +1,39 @@
 import scipy.io as sio
+from scipy import constants
 import numpy as np
 import pandas
 from typing import Optional
+from .dataclasses import Waveform, IntensitySpectrum
+
+def load_spectrum_from_text(filename: str, wavelength_multiplier: float = 1e-9, wavelength_field:str='wavelength (nm)', spectrum_field:str='intensity (a.u.)', sep:str='\t'):
+    data = pandas.read_csv(filename, sep=sep)
+    wavelength = wavelength_multiplier * np.array(data[wavelength_field])
+    freq = constants.speed_of_light / wavelength
+    spectrum = np.array(data[spectrum_field])
+    return IntensitySpectrum(spectrum=spectrum, wavelength=wavelength, freq=freq)
+
+def load_waveform_from_text(filename: str, time_multiplier: float = 1e-15, time_field:str='delay (fs)', wave_field:str='field (a.u.)', sep='\t') -> Waveform:
+    """Loads a waveform from a text file
+
+    Args:
+        filename (str): path to the file
+        time_multiplier (float): multiplier needed to convert the time unit in the file to seconds
+        time_field (str): name (header) of the column containing the times
+        wave_field (str): name (header) of the column containing the waveform
+        sep (str): separator used in the file format (tab is default)
+
+    Returns:
+        Waveform: the waveform
+    """
+
+    data = pandas.read_csv(filename, sep=sep)
+    time = time_multiplier * data[time_field].to_numpy()
+    wave = data[wave_field].to_numpy()
+    dt = time[1]-time[0]
+    diff_time = np.diff(time)
+    uniform = bool(np.all(np.isclose(diff_time, diff_time[0])))
+    return Waveform(wave = wave, time = time, dt=dt, is_uniformly_spaced = uniform)
+
 
 def load_waves_from_matfile(filename: str, phase: Optional[float] = None):
     """Load the contents of an attolab scanner file in .mat format
