@@ -184,15 +184,22 @@ def _(mo):
 
 @app.cell
 def _(aw, np, plt):
-    _t = 1e-15*np.linspace(-50.0, 105.0, 512)
-    _E = np.exp(-_t**2/(2*5e-15**2))*np.cos(2*np.pi*200e12*_t)
+    _t = 1e-15*np.linspace(-50.0, 50.0, 2048)
+    _E = np.exp(-_t**2/(2*50e-15**2))*np.cos(2*np.pi*400e12*_t)
     _w = aw.file.Waveform(wave = _E, time=_t, dt=(_t[1]-_t[0]),is_uniformly_spaced=True)
-    e1 = _w.to_intensity_spectrum().get_transform_limited_pulse().envelope **2
-    plt.plot(_w.to_intensity_spectrum().get_transform_limited_pulse().time, e1/np.max(e1))
-    e2= np.abs(_w.to_complex_envelope().envelope)**4
-    plt.plot(_w.to_complex_envelope().time,e2/np.max(e2))
-    print(_w.to_intensity_spectrum().get_transform_limited_pulse().get_fwhm())
-    print(_w.get_envelope_fwhm())
+    _s = _w.to_intensity_spectrum()
+    _fig, _ax = plt.subplots(2,1)
+    _ax[0].plot(1e15*_w.time,_w.wave)
+    _ax[0].plot(1e15*_w.time,_w.to_windowed('tukey').wave)
+    _ax[0].plot(1e15*_w.time,_w.to_windowed('tukey').to_bandpassed(400e12,20e12,4).wave)
+    _ax[0].set_xlabel('Time (fs)')
+    _ax[1].loglog(1e6*_s.wavelength, _s.spectrum)
+    _ax[1].loglog(1e6*_s.wavelength,1e9*_w.to_intensity_spectrum(wavelength_scaled=False).spectrum)
+    _ax[1].loglog(1e6*_s.wavelength, _w.to_windowed('tukey').to_intensity_spectrum().spectrum)
+    _ax[1].loglog(1e6*_s.wavelength, _w.to_windowed('blackman').to_intensity_spectrum().spectrum)
+    _ax[1].set_ylim(1,1e18)
+    _ax[1].set_xlabel(aw.plot.Char.wavelength_micron)
+    aw.plot.showmo()
     return
 
 

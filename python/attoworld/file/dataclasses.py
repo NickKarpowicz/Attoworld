@@ -7,6 +7,7 @@ from scipy import constants
 import scipy.signal as sig
 import copy
 
+
 @dataclass
 class Waveform:
     """
@@ -50,6 +51,33 @@ class Waveform:
             else:
                 raise Exception("Uninitialized data.")
 
+    def to_windowed(self, window_desc):
+        """
+        Create a windowed version of the waveform. Output will be uniformly spaced in time, even if current state isn't.
+
+        Args:
+            window_desc: String or tuple describing the desired window in the same format as scipy.signals.windows.get_window.
+
+        Examples:
+            >>> waveform_with_tukey_window = waveform.to_windowed('tukey')
+            >>> waveform_with_supergaussian_window = waveform.to_windowed(('general_gaussian', 2, 500))
+        """
+        uniform_self = self.to_uniformly_spaced()
+        if uniform_self.wave is not None:
+            uniform_self.wave *= sig.windows.get_window(window_desc,Nx=uniform_self.wave.shape[0])
+        return uniform_self
+    def to_bandpassed(self, frequency: float, sigma: float, order: int = 4):
+        r"""
+        Apply a bandpass filter, with the same spec as to_bandpassed method of ComplexSpectrum:
+        $e^{\frac{(f-f_0)^r}{2\sigma^r}}$
+        where $f_0$ is the frequency argument, $\sigma$ is the sigma argument, and r is the order argument
+
+        Args:
+            frequency: the central frequency (Hz) of the bandpass
+            sigma: the width of the bandpass (Hz)
+            order: the order of the supergaussian
+        """
+        return self.copy().to_complex_spectrum().to_bandpassed(frequency, sigma, order).to_waveform()
     def to_complex_spectrum(self, padding_factor: int = 1):
         """
         Converts to a ComplexSpectrum class
@@ -135,6 +163,30 @@ class ComplexSpectrum:
 
     def copy(self):
         return copy.deepcopy(self)
+    def to_bandpassed(self, frequency: float, sigma: float, order:int = 4):
+        r"""
+        Apply a supergaussian bandpass filter to the spectrum, of the form
+        $e^{\frac{(f-f_0)^r}{2\sigma^r}}$
+        where $f_0$ is the frequency argument, $\sigma$ is the sigma argument, and r is the order argument
+
+        Args:
+            frequency: the central frequency (Hz) of the bandpass
+            sigma: the width of the bandpass (Hz)
+            order: the order of the supergaussian
+        """
+        new_self = self.copy()
+        if new_self.spectrum is not None and new_self.freq is not None:
+            new_self.spectrum *= np.exp(-(new_self.freq - frequency)**order/(2*sigma**order))
+        return new_self
+    def to_waveform(self):
+        if self.spectrum is not None and self.freq is not None:
+            wave = np.fft.irfft(self.spectrum, axis=0)
+            dt = wave.shape[0]/(self.freq[1]-self.freq[0])
+            time = dt * np.array(range(wave.shape[0]))
+            return Waveform(wave=wave,time=time,dt=dt, is_uniformly_spaced=True)
+        else:
+            raise Exception("No data to transform")
+
     def to_intensity_spectrum(self, wavelength_scaled: bool = True):
         if self.spectrum is not None and self.freq is not None:
             output = IntensitySpectrum(
@@ -195,7 +247,7 @@ class IntensitySpectrum:
                 return self.wavelength, self.spectrum
             else:
                 raise Exception("Missing data")
-    
+
     def get_frequency_spectrum(self):
         if self.is_frequency_scaled:
             if self.freq is not None and self.spectrum is not None:
@@ -226,8 +278,7 @@ class ComplexEnvelope:
         if self.envelope is not None and self.dt is not None:
             return ComplexSpectrum(
                 spectrum = np.fft.rfft(self.envelope, self.envelope.shape[0] * padding_factor),
-                freq = np.fft.rfftfreq(self.envelope.shape[0] * padding_factor, self.dt) + self.carrier_frequency,
-                is_uniformly_spaced = True
+                freq = np.fft.rfftfreq(self.envelope.shape[0] * padding_factor, self.dt) + self.carrier_frequency
             )
         else:
             raise Exception("Tried to convert non-existent data.")
