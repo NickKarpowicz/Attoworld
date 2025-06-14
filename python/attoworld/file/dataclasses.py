@@ -83,7 +83,7 @@ class Waveform:
             sigma: the width of the bandpass (Hz)
             order: the order of the supergaussian
         """
-        return self.copy().to_complex_spectrum().to_bandpassed(frequency, sigma, order).to_waveform()
+        return self.to_complex_spectrum().to_bandpassed(frequency, sigma, order).to_waveform()
     def to_complex_spectrum(self, padding_factor: int = 1):
         """
         Converts to a ComplexSpectrum class
@@ -121,12 +121,12 @@ class Waveform:
         """
         return self.to_complex_spectrum(padding_factor).to_intensity_spectrum(wavelength_scaled)
     def to_time_derivative(self):
-        return self.to_complex_spectrum().time_derivative().to_waveform()
+        return self.to_complex_spectrum().to_time_derivative().to_waveform()
 
     def to_normalized(self):
         if self.wave is not None:
-            max_loc ,max_val = find_maximum_location(np.abs(sig.hilbert(self.wave)))
-            return Waveform(wave=self.wave/max_val, time=self.time, dt=self.dt, is_uniformly_spaced = self.is_uniformly_spaced)
+            max_loc ,max_val = find_maximum_location(np.abs(np.array(sig.hilbert(self.wave))))
+            return Waveform(wave=self.wave/max_val, time=copy.deepcopy(self.time), dt=self.dt, is_uniformly_spaced = self.is_uniformly_spaced)
         else:
             raise Exception("No data")
 
@@ -139,7 +139,7 @@ class Waveform:
         """
         uniform_self = self.to_uniformly_spaced()
         if uniform_self.wave is not None and uniform_self.time is not None:
-            analytic = sig.hilbert(uniform_self.wave)*np.exp(-1j * 2*np.pi*f0 * uniform_self.time)
+            analytic = np.array(sig.hilbert(uniform_self.wave)*np.exp(-1j * 2*np.pi*f0 * uniform_self.time))
             return ComplexEnvelope(
                 envelope = analytic,
                 time = uniform_self.time,
@@ -178,7 +178,7 @@ class ComplexSpectrum:
 
     def copy(self):
         return copy.deepcopy(self)
-    def time_derivative(self):
+    def to_time_derivative(self):
         if self.spectrum is not None and self.freq is not None:
             d_dt = 1j * 2 * np.pi * self.freq * self.spectrum
             return ComplexSpectrum(spectrum=d_dt, freq=np.array(self.freq))
@@ -243,12 +243,7 @@ class IntensitySpectrum:
         else:
            return None
     def from_spectrometer_spectrum_nanometers(self, wavelengths_nanometers: np.ndarray, spectrum: np.ndarray):
-        self.spectrum = spectrum
-        self.wavelength = 1e-9 * wavelengths_nanometers
-        self.is_frequency_scaled = False
-        self.phase = None
-        self.freq = None
-        self.phase = None
+        return IntensitySpectrum(spectrum = spectrum, wavelength=1e-9 *wavelengths_nanometers)
     def get_transform_limited_pulse(self, gate_level: Optional[float] = None):
         if self.spectrum is not None:
             spectrum = self.spectrum
@@ -323,7 +318,7 @@ class ComplexEnvelope:
             output_dt = self.dt / interpolation_factor
             output_time = self.time[0] + output_dt * np.array(range(self.time.shape[0] * interpolation_factor))
             if interpolation_factor != 1:
-                output_envelope = sig.resample(np.real(self.envelope), output_time.shape[0]) + 1j * sig.resample(np.imag(self.envelope), output_time.shape[0])
+                output_envelope = sig.resample(np.real(self.envelope), output_time.shape[0]) + 1j * np.array(sig.resample(np.imag(self.envelope), output_time.shape[0]))
             else:
                 output_envelope = self.envelope
             return Waveform(
