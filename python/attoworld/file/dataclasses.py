@@ -11,9 +11,7 @@ def copy_if_not_none(data):
     """
     Helper function to handle optionals that should be deep-copied
     """
-    if data is not None:
-        return copy.deepcopy(data)
-    return None
+    return copy.deepcopy(data) if data is not None else None
 
 @dataclass(frozen=True, slots=True)
 class Waveform:
@@ -69,7 +67,7 @@ class Waveform:
         Create a windowed version of the waveform. Output will be uniformly spaced in time, even if current state isn't.
 
         Args:
-            window_desc: String or tuple describing the desired window in the same format as scipy.signals.windows.get_window.
+            window_desc: String or tuple describing the desired window in the same format as scipy.signal.windows.get_window.
 
         Examples:
             >>> waveform_with_tukey_window = waveform.to_windowed('tukey')
