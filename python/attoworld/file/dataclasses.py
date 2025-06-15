@@ -14,6 +14,12 @@ def copy_if_not_none(data):
     return copy.deepcopy(data) if data is not None else None
 
 @dataclass(frozen=True, slots=True)
+class Spectrogram:
+    data: np.ndarray
+    time: np.ndarray
+    freq: np.ndarray
+
+@dataclass(frozen=True, slots=True)
 class Waveform:
     """
     Contains data describing an electric field waveform.
@@ -227,6 +233,18 @@ class ComplexSpectrum:
             wave = np.fft.irfft(self.spectrum, axis=0)
             dt = 0.5/(self.freq[-1]-self.freq[0])
             time = dt * np.array(range(wave.shape[0]))
+            return Waveform(wave=wave,time=time,dt=dt, is_uniformly_spaced=True)
+        else:
+            raise Exception("No data to transform")
+
+    def to_centered_waveform(self):
+        if self.spectrum is not None and self.freq is not None:
+            wave = np.fft.irfft(self.spectrum, axis=0)
+            dt = 0.5/(self.freq[-1]-self.freq[0])
+            time = dt * np.array(range(wave.shape[0]))
+            max_ind, max_val = find_maximum_location(np.abs(np.array(sig.hilbert(wave))))
+            max_loc = dt * max_ind - 0.5 * time[-1]
+            wave = np.fft.irfft(np.exp(-1j * self.freq * 2*np.pi* max_loc)*self.spectrum, axis=0)
             return Waveform(wave=wave,time=time,dt=dt, is_uniformly_spaced=True)
         else:
             raise Exception("No data to transform")

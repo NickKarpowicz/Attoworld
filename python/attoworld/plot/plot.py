@@ -46,7 +46,8 @@ def set_style(theme: str = 'light', font_size: int = 11):
             'xtick.color': 'white',
             'ytick.color': 'white',
             'grid.color': 'white',
-            'lines.color': 'white'
+            'lines.color': 'white',
+            'image.cmap': 'magma'
             })
         # Light case is combined with _, which will capture anything else that didn't match.
         # It must be the last case, for that reason.
@@ -66,7 +67,8 @@ def set_style(theme: str = 'light', font_size: int = 11):
             'xtick.color': 'black',
             'ytick.color': 'black',
             'grid.color': 'black',
-            'lines.color': 'black'})
+            'lines.color': 'black',
+            'image.cmap': 'viridis'})
 
 def label_letter(
     letter: str = 'a',
