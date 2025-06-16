@@ -262,6 +262,9 @@ class ComplexSpectrum:
             raise Exception("No data to transform")
 
     def to_centered_waveform(self):
+        """
+        Create a Waveform based on this complex spectrum and center it in the time window
+        """
         if self.spectrum is not None and self.freq is not None:
             wave = np.fft.irfft(self.spectrum, axis=0)
             dt = 0.5/(self.freq[-1]-self.freq[0])
