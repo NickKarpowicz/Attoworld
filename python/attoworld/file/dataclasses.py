@@ -1,11 +1,14 @@
 from dataclasses import dataclass
 import numpy as np
 from typing import Optional
-from ..numeric import interpolate, fwhm, find_maximum_location
+from ..numeric import interpolate, fwhm, find_maximum_location, derivative
+from ..plot import label_letter
 from ..spectrum import wavelength_to_frequency, frequency_to_wavelength, transform_limited_pulse_from_spectrometer
 from scipy import constants
 import scipy.signal as sig
 import copy
+import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
 
 def copy_if_not_none(data):
     """
@@ -18,6 +21,27 @@ class Spectrogram:
     data: np.ndarray
     time: np.ndarray
     freq: np.ndarray
+    
+    def plot(self, ax: Optional[Axes] = None):
+        """
+        Plot the reconstructed spectrogram.
+
+        Args:
+            ax: optionally plot onto a pre-existing matplotlib Axes
+        """
+        if ax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig = ax.get_figure()
+        a=ax.pcolormesh(
+            1e15 * self.time,
+            1e-12 * self.freq,
+            self.data/np.max(self.data[:]),
+            rasterized=True)
+        ax.set_xlabel('Time (fs)')
+        ax.set_ylabel('Frequency (THz)')
+        plt.colorbar(a)
+        return fig
 
 @dataclass(frozen=True, slots=True)
 class Waveform:
@@ -268,6 +292,8 @@ class ComplexSpectrum:
                 is_frequency_scaled = wavelength_scaled)
         else:
             raise Exception("Insufficient data to make intensity spectrum.")
+    
+    
 
 @dataclass(frozen=True, slots=True)
 class IntensitySpectrum:
@@ -391,7 +417,50 @@ class IntensitySpectrum:
             freq = copy_if_not_none(self.freq),
             wavelength = copy_if_not_none(self.wavelength),
             is_frequency_scaled = self.is_frequency_scaled)
+            
+    def plot_with_group_delay(self, ax: Optional[Axes] = None, phase_blanking: float = 0.05, xlim=None):
+        """
+        Plot the spectrum and group delay curve.
 
+        Args:
+            ax: optionally plot onto a pre-existing matplotlib Axes
+            phase_blanking: only show phase information (group delay) above this level relative to max intensity
+            xlim: pass arguments to set_xlim() to constrain the x-axis
+        """
+        if ax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig = ax.get_figure()
+
+        if self.spectrum is not None and self.phase is not None and self.freq is not None:
+            start_index = np.argmax(self.spectrum>0)
+            print(start_index)
+            intensity = self.spectrum[start_index::]
+            freq = self.freq[start_index::]
+            wl = constants.speed_of_light/freq
+            phase = np.unwrap(self.phase[start_index::])
+
+            intensity /= np.max(intensity)
+            intensity_line = ax.plot(1e9*wl,
+                intensity,
+                label="Intensity")
+            ax.set_xlabel('Wavelength (nm)')
+            ax.set_ylabel('Intensity (Arb. unit)')
+            ax_phase = plt.twinx(ax)
+            group_delay = (1e15/(2*np.pi))*derivative(phase, 1)/(freq[1]-freq[2])
+            ax_phase.plot([],[])
+            phase_line = ax_phase.plot(
+                1e9*wl[intensity>phase_blanking],
+                group_delay[intensity > phase_blanking],
+                '--',
+                label='Group delay')
+            ax_phase.set_ylabel('Group delay (fs)')
+            if xlim is not None:
+                ax.set_xlim(xlim)
+                ax_phase.set_xlim(xlim)
+            lines = lines = intensity_line+phase_line
+            ax.legend(lines, [l.get_label() for l in lines])
+        return fig
 @dataclass(frozen=True, slots=True)
 class ComplexEnvelope:
     """
@@ -408,6 +477,11 @@ class ComplexEnvelope:
     time: Optional[np.ndarray] = None
     dt: Optional[float] = None
     carrier_frequency: float = 0.0
+    def time_fs(self):
+        if self.time is not None:
+            return 1e15*self.time
+        else:
+            raise Exception("No time axis.")
     def copy(self):
         return copy.deepcopy(self)
     def get_fwhm(self) -> float:
@@ -432,6 +506,7 @@ class ComplexEnvelope:
             )
         else:
             raise Exception("Tried to convert non-existent data.")
+            
     def to_waveform(self, interpolation_factor: int = 1, CEP_shift: float = 0.0) -> Waveform:
         """
         Returns a Waveform based on the data
@@ -451,3 +526,142 @@ class ComplexEnvelope:
             )
         else:
             raise Exception("Not enough data to make a Waveform")
+            
+    def plot(self, ax: Optional[Axes] = None, phase_blanking: float = 0.05, xlim=None):
+        """
+        Plot the pulse.
+
+        Args:
+            ax: optionally plot onto a pre-existing matplotlib Axes
+            phase_blanking: only show phase information (instantaneous frequency) above this level relative to max intensity
+            xlim: pass arguments to set_xlim() to constrain the x-axis
+        """
+        if ax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig = ax.get_figure()
+        envelope = self.envelope
+        if envelope is not None:
+            time_ax = self.time_fs()-np.mean(self.time_fs())
+            intensity = np.abs(envelope)**2
+            intensity /= np.max(intensity)
+            intensity_line = ax.plot(time_ax,
+                intensity,
+                label=f"Intensity, fwhm {1e15*self.get_fwhm():0.1f} fs")
+            ax.set_xlabel('Time (fs)')
+            ax.set_ylabel('Intensity (Arb. unit)')
+            ax_phase = plt.twinx(ax)
+            inst_freq = (1e-12/(2*np.pi))*derivative(np.unwrap(np.angle(envelope)), 1)/self.dt
+            ax_phase.plot([],[])
+            phase_line = ax_phase.plot(
+                time_ax[intensity>phase_blanking],
+                inst_freq[intensity > phase_blanking],
+                '--',
+                label='Inst. frequency')
+            ax_phase.set_ylabel('Inst. frequency (THz)')
+            if xlim is not None:
+                ax.set_xlim(xlim)
+                ax_phase.set_xlim(xlim)
+            lines = lines = intensity_line+phase_line
+            ax.legend(lines, [l.get_label() for l in lines])
+        return fig
+
+@dataclass(frozen=True, slots=True)
+class FrogData:
+    """
+    Stores data from a FROG measurement
+
+    Attributes:
+        spectrum (ComplexSpectrum): the reconstructed complex spectrum
+        pulse (Waveform): time-domain reconstructed field
+        measured_spectrogram (Spectrogram): measured (binned) data
+        reconstructed_spectrogram (Spectrogram): spectrogram resulting from reconstructed field
+    """
+    spectrum: ComplexSpectrum
+    pulse: Waveform
+    measured_spectrogram: Spectrogram
+    reconstructed_spectrogram: Spectrogram
+    
+    def plot_measured_spectrogram(self, ax: Optional[Axes] = None):
+        """
+        Plot the measured spectrogram.
+
+        Args:
+            ax: optionally plot onto a pre-existing matplotlib Axes
+        """
+        if ax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig = ax.get_figure()
+        self.measured_spectrogram.plot(ax)
+        ax.set_title('Measurement')
+        return fig
+
+    def plot_reconstructed_spectrogram(self, ax: Optional[Axes] = None):
+        """
+        Plot the reconstructed spectrogram.
+
+        Args:
+            ax: optionally plot onto a pre-existing matplotlib Axes
+        """
+        if ax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig = ax.get_figure()
+        self.reconstructed_spectrogram.plot(ax)
+        ax.set_title(f"Reconstruction (G': {self.get_error():0.4f})")
+        return fig
+
+    def plot_pulse(self, ax: Optional[Axes] = None, phase_blanking: float = 0.05, xlim=None):
+        """
+        Plot the reconstructed pulse.
+
+        Args:
+            ax: optionally plot onto a pre-existing matplotlib Axes
+            phase_blanking: only show phase information (instantaneous frequency) above this level relative to max intensity
+            xlim: pass arguments to set_xlim() to constrain the x-axis
+        """
+        return self.pulse.to_complex_envelope().plot(ax, phase_blanking, xlim)
+    def plot_spectrum(self, ax: Optional[Axes] = None, phase_blanking: float = 0.05, xlim=None):
+        """
+        Plot the reconstructed spectrum and group delay curve.
+
+        Args:
+            ax: optionally plot onto a pre-existing matplotlib Axes
+            phase_blanking: only show phase information (group delay) above this level relative to max intensity
+            xlim: pass arguments to set_xlim() to constrain the x-axis
+        """
+        return self.spectrum.to_intensity_spectrum().plot_with_group_delay(ax, phase_blanking, xlim)
+
+    def plot_all(self, phase_blanking=0.05, time_xlims=None, wavelength_xlims=None):
+        """
+        Produce a 4-panel plot of the FROG results, combining calls to plot_measured_spectrogram(),
+        plot_reconstructed_spectrogram(), plot_pulse() and plot_spectrum() as subplots, with letter labels.
+
+        Args:
+            phase_blanking: relative intensity at which to show phase information
+            time_xlim: x-axis limits to pass to the plot of the pulse
+            wavelength_xlim: x-axis limits to pass to the plot of the spectrum"""
+        default_figsize = plt.rcParams['figure.figsize']
+        fig,ax = plt.subplots(2,2, figsize=(default_figsize[0] * 2, default_figsize[1]*2))
+        self.plot_measured_spectrogram(ax[0,0])
+        label_letter('a', ax[0,0])
+        self.plot_reconstructed_spectrogram(ax[1,0])
+        label_letter('b', ax[1,0])
+        self.plot_pulse(ax[0,1], xlim=time_xlims)
+        label_letter('c', ax[0,1])
+        self.plot_spectrum(ax[1,1], xlim=wavelength_xlims)
+        label_letter('d', ax[1,1])
+        return fig
+    def get_error(self) -> float:
+        """
+        Get the G' error of the reconstruction
+        """
+        return np.sqrt(
+            np.sum( (self.measured_spectrogram.data[:] - self.reconstructed_spectrogram.data[:])**2)
+            / np.sum(self.measured_spectrogram.data[:]**2))
+    def get_fwhm(self) -> float:
+        """
+        Get the full-width-at-half-max value of the reconstructed pulse
+        """
+        return self.pulse.get_envelope_fwhm()

@@ -2,8 +2,10 @@ import scipy.io as sio
 from scipy import constants
 import numpy as np
 import pandas
+from ..numeric import interpolate
+from pathlib import Path
 from typing import Optional
-from .dataclasses import Waveform, IntensitySpectrum
+from .dataclasses import Waveform, IntensitySpectrum, Spectrogram, FrogData, ComplexSpectrum
 
 def load_spectrum_from_text(filename: str, wavelength_multiplier: float = 1e-9, wavelength_field:str='wavelength (nm)', spectrum_field:str='intensity (a.u.)', sep:str='\t'):
     data = pandas.read_csv(filename, sep=sep)
@@ -58,3 +60,58 @@ def load_waves_from_matfile(filename: str, phase: Optional[float] = None):
     else:
         signal = np.fliplr(lia_x*np.cos(phase) - lia_y*np.sin(phase))
         return time_delay, signal
+
+
+def read_Trebino_FROG_matrix(filename: Path | str) -> Spectrogram:
+    """
+    Read a spectrogram file made by the Trebino FROG code
+
+    Args:
+        filename (Path | str): the name (path) of the file
+    """
+    with open(filename, "r") as f:
+        l = str(f.readline())
+        l = l.split()
+        n1 = int(l[0])
+        n2 = int(l[1])
+        l = str(f.readline())
+        l = l.split()
+    measured_data = pandas.read_csv(filename, sep='\t', header = None, skiprows=2)
+    measure = []
+    raw_freq = 1e9*constants.speed_of_light/np.array(measured_data[0][0:n2]).squeeze()
+    df = np.mean(np.diff(raw_freq))
+    freq = raw_freq[0] + df * np.array(range(raw_freq.shape[0]))
+    time = 1e-15 * np.array(measured_data[0][n2:(n2+n1)]).squeeze()
+    for i in range(n1):
+        measure.append(measured_data[0][(i+2)*n2:(i+3)*n2])
+    data = np.array(measure)
+    return Spectrogram(data = data, time = time, freq = freq)
+    
+def read_Trebino_FROG_speck(filename: Path | str) -> ComplexSpectrum:
+    """
+    Read a .Speck file made by the Trebino FROG code
+
+    Args:
+        filename (Path | str): the name (path) of the file
+    """
+    data = np.array(pandas.read_csv(filename, sep='\t', header = None), dtype=float)
+    raw_freq = 1e9*constants.speed_of_light/data[:,0]
+    df = np.mean(np.diff(raw_freq))
+    freq = np.linspace(0.0, raw_freq[-1], int(np.ceil(raw_freq[-1]/df)))
+    spectrum = interpolate(freq, raw_freq, data[:,3]) + 1j * interpolate(freq, raw_freq, data[:,4])
+    return ComplexSpectrum(spectrum=spectrum, freq=freq)
+    
+def read_Trebino_FROG_data(filename: str) -> FrogData:
+    """
+    Read a set of data produced by the Trebino FROG reconstruction code.
+
+    Args:
+        filename: Base filename of the .bin file; e.g. if the data are mydata.bin.Speck.dat etc., this will be "mydata.bin" """
+    spectrum = read_Trebino_FROG_speck(filename+'.Speck.dat')
+    pulse = spectrum.to_centered_waveform()
+    measured_spectrogram = read_Trebino_FROG_matrix(filename+'.A.dat')
+    reconstructed_spectrogram = read_Trebino_FROG_matrix(filename+'.Arecon.dat')
+    return FrogData(spectrum = spectrum,
+        pulse = pulse,
+        measured_spectrogram = measured_spectrogram,
+        reconstructed_spectrogram = reconstructed_spectrogram)
