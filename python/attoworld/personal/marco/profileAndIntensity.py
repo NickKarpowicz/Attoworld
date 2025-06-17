@@ -4,7 +4,7 @@ import pandas
 import scipy.optimize as opt
 import scipy.signal
 import scipy.constants as constants
-from ..numeric import fwhm
+from ...numeric import fwhm
 def get_fwhm(t, x, no_envelope: bool = False):
     """Calculates the full-width-at-half-maximum:
     FWHM is the full-width of the intensity profile I(t) = |A(t)|^2 at half-maximum, where A(t) is the envelope of the signal.

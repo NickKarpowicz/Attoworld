@@ -8,6 +8,17 @@ from typing import Optional
 from .dataclasses import Waveform, IntensitySpectrum, Spectrogram, FrogData, ComplexSpectrum
 
 def load_spectrum_from_text(filename: str, wavelength_multiplier: float = 1e-9, wavelength_field:str='wavelength (nm)', spectrum_field:str='intensity (a.u.)', sep:str='\t'):
+    """
+    Load a spectrum contained in a text file.
+
+    Args:
+        filename (str): path to the file
+        wavelength_multiplier (float): multiplier to convert wavelength to m
+        wavelength_field (str): name of the field in the data corresponding to wavelength
+        spectrum_field (str): name of the field in the data corresponding to spectral intensity
+        sep (str): column separator
+    Returns:
+        IntensitySpectrum: the intensity spectrum"""
     data = pandas.read_csv(filename, sep=sep)
     wavelength = wavelength_multiplier * np.array(data[wavelength_field])
     freq = constants.speed_of_light / wavelength
@@ -86,7 +97,7 @@ def read_Trebino_FROG_matrix(filename: Path | str) -> Spectrogram:
         measure.append(measured_data[0][(i+2)*n2:(i+3)*n2])
     data = np.array(measure)
     return Spectrogram(data = data, time = time, freq = freq)
-    
+
 def read_Trebino_FROG_speck(filename: Path | str) -> ComplexSpectrum:
     """
     Read a .Speck file made by the Trebino FROG code
@@ -100,7 +111,7 @@ def read_Trebino_FROG_speck(filename: Path | str) -> ComplexSpectrum:
     freq = np.linspace(0.0, raw_freq[-1], int(np.ceil(raw_freq[-1]/df)))
     spectrum = interpolate(freq, raw_freq, data[:,3]) + 1j * interpolate(freq, raw_freq, data[:,4])
     return ComplexSpectrum(spectrum=spectrum, freq=freq)
-    
+
 def read_Trebino_FROG_data(filename: str) -> FrogData:
     """
     Read a set of data produced by the Trebino FROG reconstruction code.

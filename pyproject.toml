@@ -29,6 +29,7 @@ license = { file = "LICENSE" }
 features = ["pyo3/extension-module"]
 python-source = "python"
 module-name = "attoworld.attoworld_rs"
+include = ["python/attoworld/spectrum/calibration_data/*"]
 
 [project.urls]
 Homepage = "https://github.com/NickKarpowicz/Attoworld"

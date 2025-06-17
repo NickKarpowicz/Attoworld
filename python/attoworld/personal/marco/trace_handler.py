@@ -6,7 +6,7 @@ import scipy.special
 import scipy.signal
 from scipy import constants
 import pandas
-from ..numeric import fwhm, find_maximum_location
+from ...numeric import fwhm, find_maximum_location
 
 def check_equal_length(*arg):
     n = len(arg[0])

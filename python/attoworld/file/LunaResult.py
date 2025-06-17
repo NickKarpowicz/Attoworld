@@ -2,22 +2,9 @@ import numpy as np
 import h5py
 import matplotlib.pyplot as plt
 from ..plot import Char
-e = 1.602176462e-19
-hbar = 1.05457159682e-34
-m = 9.1093818872e-31
-eps0 = 8.854187817e-12
-kB = 1.380650324e-23
-c = 299792458
-
-figureSize = [30,12]
-tickSize = 48
-fontSize = 55
-lineWidth = 6
-legendFontSize = 41
-axisLineWidth = 3
+from scipy import constants
 
 def check_equal_length(*arg):
-
     n = len(arg[0])
     for v in arg:
         if len(v) != n:
@@ -164,8 +151,8 @@ class LunaResult:
         index = np.argmin(np.abs(self.z - position))
         if position > np.max(self.z) or position < np.min(self.z):
             print("WARNING: position ", position, "m is out of range")
-        wvl = 2 * np.pi * c / self.omega[::-1]
-        wvlSpectrum = np.abs(self.fieldFT[index, ::-1])**2 * (2 * np.pi * c/wvl**2 )
+        wvl = 2 * np.pi * constants.speed_of_light / self.omega[::-1]
+        wvlSpectrum = np.abs(self.fieldFT[index, ::-1])**2 * (2 * np.pi * constants.speed_of_light/wvl**2 )
         return wvl, wvlSpectrum
 
 
@@ -185,7 +172,7 @@ class LunaResult:
         index = np.argmin(np.abs(self.z - position))
         if position > np.max(self.z) or position < np.min(self.z):
             print("WARNING: position ", position, "m is out of range")
-        wvl = 2 * np.pi * c / self.omega[::-1]
+        wvl = 2 * np.pi * constants.speed_of_light / self.omega[::-1]
         phase = np.angle(self.fieldFT[index, ::-1])
         return wvl, phase
 
