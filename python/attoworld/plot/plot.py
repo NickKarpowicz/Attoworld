@@ -117,4 +117,6 @@ class Char:
     theta: str = '\u03b8'
     micron: str = '\u03bcm'
     degrees: str = '\u00B0'
+    angstrom: str = '\u212B'
     wavelength_micron: str = 'Wavelength (\u03bcm)'
+    energy_microjoule: str = 'Energy (\u03bcJ)'
