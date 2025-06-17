@@ -3,7 +3,7 @@ This module will contain functions for loading the various data formats used acr
 """
 from .file_io import load_waves_from_matfile, load_waveform_from_text, load_spectrum_from_text, read_Trebino_FROG_matrix, read_Trebino_FROG_speck, read_Trebino_FROG_data
 from .LunaResult import LunaResult
-from .dataclasses import Waveform, ComplexSpectrum, IntensitySpectrum, ComplexEnvelope, FrogData, Spectrogram
+from .data_structures import Waveform, ComplexSpectrum, IntensitySpectrum, ComplexEnvelope, FrogData, Spectrogram
 
 __all__ = ["load_waves_from_matfile",
     "load_waveform_from_text",

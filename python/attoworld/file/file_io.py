@@ -5,7 +5,7 @@ import pandas
 from ..numeric import interpolate
 from pathlib import Path
 from typing import Optional
-from .dataclasses import Waveform, IntensitySpectrum, Spectrogram, FrogData, ComplexSpectrum
+from .data_structures import Waveform, IntensitySpectrum, Spectrogram, FrogData, ComplexSpectrum
 
 def load_spectrum_from_text(filename: str, wavelength_multiplier: float = 1e-9, wavelength_field:str='wavelength (nm)', spectrum_field:str='intensity (a.u.)', sep:str='\t'):
     """
