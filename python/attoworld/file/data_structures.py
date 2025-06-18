@@ -22,31 +22,52 @@ class Spectrogram:
     time: np.ndarray
     freq: np.ndarray
 
-    def to_per_frequency_dc_removed(self):
+    def to_per_frequency_dc_removed(self, extra_offset: float = 0.0):
+        """Perform DC offset removal on a measured spectrogram, on a per-frequency basis
+
+        Args:
+            extra_offset (float): subtract a value from the entire array (negative values are always set to zero)
+
+        Returns:
+            Spectrogram: the spectrogram with offset removed."""
         new_data = np.array(self.data)
+        new_data -= extra_offset;
+        new_data[new_data<0.0] = 0.0
         for _i in range(new_data.shape[0]):
             new_data[_i,:] -= np.min(new_data[_i,:])
 
         return Spectrogram(data = new_data, time=self.time, freq=self.freq)
 
     def to_binned(self, dim: int = 64, dt: float = 5e-15, t0: Optional[float] = None, f0: float = 750e12):
+        """Bin a spectrogram to a FFT-appropriate shape
+
+        Args:
+            dim (int): size of each size of the resulting square data
+            dt (float): time step of the data
+            t0: (Optional[float]): time-zero of the data. If not specified, will be calculated by the first moment of the time-distribution of the signal
+            f0: (float): central frequency of the binned array
+
+        Returns:
+            Spectrogram: the binned spectrogram
+        """
         _t = np.array(range(dim))*dt
         _t -= np.mean(_t)
         _f = np.fft.fftshift(np.fft.fftfreq(dim, d=dt) + f0)
         binned_data = np.zeros((dim,self.time.shape[0]),dtype=float)
         for _i in range(self.time.shape[0]):
-            binned_data[:,_i] = interpolate(_f, self.freq, np.array(self.data[:,_i]))
+            binned_data[:,_i] = interpolate(_f, self.freq, np.array(self.data[:,_i]), neighbors=2)
+        binned_data /= np.max(binned_data[:])
         if t0 is None:
             ac = np.sum(binned_data,axis=0)
             t0 = np.sum(ac*self.time)/np.sum(ac)
         binned_data_square = np.zeros((dim,dim),dtype=float)
         for _i in range(dim):
-            binned_data_square[_i,:] = interpolate(_t, self.time-t0, np.array(binned_data[_i,:]))
+            binned_data_square[_i,:] = interpolate(_t, self.time-t0, np.array(binned_data[_i,:]), neighbors=2)
         return Spectrogram(data=binned_data_square, time=_t, freq=_f)
 
     def plot(self, ax: Optional[Axes] = None):
         """
-        Plot the reconstructed spectrogram.
+        Plot the spectrogram.
 
         Args:
             ax: optionally plot onto a pre-existing matplotlib Axes
@@ -65,6 +86,30 @@ class Spectrogram:
         plt.colorbar(a)
         return fig
 
+    def plot_log(self, ax: Optional[Axes] = None):
+        """
+        Plot the spectrogram.
+
+        Args:
+            ax: optionally plot onto a pre-existing matplotlib Axes
+        """
+        if ax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig = ax.get_figure()
+        logdata = np.array(self.data)
+        logdata[self.data>0.0] = np.log(self.data[self.data>0.0])
+        logdata[self.data<0.0] = 0.0
+        a=ax.pcolormesh(
+            1e15 * self.time,
+            1e-12 * self.freq,
+            logdata,
+            rasterized=True)
+        ax.set_xlabel('Time (fs)')
+        ax.set_ylabel('Frequency (THz)')
+        ax.grid(True,lw=1)
+        plt.colorbar(a)
+        return fig
 @dataclass(frozen=True, slots=True)
 class Waveform:
     """

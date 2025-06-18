@@ -26,8 +26,8 @@ def bundle_frog_reconstruction(t, result, measurement, f0: float=375e12, interpo
     Returns:
         FrogData: the bundled data
     """
-    f = np.fft.fftfreq(len(t),d=(t[1]-t[2]))
-    sg_freq = np.fft.fftshift(f+2*f0)
+    f = np.fft.fftfreq(len(t),d=(t[1]-t[0]))
+    sg_freq = np.fft.fftshift(f) + 2*f0
     result_sg = Spectrogram(
         data=np.fft.fftshift(np.abs(generate_shg_spectrogram(result, result))**2,axes=0),
         time=t,
@@ -39,7 +39,7 @@ def bundle_frog_reconstruction(t, result, measurement, f0: float=375e12, interpo
     result_ce = ComplexEnvelope(
         time = t,
         dt=(t[1]-t[0]),
-        carrier_frequency=400e12,
+        carrier_frequency=f0,
         envelope=result).to_waveform(interpolation_factor=interpolation_factor)
     result_cs = result_ce.to_complex_spectrum()
 
@@ -129,7 +129,7 @@ def reconstruct_shg_frog_core(measurement_sg_sqrt, guess = None, max_iterations:
             best = current
     return best
 
-def reconstruct_shg_frog(measurement: Spectrogram, test_iterations: int = 20, polish_iterations=300, repeats: int = 32):
+def reconstruct_shg_frog(measurement: Spectrogram, test_iterations: int = 100, polish_iterations=5000, repeats: int = 256):
     """
     Run the core FROG loop several times and pick the best result
 
@@ -140,21 +140,18 @@ def reconstruct_shg_frog(measurement: Spectrogram, test_iterations: int = 20, po
         repeats (int): number of different initial guesses to try
 
     Returns:
-        np.ndarray: the reconstructed field
+    FrogData: the completed reconstruction
     """
     sqrt_sg = np.fft.fftshift(np.sqrt(measurement.data-np.min(measurement.data[:])), axes=0)
     sqrt_sg /= np.max(sqrt_sg)
-    conditioned_sg = 0.5*(sqrt_sg + np.fliplr(sqrt_sg))
-    results = np.zeros((conditioned_sg.shape[0], repeats), dtype=np.complex128)
+    results = np.zeros((sqrt_sg.shape[0], repeats), dtype=np.complex128)
     errors = np.zeros(repeats, dtype=float)
     for _i in range(repeats):
-        results[:,_i] = reconstruct_shg_frog_core(conditioned_sg, max_iterations=test_iterations)
-        errors[_i] = calculate_g_error(conditioned_sg, results[:,_i])
-    print(errors)
+        results[:,_i] = reconstruct_shg_frog_core(sqrt_sg, max_iterations=test_iterations)
+        errors[_i] = calculate_g_error(sqrt_sg, results[:,_i])
     min_error_index = np.argmin(errors)
-    print(min_error_index)
     result = reconstruct_shg_frog_core(
-        conditioned_sg,
+        sqrt_sg,
         guess=results[:,min_error_index],
         max_iterations=polish_iterations)
 
@@ -162,4 +159,4 @@ def reconstruct_shg_frog(measurement: Spectrogram, test_iterations: int = 20, po
         t=measurement.time,
         result = result,
         measurement=sqrt_sg,
-        f0 = np.mean(measurement.freq)/2)
+        f0 = float(np.mean(measurement.freq)/2.0))
