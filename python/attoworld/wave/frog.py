@@ -118,12 +118,18 @@ def reconstruct_shg_frog_core(measurement_sg_sqrt, guess = None, max_iterations:
         guess, gate = apply_iteration(guess_pulse, guess_pulse, measurement_sg_sqrt)
     else:
         gate = guess
-
+    best = shift_to_zero_and_normalize(guess+gate)
+    best_error = calculate_g_error(measurement_sg_sqrt,best)
     for _i in range(max_iterations):
         guess, gate = apply_iteration(guess+gate, guess+gate, measurement_sg_sqrt)
-    return shift_to_zero_and_normalize(guess + gate)
+        current = shift_to_zero_and_normalize(guess+gate)
+        current_error = calculate_g_error(measurement_sg_sqrt, current)
+        if current_error < best_error:
+            best_error = current_error
+            best = current
+    return best
 
-def reconstruct_shg_frog(measuremeng_sg_sqrt, test_iterations: int = 20, polish_iterations=300, repeats: int = 32):
+def reconstruct_shg_frog(measurement: Spectrogram, test_iterations: int = 20, polish_iterations=300, repeats: int = 32):
     """
     Run the core FROG loop several times and pick the best result
 
@@ -136,13 +142,24 @@ def reconstruct_shg_frog(measuremeng_sg_sqrt, test_iterations: int = 20, polish_
     Returns:
         np.ndarray: the reconstructed field
     """
-    results = np.zeros((measuremeng_sg_sqrt.shape[0], repeats), dtype=np.complex128)
+    sqrt_sg = np.fft.fftshift(np.sqrt(measurement.data-np.min(measurement.data[:])), axes=0)
+    sqrt_sg /= np.max(sqrt_sg)
+    conditioned_sg = 0.5*(sqrt_sg + np.fliplr(sqrt_sg))
+    results = np.zeros((conditioned_sg.shape[0], repeats), dtype=np.complex128)
     errors = np.zeros(repeats, dtype=float)
     for _i in range(repeats):
-        results[:,_i] = reconstruct_shg_frog_core(measuremeng_sg_sqrt, max_iterations=test_iterations)
-        errors[_i] = calculate_g_error(measuremeng_sg_sqrt, results[:,_i])
+        results[:,_i] = reconstruct_shg_frog_core(conditioned_sg, max_iterations=test_iterations)
+        errors[_i] = calculate_g_error(conditioned_sg, results[:,_i])
+    print(errors)
     min_error_index = np.argmin(errors)
-    return reconstruct_shg_frog_core(
-        measuremeng_sg_sqrt,
+    print(min_error_index)
+    result = reconstruct_shg_frog_core(
+        conditioned_sg,
         guess=results[:,min_error_index],
         max_iterations=polish_iterations)
+
+    return bundle_frog_reconstruction(
+        t=measurement.time,
+        result = result,
+        measurement=sqrt_sg,
+        f0 = np.mean(measurement.freq)/2)

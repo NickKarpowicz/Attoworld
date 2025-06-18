@@ -1,11 +1,43 @@
 import scipy.io as sio
 from scipy import constants
 import numpy as np
-import pandas
+import pandas as pd
 from ..numeric import interpolate
+from ..spectrum import wavelength_to_frequency
 from pathlib import Path
 from typing import Optional
 from .data_structures import Waveform, IntensitySpectrum, Spectrogram, FrogData, ComplexSpectrum
+
+def read_dwc(file_path):
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+        delay_increment = float(lines[2].strip().split('=')[1])
+
+    wavelength_vector = pd.read_csv(file_path,
+                                   skiprows=5,
+                                   nrows=1,
+                                   delimiter='\t',
+                                   header=None).values[0]
+
+    data_array = pd.read_csv(file_path,
+                             skiprows=8,
+                             delimiter='\t',
+                             header=None,
+                             dtype=float).values
+
+    freqs, first_spec = wavelength_to_frequency(wavelength_vector, data_array[:,0])
+    if freqs is not None:
+        data_array_freq = np.zeros((len(freqs),data_array.shape[1]))
+        data_array_freq[:,0] = first_spec
+        for _i in range(data_array.shape[1]):
+            _f, _dat = wavelength_to_frequency(wavelength_vector, data_array[:,_i], freqs)
+            data_array_freq[:,_i] = _dat
+        dt = 1e-15*delay_increment
+        delays = dt*np.array(range(data_array.shape[1]))
+        delays -= np.mean(delays)
+        return Spectrogram(data=data_array_freq, time=delays, freq=freqs)
+    else:
+        raise Exception("Interpolation failure reading dwc file")
 
 def load_spectrum_from_text(filename: str, wavelength_multiplier: float = 1e-9, wavelength_field:str='wavelength (nm)', spectrum_field:str='intensity (a.u.)', sep:str='\t'):
     """
@@ -19,7 +51,7 @@ def load_spectrum_from_text(filename: str, wavelength_multiplier: float = 1e-9, 
         sep (str): column separator
     Returns:
         IntensitySpectrum: the intensity spectrum"""
-    data = pandas.read_csv(filename, sep=sep)
+    data = pd.read_csv(filename, sep=sep)
     wavelength = wavelength_multiplier * np.array(data[wavelength_field])
     freq = constants.speed_of_light / wavelength
     spectrum = np.array(data[spectrum_field])
@@ -39,7 +71,7 @@ def load_waveform_from_text(filename: str, time_multiplier: float = 1e-15, time_
         Waveform: the waveform
     """
 
-    data = pandas.read_csv(filename, sep=sep)
+    data = pd.read_csv(filename, sep=sep)
     time = time_multiplier * data[time_field].to_numpy()
     wave = data[wave_field].to_numpy()
     dt = time[1]-time[0]
@@ -87,7 +119,7 @@ def read_Trebino_FROG_matrix(filename: Path | str) -> Spectrogram:
         n2 = int(l[1])
         l = str(f.readline())
         l = l.split()
-    measured_data = pandas.read_csv(filename, sep='\t', header = None, skiprows=2)
+    measured_data = pd.read_csv(filename, sep='\t', header = None, skiprows=2)
     measure = []
     raw_freq = 1e9*constants.speed_of_light/np.array(measured_data[0][0:n2]).squeeze()
     df = np.mean(np.diff(raw_freq))
@@ -105,7 +137,7 @@ def read_Trebino_FROG_speck(filename: Path | str) -> ComplexSpectrum:
     Args:
         filename (Path | str): the name (path) of the file
     """
-    data = np.array(pandas.read_csv(filename, sep='\t', header = None), dtype=float)
+    data = np.array(pd.read_csv(filename, sep='\t', header = None), dtype=float)
     raw_freq = 1e9*constants.speed_of_light/data[:,0]
     df = np.mean(np.diff(raw_freq))
     freq = np.linspace(0.0, raw_freq[-1], int(np.ceil(raw_freq[-1]/df)))

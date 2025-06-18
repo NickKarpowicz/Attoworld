@@ -22,6 +22,28 @@ class Spectrogram:
     time: np.ndarray
     freq: np.ndarray
 
+    def to_per_frequency_dc_removed(self):
+        new_data = np.array(self.data)
+        for _i in range(new_data.shape[0]):
+            new_data[_i,:] -= np.min(new_data[_i,:])
+
+        return Spectrogram(data = new_data, time=self.time, freq=self.freq)
+
+    def to_binned(self, dim: int = 64, dt: float = 5e-15, t0: Optional[float] = None, f0: float = 750e12):
+        _t = np.array(range(dim))*dt
+        _t -= np.mean(_t)
+        _f = np.fft.fftshift(np.fft.fftfreq(dim, d=dt) + f0)
+        binned_data = np.zeros((dim,self.time.shape[0]),dtype=float)
+        for _i in range(self.time.shape[0]):
+            binned_data[:,_i] = interpolate(_f, self.freq, np.array(self.data[:,_i]))
+        if t0 is None:
+            ac = np.sum(binned_data,axis=0)
+            t0 = np.sum(ac*self.time)/np.sum(ac)
+        binned_data_square = np.zeros((dim,dim),dtype=float)
+        for _i in range(dim):
+            binned_data_square[_i,:] = interpolate(_t, self.time-t0, np.array(binned_data[_i,:]))
+        return Spectrogram(data=binned_data_square, time=_t, freq=_f)
+
     def plot(self, ax: Optional[Axes] = None):
         """
         Plot the reconstructed spectrogram.
@@ -643,7 +665,9 @@ class FrogData:
         Args:
             phase_blanking: relative intensity at which to show phase information
             time_xlim: x-axis limits to pass to the plot of the pulse
-            wavelength_xlim: x-axis limits to pass to the plot of the spectrum"""
+            wavelength_xlim: x-axis limits to pass to the plot of the spectrum
+            figsize: custom figure size
+        """
         if figsize is None:
             default_figsize = plt.rcParams['figure.figsize']
             figsize = (default_figsize[0] * 2, default_figsize[1]*2)
@@ -662,8 +686,7 @@ class FrogData:
         Get the G' error of the reconstruction
         """
         return np.sqrt(
-            np.sum( (self.measured_spectrogram.data[:] - self.reconstructed_spectrogram.data[:])**2)
-            / np.sum(self.measured_spectrogram.data[:]**2))
+            np.sum( (self.measured_spectrogram.data[:] - self.reconstructed_spectrogram.data[:])**2) / np.sum(self.measured_spectrogram.data[:]**2))
     def get_fwhm(self) -> float:
         """
         Get the full-width-at-half-max value of the reconstructed pulse
