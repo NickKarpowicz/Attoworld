@@ -437,7 +437,6 @@ class IntensitySpectrum:
 
         if self.spectrum is not None and self.phase is not None and self.freq is not None:
             start_index = np.argmax(self.spectrum>0)
-            print(start_index)
             intensity = self.spectrum[start_index::]
             freq = self.freq[start_index::]
             wl = constants.speed_of_light/freq
@@ -612,7 +611,7 @@ class FrogData:
         else:
             fig = ax.get_figure()
         self.reconstructed_spectrogram.plot(ax)
-        ax.set_title(f"Reconstruction (G': {self.get_error():0.4f})")
+        ax.set_title(f"Reconstruction (G': {self.get_error():0.2e})")
         return fig
 
     def plot_pulse(self, ax: Optional[Axes] = None, phase_blanking: float = 0.05, xlim=None):
