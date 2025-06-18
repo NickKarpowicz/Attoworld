@@ -21,7 +21,7 @@ class Spectrogram:
     data: np.ndarray
     time: np.ndarray
     freq: np.ndarray
-    
+
     def plot(self, ax: Optional[Axes] = None):
         """
         Plot the reconstructed spectrogram.
@@ -295,8 +295,8 @@ class ComplexSpectrum:
                 is_frequency_scaled = wavelength_scaled)
         else:
             raise Exception("Insufficient data to make intensity spectrum.")
-    
-    
+
+
 
 @dataclass(frozen=True, slots=True)
 class IntensitySpectrum:
@@ -420,7 +420,7 @@ class IntensitySpectrum:
             freq = copy_if_not_none(self.freq),
             wavelength = copy_if_not_none(self.wavelength),
             is_frequency_scaled = self.is_frequency_scaled)
-            
+
     def plot_with_group_delay(self, ax: Optional[Axes] = None, phase_blanking: float = 0.05, xlim=None):
         """
         Plot the spectrum and group delay curve.
@@ -509,7 +509,7 @@ class ComplexEnvelope:
             )
         else:
             raise Exception("Tried to convert non-existent data.")
-            
+
     def to_waveform(self, interpolation_factor: int = 1, CEP_shift: float = 0.0) -> Waveform:
         """
         Returns a Waveform based on the data
@@ -529,7 +529,7 @@ class ComplexEnvelope:
             )
         else:
             raise Exception("Not enough data to make a Waveform")
-            
+
     def plot(self, ax: Optional[Axes] = None, phase_blanking: float = 0.05, xlim=None):
         """
         Plot the pulse.
@@ -584,7 +584,7 @@ class FrogData:
     pulse: Waveform
     measured_spectrogram: Spectrogram
     reconstructed_spectrogram: Spectrogram
-    
+
     def plot_measured_spectrogram(self, ax: Optional[Axes] = None):
         """
         Plot the measured spectrogram.
@@ -636,7 +636,7 @@ class FrogData:
         """
         return self.spectrum.to_intensity_spectrum().plot_with_group_delay(ax, phase_blanking, xlim)
 
-    def plot_all(self, phase_blanking=0.05, time_xlims=None, wavelength_xlims=None):
+    def plot_all(self, phase_blanking=0.05, time_xlims=None, wavelength_xlims=None, figsize=None):
         """
         Produce a 4-panel plot of the FROG results, combining calls to plot_measured_spectrogram(),
         plot_reconstructed_spectrogram(), plot_pulse() and plot_spectrum() as subplots, with letter labels.
@@ -645,8 +645,10 @@ class FrogData:
             phase_blanking: relative intensity at which to show phase information
             time_xlim: x-axis limits to pass to the plot of the pulse
             wavelength_xlim: x-axis limits to pass to the plot of the spectrum"""
-        default_figsize = plt.rcParams['figure.figsize']
-        fig,ax = plt.subplots(2,2, figsize=(default_figsize[0] * 2, default_figsize[1]*2))
+        if figsize is None:
+            default_figsize = plt.rcParams['figure.figsize']
+            figsize = (default_figsize[0] * 2, default_figsize[1]*2)
+        fig,ax = plt.subplots(2,2, figsize=figsize)
         self.plot_measured_spectrogram(ax[0,0])
         label_letter('a', ax[0,0])
         self.plot_reconstructed_spectrogram(ax[1,0])
