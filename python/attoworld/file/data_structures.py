@@ -730,8 +730,11 @@ class FrogData:
         """
         Get the G' error of the reconstruction
         """
+        norm_measured = np.linalg.norm(self.measured_spectrogram.data)
+        norm_retrieved = np.linalg.norm(self.reconstructed_spectrogram.data)
         return np.sqrt(
-            np.sum( (self.measured_spectrogram.data[:] - self.reconstructed_spectrogram.data[:])**2) / np.sum(self.measured_spectrogram.data[:]**2))
+            
+            np.sum( (self.measured_spectrogram.data[:]/norm_measured - self.reconstructed_spectrogram.data[:]/norm_retrieved)**2) / np.sum((self.measured_spectrogram.data[:]/norm_measured)**2))
     def get_fwhm(self) -> float:
         """
         Get the full-width-at-half-max value of the reconstructed pulse
