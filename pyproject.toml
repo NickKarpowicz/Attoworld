@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "attoworld"
-version = "2025.0.27"
+version = "2025.0.28"
 authors = [{ name = "Nick Karpowicz", email = "nicholas.karpowicz@mpq.mpg.de" }]
 dependencies = [
     "numpy",

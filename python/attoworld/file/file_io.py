@@ -9,6 +9,15 @@ from typing import Optional
 from .data_structures import Waveform, IntensitySpectrum, Spectrogram, FrogData, ComplexSpectrum
 
 def read_dwc(file_path):
+    """
+    Reads files in the .dwc format produced by many FROG scanners
+
+    Args:
+        file_path: path to the .dwc file
+
+    Returns:
+        Spectrogram: the loaded data
+    """
     with open(file_path, 'r') as file:
         lines = file.readlines()
         delay_increment = float(lines[2].strip().split('=')[1])
@@ -55,7 +64,7 @@ def load_spectrum_from_text(filename: str, wavelength_multiplier: float = 1e-9, 
     wavelength = wavelength_multiplier * np.array(data[wavelength_field])
     freq = constants.speed_of_light / wavelength
     spectrum = np.array(data[spectrum_field])
-    return IntensitySpectrum(spectrum=spectrum, wavelength=wavelength, freq=freq)
+    return IntensitySpectrum(spectrum=spectrum, wavelength=wavelength, freq=freq, phase=np.zeros(spectrum.shape, dtype=float))
 
 def load_waveform_from_text(filename: str, time_multiplier: float = 1e-15, time_field:str='delay (fs)', wave_field:str='field (a.u.)', sep='\t') -> Waveform:
     """Loads a waveform from a text file

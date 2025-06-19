@@ -139,6 +139,7 @@ class Spectrogram:
         ax.grid(True,lw=1)
         plt.colorbar(a)
         return fig
+
 @dataclass(frozen=True, slots=True)
 class Waveform:
     """
@@ -151,9 +152,9 @@ class Waveform:
         dt (float): the time step of time, if it is uniformly spaced
         is_uniformly_spaced (bool): says whether or not the time steps are uniform
     """
-    wave: Optional[np.ndarray] = None
-    time: Optional[np.ndarray] = None
-    dt: Optional[float] = None
+    wave: np.ndarray
+    time: np.ndarray
+    dt: float
     is_uniformly_spaced: bool = False
 
     def copy(self):
@@ -175,18 +176,15 @@ class Waveform:
         if self.is_uniformly_spaced:
             return self
         else:
-            if self.wave is not None and self.time is not None:
-                timesteps = np.abs(np.diff(self.time))
-                new_dt = np.min(timesteps[timesteps>0.0])
-                new_time_length = self.time[-1]-self.time[0]
-                new_time = self.time[0] + new_dt * np.array(range(int(new_time_length/new_dt)))
-                return Waveform(
-                    wave = interpolate(new_time, self.time, self.wave),
-                    time = new_time,
-                    dt = new_dt,
-                    is_uniformly_spaced = True)
-            else:
-                raise Exception("Uninitialized data.")
+            timesteps = np.abs(np.diff(self.time))
+            new_dt = np.min(timesteps[timesteps>0.0])
+            new_time_length = self.time[-1]-self.time[0]
+            new_time = self.time[0] + new_dt * np.array(range(int(new_time_length/new_dt)))
+            return Waveform(
+                wave = interpolate(new_time, self.time, self.wave),
+                time = new_time,
+                dt = new_dt,
+                is_uniformly_spaced = True)
 
     def to_windowed(self, window_desc):
         """
@@ -200,11 +198,9 @@ class Waveform:
             >>> waveform_with_supergaussian_window = waveform.to_windowed(('general_gaussian', 2, 500))
         """
         uniform_self = self.to_uniformly_spaced()
-        if uniform_self.wave is not None:
-            new_wave = uniform_self.wave * sig.windows.get_window(window_desc,Nx=uniform_self.wave.shape[0])
-            return Waveform(wave=new_wave, time=uniform_self.time, dt=uniform_self.dt, is_uniformly_spaced=True)
-        else:
-            raise Exception("No data to window.")
+        new_wave = uniform_self.wave * sig.windows.get_window(window_desc,Nx=uniform_self.wave.shape[0])
+        return Waveform(wave=new_wave, time=uniform_self.time, dt=uniform_self.dt, is_uniformly_spaced=True)
+
     def to_bandpassed(self, frequency: float, sigma: float, order: int = 4):
         r"""
         Apply a bandpass filter, with the same spec as to_bandpassed method of ComplexSpectrum:
@@ -217,6 +213,7 @@ class Waveform:
             order: the order of the supergaussian
         """
         return self.to_complex_spectrum().to_bandpassed(frequency, sigma, order).to_waveform()
+
     def to_complex_spectrum(self, padding_factor: int = 1):
         """
         Converts to a ComplexSpectrum class
@@ -224,28 +221,22 @@ class Waveform:
         Args:
             padding_factor (int): factor by which to expand the temporal length in the FFT, giving a smoother spectrum
         """
-        new_spectrum = None
-        new_freq = None
-        if self.wave is not None:
-            if self.is_uniformly_spaced and self.dt is not None:
-                new_spectrum = np.fft.rfft(
-                    self.wave,
-                    n = self.wave.shape[0] * padding_factor,
-                    axis = 0)
-                new_freq = np.fft.rfftfreq(self.wave.shape[0] * padding_factor, d = self.dt)
-            else:
-                uniform_self = self.to_uniformly_spaced()
-                if uniform_self.wave is not None and uniform_self.dt is not None:
-                    new_spectrum = np.fft.rfft(
-                        uniform_self.wave,
-                        n = uniform_self.wave.shape[0] * padding_factor,
-                        axis = 0)
-                    new_freq = np.fft.rfftfreq(uniform_self.wave.shape[0] * padding_factor, d = uniform_self.dt)
-                else:
-                    raise Exception("Interpolation failure.")
-            return ComplexSpectrum(spectrum=new_spectrum, freq=new_freq)
+        if self.is_uniformly_spaced:
+            new_spectrum = np.fft.rfft(
+                self.wave,
+                n = self.wave.shape[0] * padding_factor,
+                axis = 0)
+            new_freq = np.fft.rfftfreq(self.wave.shape[0] * padding_factor, d = self.dt)
         else:
-            raise Exception("No data to transform.")
+            uniform_self = self.to_uniformly_spaced()
+            new_spectrum = np.fft.rfft(
+                uniform_self.wave,
+                n = uniform_self.wave.shape[0] * padding_factor,
+                axis = 0)
+            new_freq = np.fft.rfftfreq(uniform_self.wave.shape[0] * padding_factor, d = uniform_self.dt)
+
+        return ComplexSpectrum(spectrum=new_spectrum, freq=new_freq)
+
     def to_intensity_spectrum(self, wavelength_scaled: bool = True, padding_factor: int = 1):
         """
         Converts to an intensity spectrum
@@ -264,14 +255,12 @@ class Waveform:
         """
         Return a normalized version of the waveform
         """
-        if self.wave is not None:
-            max_loc ,max_val = find_maximum_location(np.abs(np.array(sig.hilbert(self.wave))))
-            return Waveform(wave=self.wave/max_val,
-                time=copy_if_not_none(self.time),
-                dt=self.dt,
-                is_uniformly_spaced = self.is_uniformly_spaced)
-        else:
-            raise Exception("No data")
+        max_loc ,max_val = find_maximum_location(np.abs(np.array(sig.hilbert(self.wave))))
+        return Waveform(wave=self.wave/max_val,
+            time=np.array(self.time),
+            dt=self.dt,
+            is_uniformly_spaced = self.is_uniformly_spaced)
+
 
     def to_complex_envelope(self, f0: float = 0.0):
         """
@@ -281,16 +270,13 @@ class Waveform:
             f0 (float): central frequency to use when constructing the envelope. E.g. oscillation at this frequency will be cancelled.
         """
         uniform_self = self.to_uniformly_spaced()
-        if uniform_self.wave is not None and uniform_self.time is not None:
-            analytic = np.array(sig.hilbert(uniform_self.wave)*np.exp(-1j * 2*np.pi*f0 * uniform_self.time))
-            return ComplexEnvelope(
-                envelope = analytic,
-                time = uniform_self.time,
-                dt = uniform_self.dt,
-                carrier_frequency = f0
-            )
-        else:
-            raise Exception("Could not convert to complex envelope.")
+        analytic = np.array(sig.hilbert(uniform_self.wave)*np.exp(-1j * 2*np.pi*f0 * uniform_self.time))
+        return ComplexEnvelope(
+            envelope = analytic,
+            time = uniform_self.time,
+            dt = uniform_self.dt,
+            carrier_frequency = f0
+        )
 
     def get_envelope_fwhm(self) -> float:
         """
@@ -309,25 +295,27 @@ class Waveform:
             float: the FWHM
         """
         uniform_self = self.to_uniformly_spaced()
-        if uniform_self.wave is not None and uniform_self.dt is not None:
-            return fwhm(uniform_self.wave**2, uniform_self.dt)
-        else:
-            raise Exception("No data to look at.")
+        return fwhm(uniform_self.wave**2, uniform_self.dt)
 
 @dataclass(frozen=True, slots=True)
 class ComplexSpectrum:
-    spectrum: Optional[np.ndarray] = None
-    freq: Optional[np.ndarray] = None
+    """
+    Contains a complex spectrum, with spectral weights on a frequency scale
+
+    Attributes:
+        spectrum (np.ndarray): the spectrum in complex128 format
+        freq (np.ndarray):
+    """
+    spectrum: np.ndarray
+    freq: np.ndarray
 
     def copy(self):
         return copy.deepcopy(self)
     def to_time_derivative(self):
         r"""Return a ComplexSpectrum corresponding to the time derivative (multiply by $i\omega$)"""
-        if self.spectrum is not None and self.freq is not None:
-            d_dt = 1j * 2 * np.pi * self.freq * self.spectrum
-            return ComplexSpectrum(spectrum=d_dt, freq=np.array(self.freq))
-        else:
-            raise Exception("No data.")
+        d_dt = 1j * 2 * np.pi * self.freq * self.spectrum
+        return ComplexSpectrum(spectrum=d_dt, freq=np.array(self.freq))
+
 
     def to_bandpassed(self, frequency: float, sigma: float, order:int = 4):
         r"""
@@ -340,59 +328,48 @@ class ComplexSpectrum:
             sigma: the width of the bandpass (Hz)
             order: the order of the supergaussian
         """
-        if self.spectrum is not None and self.freq is not None:
-            new_spectrum = self.spectrum * np.exp(-(self.freq - frequency)**order/(2*sigma**order))
-            return ComplexSpectrum(spectrum=new_spectrum, freq = np.array(self.freq))
-        else:
-            raise Exception("No data to bandpass.")
+        new_spectrum = self.spectrum * np.exp(-(self.freq - frequency)**order/(2*sigma**order))
+        return ComplexSpectrum(spectrum=new_spectrum, freq = np.array(self.freq))
+
     def to_waveform(self):
         """
         Create a Waveform based on this complex spectrum.
         """
-        if self.spectrum is not None and self.freq is not None:
-            wave = np.fft.irfft(self.spectrum, axis=0)
-            dt = 0.5/(self.freq[-1]-self.freq[0])
-            time = dt * np.array(range(wave.shape[0]))
-            return Waveform(wave=wave,time=time,dt=dt, is_uniformly_spaced=True)
-        else:
-            raise Exception("No data to transform")
+        wave = np.fft.irfft(self.spectrum, axis=0)
+        dt = 0.5/(self.freq[-1]-self.freq[0])
+        time = dt * np.array(range(wave.shape[0]))
+        return Waveform(wave=wave,time=time,dt=dt, is_uniformly_spaced=True)
+
 
     def to_centered_waveform(self):
         """
         Create a Waveform based on this complex spectrum and center it in the time window
         """
-        if self.spectrum is not None and self.freq is not None:
-            wave = np.fft.irfft(self.spectrum, axis=0)
-            dt = 0.5/(self.freq[-1]-self.freq[0])
-            time = dt * np.array(range(wave.shape[0]))
-            max_ind, max_val = find_maximum_location(np.abs(np.array(sig.hilbert(wave))))
-            max_loc = dt * max_ind - 0.5 * time[-1]
-            wave = np.fft.irfft(np.exp(-1j * self.freq * 2*np.pi* max_loc)*self.spectrum, axis=0)
-            return Waveform(wave=wave,time=time,dt=dt, is_uniformly_spaced=True)
-        else:
-            raise Exception("No data to transform")
+        wave = np.fft.irfft(self.spectrum, axis=0)
+        dt = 0.5/(self.freq[-1]-self.freq[0])
+        time = dt * np.array(range(wave.shape[0]))
+        max_ind, max_val = find_maximum_location(np.abs(np.array(sig.hilbert(wave))))
+        max_loc = dt * max_ind - 0.5 * time[-1]
+        wave = np.fft.irfft(np.exp(-1j * self.freq * 2*np.pi* max_loc)*self.spectrum, axis=0)
+        return Waveform(wave=wave,time=time,dt=dt, is_uniformly_spaced=True)
+
 
     def to_intensity_spectrum(self, wavelength_scaled: bool = True):
         """Create an IntensitySpectrum based on the current ComplexSpectrum
 
         Args:
             wavelength_scaled (bool): Apply the wavelength^-2 Jakobian such to correspond to W/nm spectrum"""
-        if self.spectrum is not None and self.freq is not None:
-            new_spectrum = np.array(np.abs(self.spectrum[self.freq>0.0])**2)
-            new_freq = np.array(self.freq[self.freq>0.0])
-            new_wavelength = constants.speed_of_light/new_freq
-            if wavelength_scaled:
-                new_spectrum /= new_wavelength**2
-            return IntensitySpectrum(
-                spectrum = new_spectrum,
-                phase = np.array(np.angle(self.spectrum[self.freq>0.0])),
-                freq = new_freq,
-                wavelength = new_wavelength,
-                is_frequency_scaled = wavelength_scaled)
-        else:
-            raise Exception("Insufficient data to make intensity spectrum.")
-
-
+        new_spectrum = np.array(np.abs(self.spectrum[self.freq>0.0])**2)
+        new_freq = np.array(self.freq[self.freq>0.0])
+        new_wavelength = constants.speed_of_light/new_freq
+        if wavelength_scaled:
+            new_spectrum /= new_wavelength**2
+        return IntensitySpectrum(
+            spectrum = new_spectrum,
+            phase = np.array(np.angle(self.spectrum[self.freq>0.0])),
+            freq = new_freq,
+            wavelength = new_wavelength,
+            is_frequency_scaled = wavelength_scaled)
 
 @dataclass(frozen=True, slots=True)
 class IntensitySpectrum:
@@ -406,10 +383,10 @@ class IntensitySpectrum:
         wavelength (Optional[np.ndarray]): the wavelengths
         is_frequency_scaled (bool): has the lamda^-2 Jakobian been applied to Fourier transformed data?
     """
-    spectrum: Optional[np.ndarray] = None
-    phase: Optional[np.ndarray] = None
-    freq: Optional[np.ndarray] = None
-    wavelength: Optional[np.ndarray] = None
+    spectrum: np.ndarray
+    phase: Optional[np.ndarray]
+    freq: np.ndarray
+    wavelength: np.ndarray
     is_frequency_scaled: bool = False
     def copy(self):
         return copy.deepcopy(self)
@@ -439,7 +416,10 @@ class IntensitySpectrum:
             wavelengths_nanometers: the wavelengths in nanometers
             spectrum: the spectral intensity
         """
-        return IntensitySpectrum(spectrum = spectrum, wavelength=1e-9 *wavelengths_nanometers)
+        wavelengths = 1e-9 *wavelengths_nanometers
+        freqs = constants.speed_of_light / wavelengths
+        phase = np.zeros(freqs.shape, dtype=float)
+        return IntensitySpectrum(spectrum = spectrum, wavelength=wavelengths, freq=freqs, phase=phase)
     def get_transform_limited_pulse(self, gate_level: Optional[float] = None):
         """
         Returns the transform-limited pulse corresponding to the spectrum.
@@ -507,14 +487,13 @@ class IntensitySpectrum:
         """
         Returns a normalized version of the current instance.
         """
-        if self.spectrum is not None:
-            normalized_spectrum = self.spectrum / np.max(self.spectrum)
-        else:
-            normalized_spectrum = None
+
+        normalized_spectrum = self.spectrum / np.max(self.spectrum)
+
         return IntensitySpectrum(spectrum = normalized_spectrum,
-            phase = copy_if_not_none(self.phase),
-            freq = copy_if_not_none(self.freq),
-            wavelength = copy_if_not_none(self.wavelength),
+            phase = np.array(self.phase),
+            freq = np.array(self.freq),
+            wavelength = np.array(self.wavelength),
             is_frequency_scaled = self.is_frequency_scaled)
 
     def plot_with_group_delay(self, ax: Optional[Axes] = None, phase_blanking: float = 0.05, xlim=None):
@@ -531,33 +510,36 @@ class IntensitySpectrum:
         else:
             fig = ax.get_figure()
 
-        if self.spectrum is not None and self.phase is not None and self.freq is not None:
-            start_index = np.argmax(self.spectrum>0)
-            intensity = self.spectrum[start_index::]
-            freq = self.freq[start_index::]
-            wl = constants.speed_of_light/freq
+        start_index = np.argmax(self.spectrum>0)
+        intensity = self.spectrum[start_index::]
+        freq = self.freq[start_index::]
+        wl = constants.speed_of_light/freq
+        if self.phase is not None:
             phase = np.unwrap(self.phase[start_index::])
+        else:
+            phase = np.zeros(intensity.shape, dtype=float)
 
-            intensity /= np.max(intensity)
-            intensity_line = ax.plot(1e9*wl,
-                intensity,
-                label="Intensity")
-            ax.set_xlabel('Wavelength (nm)')
-            ax.set_ylabel('Intensity (Arb. unit)')
-            ax_phase = plt.twinx(ax)
-            group_delay = (1e15/(2*np.pi))*derivative(phase, 1)/(freq[1]-freq[2])
-            ax_phase.plot([],[])
-            phase_line = ax_phase.plot(
-                1e9*wl[intensity>phase_blanking],
-                group_delay[intensity > phase_blanking],
-                '--',
-                label='Group delay')
-            ax_phase.set_ylabel('Group delay (fs)')
-            if xlim is not None:
-                ax.set_xlim(xlim)
-                ax_phase.set_xlim(xlim)
-            lines = lines = intensity_line+phase_line
-            ax.legend(lines, [line.get_label() for line in lines])
+        intensity /= np.max(intensity)
+        intensity_line = ax.plot(1e9*wl,
+            intensity,
+            label="Intensity")
+        ax.set_xlabel('Wavelength (nm)')
+        ax.set_ylabel('Intensity (Arb. unit)')
+        ax_phase = plt.twinx(ax)
+        group_delay = (1e15/(2*np.pi))*derivative(phase, 1)/(freq[1]-freq[2])
+        assert isinstance(ax_phase, Axes)
+        ax_phase.plot([],[])
+        phase_line = ax_phase.plot(
+            1e9*wl[intensity>phase_blanking],
+            group_delay[intensity > phase_blanking],
+            '--',
+            label='Group delay')
+        ax_phase.set_ylabel('Group delay (fs)')
+        if xlim is not None:
+            ax.set_xlim(xlim)
+            ax_phase.set_xlim(xlim)
+        lines = lines = intensity_line+phase_line
+        ax.legend(lines, [str(line.get_label()) for line in lines])
         return fig
 @dataclass(frozen=True, slots=True)
 class ComplexEnvelope:
@@ -565,21 +547,19 @@ class ComplexEnvelope:
     Data corresponding to a complex envelope of a pulse, e.g. from a FROG measurement.
 
     Attributes:
-        envelope (Optional[np.ndarray]): the complex envelope
-        time: (Optional[np.ndarray]): the time array
+        envelope (np.ndarray): the complex envelope
+        time: (np.ndarray): the time array
         dt (float): the time step
         carrier_frequency (float): the carrier frequency of the envelope
     """
 
-    envelope: Optional[np.ndarray] = None
-    time: Optional[np.ndarray] = None
-    dt: Optional[float] = None
+    envelope: np.ndarray
+    time: np.ndarray
+    dt: float
     carrier_frequency: float = 0.0
     def time_fs(self):
-        if self.time is not None:
-            return 1e15*self.time
-        else:
-            raise Exception("No time axis.")
+        return 1e15*self.time
+
     def copy(self):
         return copy.deepcopy(self)
     def get_fwhm(self) -> float:
@@ -588,42 +568,35 @@ class ComplexEnvelope:
         Returns:
             float: the fwhm
         """
-        if self.envelope is not None and self.dt is not None:
-            return fwhm(np.abs(self.envelope)**2, self.dt)
-        else:
-            raise Exception("Tried to take FWHM of data that doesn't exist.")
+        return fwhm(np.abs(self.envelope)**2, self.dt)
 
     def to_complex_spectrum(self, padding_factor: int = 1) -> ComplexSpectrum:
         """
         Returns a ComplexSpectrum based on the data
         """
-        if self.envelope is not None and self.dt is not None:
-            return ComplexSpectrum(
-                spectrum = np.fft.rfft(self.envelope, self.envelope.shape[0] * padding_factor),
-                freq = np.fft.rfftfreq(self.envelope.shape[0] * padding_factor, self.dt) + self.carrier_frequency
-            )
-        else:
-            raise Exception("Tried to convert non-existent data.")
+
+        return ComplexSpectrum(
+            spectrum = np.fft.rfft(self.envelope, self.envelope.shape[0] * padding_factor),
+            freq = np.fft.rfftfreq(self.envelope.shape[0] * padding_factor, self.dt) + self.carrier_frequency
+        )
+
 
     def to_waveform(self, interpolation_factor: int = 1, CEP_shift: float = 0.0) -> Waveform:
         """
         Returns a Waveform based on the data
         """
-        if self.envelope is not None and self.dt is not None and self.time is not None:
-            output_dt = self.dt / interpolation_factor
-            output_time = self.time[0] + output_dt * np.array(range(self.time.shape[0] * interpolation_factor))
-            if interpolation_factor != 1:
-                output_envelope = sig.resample(np.real(self.envelope), output_time.shape[0]) + 1j * np.array(sig.resample(np.imag(self.envelope), output_time.shape[0]))
-            else:
-                output_envelope = self.envelope
-            return Waveform(
-                wave = np.real(np.exp(1j * self.carrier_frequency * 2 * np.pi * output_time - 1j * CEP_shift) * output_envelope),
-                time = output_time,
-                dt = output_dt,
-                is_uniformly_spaced = True
-            )
+        output_dt = self.dt / interpolation_factor
+        output_time = self.time[0] + output_dt * np.array(range(self.time.shape[0] * interpolation_factor))
+        if interpolation_factor != 1:
+            output_envelope = sig.resample(np.real(self.envelope), output_time.shape[0]) + 1j * np.array(sig.resample(np.imag(self.envelope), output_time.shape[0]))
         else:
-            raise Exception("Not enough data to make a Waveform")
+            output_envelope = self.envelope
+        return Waveform(
+            wave = np.real(np.exp(1j * self.carrier_frequency * 2 * np.pi * output_time - 1j * CEP_shift) * output_envelope),
+            time = output_time,
+            dt = output_dt,
+            is_uniformly_spaced = True
+        )
 
     def plot(self, ax: Optional[Axes] = None, phase_blanking: float = 0.05, xlim=None):
         """
@@ -638,30 +611,29 @@ class ComplexEnvelope:
             fig, ax = plt.subplots()
         else:
             fig = ax.get_figure()
-        envelope = self.envelope
-        if envelope is not None:
-            time_ax = self.time_fs()-np.mean(self.time_fs())
-            intensity = np.abs(envelope)**2
-            intensity /= np.max(intensity)
-            intensity_line = ax.plot(time_ax,
-                intensity,
-                label=f"Intensity, fwhm {1e15*self.get_fwhm():0.1f} fs")
-            ax.set_xlabel('Time (fs)')
-            ax.set_ylabel('Intensity (Arb. unit)')
-            ax_phase = plt.twinx(ax)
-            inst_freq = (1e-12/(2*np.pi))*derivative(np.unwrap(np.angle(envelope)), 1)/self.dt
-            ax_phase.plot([],[])
-            phase_line = ax_phase.plot(
-                time_ax[intensity>phase_blanking],
-                inst_freq[intensity > phase_blanking],
-                '--',
-                label='Inst. frequency')
-            ax_phase.set_ylabel('Inst. frequency (THz)')
-            if xlim is not None:
-                ax.set_xlim(xlim)
-                ax_phase.set_xlim(xlim)
-            lines = lines = intensity_line+phase_line
-            ax.legend(lines, [line.get_label() for line in lines])
+        time_ax = self.time_fs()-np.mean(self.time_fs())
+        intensity = np.abs(self.envelope)**2
+        intensity /= np.max(intensity)
+        intensity_line = ax.plot(time_ax,
+            intensity,
+            label=f"Intensity, fwhm {1e15*self.get_fwhm():0.1f} fs")
+        ax.set_xlabel('Time (fs)')
+        ax.set_ylabel('Intensity (Arb. unit)')
+        inst_freq = (1e-12/(2*np.pi))*derivative(np.unwrap(np.angle(self.envelope)), 1)/self.dt
+        ax_phase = plt.twinx(ax)
+        assert isinstance(ax_phase, Axes)
+        ax_phase.plot([],[])
+        phase_line = ax_phase.plot(
+            time_ax[intensity>phase_blanking],
+            inst_freq[intensity > phase_blanking],
+            '--',
+            label='Inst. frequency')
+        ax_phase.set_ylabel('Inst. frequency (THz)')
+        if xlim is not None:
+            ax.set_xlim(xlim)
+            ax_phase.set_xlim(xlim)
+        lines = lines = intensity_line+phase_line
+        ax.legend(lines, [str(line.get_label()) for line in lines])
         return fig
 
 @dataclass(frozen=True, slots=True)
