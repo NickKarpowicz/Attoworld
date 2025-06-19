@@ -1,8 +1,7 @@
 import numpy as np
 from ..file import ComplexEnvelope, Spectrogram, FrogData
 from ..numeric import find_maximum_location
-from typing import Optional
-import scipy.signal as sig
+
 # Helper functions
 def shift_to_zero_and_normalize(Et):
     """
@@ -48,7 +47,10 @@ def bundle_frog_reconstruction(t, result, measurement, f0: float=375e12, interpo
         measured_spectrogram=measurement_sg,
         pulse=result_ce,
         reconstructed_spectrogram=result_sg,
-        spectrum=result_cs)
+        spectrum=result_cs,
+        raw_reconstruction = result,
+        f0 = f0,
+        dt = (t[1]-t[0]))
 
 # FROG functions
 def generate_shg_spectrogram(Et, Gt):
@@ -134,7 +136,7 @@ def reconstruct_shg_frog_core(measurement_sg_sqrt, guess = None, max_iterations:
             best_error = current_error
             best = current
     return best
-    
+
 def fix_aliasing(result):
     offset = int(len(result)/2)
     firstprod = np.real(result[offset]) * np.real(result[offset+1])
@@ -142,7 +144,7 @@ def fix_aliasing(result):
         return np.fft.ifft(np.fft.fftshift(np.fft.fft(result)))
     else:
         return result
-    
+
 def reconstruct_shg_frog(measurement: Spectrogram, test_iterations: int = 100, polish_iterations=5000, repeats: int = 256):
     """
     Run the core FROG loop several times and pick the best result

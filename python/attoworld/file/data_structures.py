@@ -21,6 +21,31 @@ class Spectrogram:
     data: np.ndarray
     time: np.ndarray
     freq: np.ndarray
+    def save(self, filename):
+        """
+        Save in the .A.dat file format used by FROG .etc
+        Args:
+            filename: the file to be saved
+
+        The file is structured like this:
+        [number of wavelengths] [number of times]
+        [minimum value of the trace] [maximum value of the trace]
+        [array of wavelengths]
+        [array of times]
+        [data array as single column]
+        """
+        with open(filename, 'a') as file:
+            file.write(f'{len(self.freq)}\t{len(self.time)}\n')
+            file.write(f'{np.min(self.data[:])}\t{np.max(self.data[:])}\n')
+            for freq in self.freq:
+                wavelength_nm = 1e9*constants.speed_of_light/freq
+                file.write(f'{wavelength_nm:15.15g}\n')
+            for time in self.time:
+                time_fs = 1e15 * time
+                file.write(f'{time_fs:15.15g}\n')
+            for x in self.data:
+                for y in x:
+                    file.write(f'{y:15.15g}\n')
 
     def to_per_frequency_dc_removed(self, extra_offset: float = 0.0):
         """Perform DC offset removal on a measured spectrogram, on a per-frequency basis
@@ -37,7 +62,11 @@ class Spectrogram:
             new_data[_i,:] -= np.min(new_data[_i,:])
 
         return Spectrogram(data = new_data, time=self.time, freq=self.freq)
-
+    def to_symmetrized(self):
+        """
+        Average the trace with a time-reversed copy. This might be useful for getting a reconstruction of difficult data, but keep in mind that the resulting measured trace will no longer represent the real measurement and should not be published as such.
+        """
+        return Spectrogram(data = 0.5 * (self.data + np.fliplr(self.data)), time = self.time, freq = self.freq)
     def to_binned(self, dim: int = 64, dt: float = 5e-15, t0: Optional[float] = None, f0: float = 750e12):
         """Bin a spectrogram to a FFT-appropriate shape
 
@@ -650,6 +679,33 @@ class FrogData:
     pulse: Waveform
     measured_spectrogram: Spectrogram
     reconstructed_spectrogram: Spectrogram
+    raw_reconstruction: np.ndarray
+    f0: float
+    dt: float
+
+    def save(self, base_filename):
+        """
+        Save in the Trebino FROG format
+
+        Args:
+            base_filename: base of the file path; 4 files will be made from it: .A.dat, .Arecon.dat, .Ek.dat, and .Speck.dat
+        """
+        self.measured_spectrogram.save(base_filename+'.A.dat')
+        self.reconstructed_spectrogram.save(base_filename+'.Arecon.dat')
+
+        t = 1e15 * self.dt * np.array(range(len(self.raw_reconstruction)))
+        t -= np.mean(t)
+        f = np.fft.fftshift(np.fft.fftfreq(len(t),d=self.dt)) + self.f0
+        lam = constants.speed_of_light/f
+        raw_spec = np.fft.fftshift(np.fft.fft(self.raw_reconstruction))
+
+        with open(base_filename+'.Ek.dat','a') as time_file:
+            for _i in range(len(self.raw_reconstruction)):
+                time_file.write(f'{t[_i]:.15g}\t{np.abs(self.raw_reconstruction[_i])**2:.15g}\t{np.angle(self.raw_reconstruction[_i]):.15g}\t{np.real(self.raw_reconstruction[_i]):.15g}\t{np.imag(self.raw_reconstruction[_i]):.15g}\n')
+
+        with open(base_filename+'.Speck.dat','a') as spec_file:
+            for _i in range(len(self.raw_reconstruction)):
+                spec_file.write(f'{lam[_i]:.15g}\t{np.abs(raw_spec[_i])**2:.15g}\t{np.angle(raw_spec[_i]):.15g}\t{np.real(raw_spec[_i]):.15g}\t{np.imag(raw_spec[_i]):.15g}\n')
 
     def plot_measured_spectrogram(self, ax: Optional[Axes] = None):
         """
@@ -733,7 +789,7 @@ class FrogData:
         norm_measured = np.linalg.norm(self.measured_spectrogram.data)
         norm_retrieved = np.linalg.norm(self.reconstructed_spectrogram.data)
         return np.sqrt(
-            
+
             np.sum( (self.measured_spectrogram.data[:]/norm_measured - self.reconstructed_spectrogram.data[:]/norm_retrieved)**2) / np.sum((self.measured_spectrogram.data[:]/norm_measured)**2))
     def get_fwhm(self) -> float:
         """
