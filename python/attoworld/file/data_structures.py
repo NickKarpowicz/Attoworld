@@ -14,14 +14,6 @@ import copy
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 
-
-def copy_if_not_none(data):
-    """
-    Helper function to handle optionals that should be deep-copied
-    """
-    return copy.deepcopy(data) if data is not None else None
-
-
 @dataclass(frozen=True, slots=True)
 class Spectrogram:
     data: np.ndarray
@@ -153,7 +145,7 @@ class Spectrogram:
         logdata = np.array(self.data)
         logdata[self.data > 0.0] = np.log(self.data[self.data > 0.0])
         logdata[self.data < 0.0] = 0.0
-        a = ax.pcolormesh(1e15 * self.time, 1e-12 * self.freq, logdata, rasterized=True)
+        a = ax.pcolormesh(1e15 * self.time, 1e-12 * self.freq, logdata, rasterized=True, vmin=-11, vmax=0)
         ax.set_xlabel("Time (fs)")
         ax.set_ylabel("Frequency (THz)")
         ax.grid(True, lw=1)
@@ -881,7 +873,12 @@ class FrogData:
             )
             / np.sum((self.measured_spectrogram.data[:] / norm_measured) ** 2)
         )
-
+    def get_G_error(self) -> float:
+        """
+        Get the G (note: no apostrophe) error. This one doesn't mean much, but is useful
+        for comparing reconstructions of the same spectrogram between different programs.
+        """
+        return np.sqrt((1.0/float(len(self.measured_spectrogram.data[:])**2)) * np.sum((self.measured_spectrogram.data[:]/np.max(self.measured_spectrogram.data[:]) - self.reconstructed_spectrogram.data[:]/np.max(self.reconstructed_spectrogram.data[:]))**2))
     def get_fwhm(self) -> float:
         """
         Get the full-width-at-half-max value of the reconstructed pulse
