@@ -34,7 +34,7 @@ class Spectrogram:
         [array of times]
         [data array as single column]
         """
-        with open(filename, 'a') as file:
+        with open(filename, 'w') as file:
             file.write(f'{len(self.freq)}\t{len(self.time)}\n')
             file.write(f'{np.min(self.data[:])}\t{np.max(self.data[:])}\n')
             for freq in self.freq:
@@ -56,7 +56,7 @@ class Spectrogram:
         Returns:
             Spectrogram: the spectrogram with offset removed."""
         new_data = np.array(self.data)
-        new_data -= extra_offset;
+        new_data -= extra_offset
         new_data[new_data<0.0] = 0.0
         for _i in range(new_data.shape[0]):
             new_data[_i,:] -= np.min(new_data[_i,:])
@@ -557,7 +557,7 @@ class IntensitySpectrum:
                 ax.set_xlim(xlim)
                 ax_phase.set_xlim(xlim)
             lines = lines = intensity_line+phase_line
-            ax.legend(lines, [l.get_label() for l in lines])
+            ax.legend(lines, [line.get_label() for line in lines])
         return fig
 @dataclass(frozen=True, slots=True)
 class ComplexEnvelope:
@@ -661,7 +661,7 @@ class ComplexEnvelope:
                 ax.set_xlim(xlim)
                 ax_phase.set_xlim(xlim)
             lines = lines = intensity_line+phase_line
-            ax.legend(lines, [l.get_label() for l in lines])
+            ax.legend(lines, [line.get_label() for line in lines])
         return fig
 
 @dataclass(frozen=True, slots=True)
@@ -699,11 +699,11 @@ class FrogData:
         lam = constants.speed_of_light/f
         raw_spec = np.fft.fftshift(np.fft.fft(self.raw_reconstruction))
 
-        with open(base_filename+'.Ek.dat','a') as time_file:
+        with open(base_filename+'.Ek.dat','w') as time_file:
             for _i in range(len(self.raw_reconstruction)):
                 time_file.write(f'{t[_i]:.15g}\t{np.abs(self.raw_reconstruction[_i])**2:.15g}\t{np.angle(self.raw_reconstruction[_i]):.15g}\t{np.real(self.raw_reconstruction[_i]):.15g}\t{np.imag(self.raw_reconstruction[_i]):.15g}\n')
 
-        with open(base_filename+'.Speck.dat','a') as spec_file:
+        with open(base_filename+'.Speck.dat','w') as spec_file:
             for _i in range(len(self.raw_reconstruction)):
                 spec_file.write(f'{lam[_i]:.15g}\t{np.abs(raw_spec[_i])**2:.15g}\t{np.angle(raw_spec[_i]):.15g}\t{np.real(raw_spec[_i]):.15g}\t{np.imag(raw_spec[_i]):.15g}\n')
 

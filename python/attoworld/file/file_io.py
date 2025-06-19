@@ -113,12 +113,12 @@ def read_Trebino_FROG_matrix(filename: Path | str) -> Spectrogram:
         filename (Path | str): the name (path) of the file
     """
     with open(filename, "r") as f:
-        l = str(f.readline())
-        l = l.split()
-        n1 = int(l[0])
-        n2 = int(l[1])
-        l = str(f.readline())
-        l = l.split()
+        line = str(f.readline())
+        line = line.split()
+        n1 = int(line[0])
+        n2 = int(line[1])
+        line = str(f.readline())
+        line = line.split()
     measured_data = pd.read_csv(filename, sep='\t', header = None, skiprows=2)
     measure = []
     raw_freq = 1e9*constants.speed_of_light/np.array(measured_data[0][0:n2]).squeeze()
