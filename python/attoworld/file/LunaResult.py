@@ -4,30 +4,36 @@ import matplotlib.pyplot as plt
 from ..plot import Char
 from scipy import constants
 
+
 def check_equal_length(*arg):
     n = len(arg[0])
     for v in arg:
         if len(v) != n:
             print(v)
-            print('Error: vector size mismatch')
-            raise Exception('Vector size mismatch')
+            print("Error: vector size mismatch")
+            raise Exception("Vector size mismatch")
 
-def fourier_transform(TimeV, FieldV):   # complex!!!
 
-    freq = np.fft.fftfreq(TimeV.size, d=TimeV[1]-TimeV[0])
+def fourier_transform(TimeV, FieldV):  # complex!!!
+    freq = np.fft.fftfreq(TimeV.size, d=TimeV[1] - TimeV[0])
     fft = np.fft.fft(FieldV)
     return freq, fft
 
-def inverse_fourier_transform(freq, fullSpectrum):  # complex!!!
 
-    timeV = np.fft.fftfreq(len(freq), freq[1]-freq[0])
-    if len(timeV)%2 == 0:
-        timeV = np.concatenate((timeV[int(len(timeV)/2):], timeV[:int(len(timeV)/2)]))
+def inverse_fourier_transform(freq, fullSpectrum):  # complex!!!
+    timeV = np.fft.fftfreq(len(freq), freq[1] - freq[0])
+    if len(timeV) % 2 == 0:
+        timeV = np.concatenate(
+            (timeV[int(len(timeV) / 2) :], timeV[: int(len(timeV) / 2)])
+        )
     else:
-        timeV = np.concatenate((timeV[int((len(timeV)+1)/2):], timeV[:int((len(timeV)+1)/2)]))
+        timeV = np.concatenate(
+            (timeV[int((len(timeV) + 1) / 2) :], timeV[: int((len(timeV) + 1) / 2)])
+        )
     fieldV = np.fft.ifft(fullSpectrum)
 
     return timeV, fieldV
+
 
 class LunaResult:
     """Loads and handles the Luna simulation result.
@@ -48,13 +54,14 @@ class LunaResult:
         stats_peakpower: peak power of the pulse along the fiber (W)
         stats_peakintensity: peak intensity of the pulse along the fiber
         stats_peak_ionization_rate: peak ionization rate along the fiber
-        """
+    """
+
     def __init__(self, filename):
         """Constructor of class LunaResult.
 
         Args:
             filename: saved result, file path
-            """
+        """
 
         self.filename = filename
         self.fieldFT = None
@@ -75,23 +82,24 @@ class LunaResult:
 
     def open_Luna_result(self, filename):
         """Opens the Luna result file and loads the data"""
-        with h5py.File(filename, 'r') as data:
-
+        with h5py.File(filename, "r") as data:
             # FIELD DATA
-            self.fieldFT = np.array(data['Eω'])
-            self.omega = np.array(data['grid']['ω'])
-            self.z = np.array(data['z'])
+            self.fieldFT = np.array(data["Eω"])
+            self.omega = np.array(data["grid"]["ω"])
+            self.z = np.array(data["z"])
 
             # STATS
-            self.stats_z = np.array(data['stats']['z'])
-            self.stats_energy = np.array(data['stats']['energy'])
-            self.stats_electrondensity = np.array(data['stats']['electrondensity'])
-            self.stats_density = np.array(data['stats']['density'])
-            self.stats_pressure = np.array(data['stats']['pressure'])
-            self.stats_peakpower = np.array(data['stats']['peakpower'])
-            self.stats_peakintensity = np.array(data['stats']['peakintensity'])
-            self.stats_zdw = np.array(data['stats']['zdw'])
-            self.stats_peak_ionization_rate = np.array(data['stats']['peak_ionisation_rate'])
+            self.stats_z = np.array(data["stats"]["z"])
+            self.stats_energy = np.array(data["stats"]["energy"])
+            self.stats_electrondensity = np.array(data["stats"]["electrondensity"])
+            self.stats_density = np.array(data["stats"]["density"])
+            self.stats_pressure = np.array(data["stats"]["pressure"])
+            self.stats_peakpower = np.array(data["stats"]["peakpower"])
+            self.stats_peakintensity = np.array(data["stats"]["peakintensity"])
+            self.stats_zdw = np.array(data["stats"]["zdw"])
+            self.stats_peak_ionization_rate = np.array(
+                data["stats"]["peak_ionisation_rate"]
+            )
 
     def average_modes(self):
         """Averages the propagation modes in the Luna result file"""
@@ -130,7 +138,9 @@ class LunaResult:
         if position > np.max(self.z) or position < np.min(self.z):
             print("WARNING: position ", position, "m is out of range")
         check_equal_length(self.fieldFT[index], self.omega)
-        fieldFFT = np.concatenate((self.fieldFT[index, :], np.conjugate(self.fieldFT[index, :][::-1])*0))
+        fieldFFT = np.concatenate(
+            (self.fieldFT[index, :], np.conjugate(self.fieldFT[index, :][::-1]) * 0)
+        )
         freq = np.concatenate((self.omega, -self.omega[::-1])) / 2 / np.pi
         timeV, fieldV = inverse_fourier_transform(freq, fieldFFT)
         return timeV, np.real(fieldV)
@@ -152,9 +162,10 @@ class LunaResult:
         if position > np.max(self.z) or position < np.min(self.z):
             print("WARNING: position ", position, "m is out of range")
         wvl = 2 * np.pi * constants.speed_of_light / self.omega[::-1]
-        wvlSpectrum = np.abs(self.fieldFT[index, ::-1])**2 * (2 * np.pi * constants.speed_of_light/wvl**2 )
+        wvlSpectrum = np.abs(self.fieldFT[index, ::-1]) ** 2 * (
+            2 * np.pi * constants.speed_of_light / wvl**2
+        )
         return wvl, wvlSpectrum
-
 
     def get_spectral_phase(self, position=None):
         """Get the spectral phase from the Luna result file
@@ -180,37 +191,37 @@ class LunaResult:
         """Plots the 'stats_' attribute of the simulation stored in the present object."""
 
         fig, axs = plt.subplots(2, 2, figsize=[7, 5])
-        axs[0,0].plot(self.stats_z, self.stats_pressure)
-        axs[0,0].set_xlabel("z (m)")
-        axs[0,0].set_ylabel("gas pressure (bar)")
-        ax2 = axs[0,0].twinx()
-        ax2.plot(self.stats_z, self.stats_density, color='r')
-        ax2.set_ylabel('gas particle density ($m^{-3}$)', color='r')
-        ax2.tick_params(axis='y', colors='r')
-        ax2.yaxis.label.set_color('r')
-        axs[0,1].plot(self.stats_z, self.stats_electrondensity)
-        axs[0,1].set_xlabel("z (m)")
-        axs[0,1].set_ylabel("electron density ($m^{-3}$)")
-        ax2 = axs[0,1].twinx()
+        axs[0, 0].plot(self.stats_z, self.stats_pressure)
+        axs[0, 0].set_xlabel("z (m)")
+        axs[0, 0].set_ylabel("gas pressure (bar)")
+        ax2 = axs[0, 0].twinx()
+        ax2.plot(self.stats_z, self.stats_density, color="r")
+        ax2.set_ylabel("gas particle density ($m^{-3}$)", color="r")
+        ax2.tick_params(axis="y", colors="r")
+        ax2.yaxis.label.set_color("r")
+        axs[0, 1].plot(self.stats_z, self.stats_electrondensity)
+        axs[0, 1].set_xlabel("z (m)")
+        axs[0, 1].set_ylabel("electron density ($m^{-3}$)")
+        ax2 = axs[0, 1].twinx()
         if len(self.stats_energy.shape) == 2:
-            ax2.plot(self.stats_z, np.sum(self.stats_energy, axis=1)*1e6, color='r')
+            ax2.plot(self.stats_z, np.sum(self.stats_energy, axis=1) * 1e6, color="r")
         else:
-            ax2.plot(self.stats_z, self.stats_energy*1e6, color='r')
-        ax2.set_ylabel(f'pulse energy ({Char.mu}J)', color='r')
-        ax2.tick_params(axis='y', colors='r')
-        ax2.yaxis.label.set_color('r')
+            ax2.plot(self.stats_z, self.stats_energy * 1e6, color="r")
+        ax2.set_ylabel(f"pulse energy ({Char.mu}J)", color="r")
+        ax2.tick_params(axis="y", colors="r")
+        ax2.yaxis.label.set_color("r")
         if self.stats_peakpower is not None:
-            if len(self.stats_peakpower.shape) ==2:
-                axs[1,0].plot(self.stats_z, self.stats_peakpower[:, 0])
-                axs[1,0].set_xlabel("z (m)")
-                axs[1,0].set_ylabel("peak power (W)")
-            elif len(self.stats_peakpower.shape) ==1:
-                axs[1,0].plot(self.stats_z, self.stats_peakpower)
-                axs[1,0].set_xlabel("z (m)")
-                axs[1,0].set_ylabel("peak power (W)")
-        axs[1,1].plot(self.stats_z, self.stats_peak_ionization_rate)
-        axs[1,1].set_xlabel("z (m)")
-        axs[1,1].set_ylabel("peak ionization rate")
+            if len(self.stats_peakpower.shape) == 2:
+                axs[1, 0].plot(self.stats_z, self.stats_peakpower[:, 0])
+                axs[1, 0].set_xlabel("z (m)")
+                axs[1, 0].set_ylabel("peak power (W)")
+            elif len(self.stats_peakpower.shape) == 1:
+                axs[1, 0].plot(self.stats_z, self.stats_peakpower)
+                axs[1, 0].set_xlabel("z (m)")
+                axs[1, 0].set_ylabel("peak power (W)")
+        axs[1, 1].plot(self.stats_z, self.stats_peak_ionization_rate)
+        axs[1, 1].set_xlabel("z (m)")
+        axs[1, 1].set_ylabel("peak ionization rate")
         plt.tight_layout()
 
         return fig

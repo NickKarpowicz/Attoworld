@@ -10,6 +10,7 @@ The module has several submodules to keep it organized:
 - **[spectrum](attoworld/spectrum.html)**: functions for processing spectra
 - **[attoworld_rs](attoworld/attoworld_rs.html)**: A place to put Rust code with a Python interface for cases where it's particularly important that the program be fast and correct.
 """
+
 from . import file
 from . import numeric
 from . import personal

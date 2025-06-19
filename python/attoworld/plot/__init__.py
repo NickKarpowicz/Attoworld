@@ -5,6 +5,4 @@ more easily obtaining a consistent style across plots made by different co-autho
 
 from .plot import showmo, set_style, label_letter, Char
 
-__all__ = [
-    "showmo", "set_style", "label_letter", "Char"
-]
+__all__ = ["showmo", "set_style", "label_letter", "Char"]

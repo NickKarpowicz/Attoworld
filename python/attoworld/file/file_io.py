@@ -6,7 +6,14 @@ from ..numeric import interpolate
 from ..spectrum import wavelength_to_frequency
 from pathlib import Path
 from typing import Optional
-from .data_structures import Waveform, IntensitySpectrum, Spectrogram, FrogData, ComplexSpectrum
+from .data_structures import (
+    Waveform,
+    IntensitySpectrum,
+    Spectrogram,
+    FrogData,
+    ComplexSpectrum,
+)
+
 
 def read_dwc(file_path):
     """
@@ -18,37 +25,42 @@ def read_dwc(file_path):
     Returns:
         Spectrogram: the loaded data
     """
-    with open(file_path, 'r') as file:
+    with open(file_path, "r") as file:
         lines = file.readlines()
-        delay_increment = float(lines[2].strip().split('=')[1])
+        delay_increment = float(lines[2].strip().split("=")[1])
 
-    wavelength_vector = pd.read_csv(file_path,
-                                   skiprows=5,
-                                   nrows=1,
-                                   delimiter='\t',
-                                   header=None).values[0]
+    wavelength_vector = pd.read_csv(
+        file_path, skiprows=5, nrows=1, delimiter="\t", header=None
+    ).values[0]
 
-    data_array = pd.read_csv(file_path,
-                             skiprows=8,
-                             delimiter='\t',
-                             header=None,
-                             dtype=float).values
+    data_array = pd.read_csv(
+        file_path, skiprows=8, delimiter="\t", header=None, dtype=float
+    ).values
 
-    freqs, first_spec = wavelength_to_frequency(wavelength_vector, data_array[:,0])
+    freqs, first_spec = wavelength_to_frequency(wavelength_vector, data_array[:, 0])
     if freqs is not None:
-        data_array_freq = np.zeros((len(freqs),data_array.shape[1]))
-        data_array_freq[:,0] = first_spec
+        data_array_freq = np.zeros((len(freqs), data_array.shape[1]))
+        data_array_freq[:, 0] = first_spec
         for _i in range(data_array.shape[1]):
-            _f, _dat = wavelength_to_frequency(wavelength_vector, data_array[:,_i], freqs)
-            data_array_freq[:,_i] = _dat
-        dt = 1e-15*delay_increment
-        delays = dt*np.array(range(data_array.shape[1]))
+            _f, _dat = wavelength_to_frequency(
+                wavelength_vector, data_array[:, _i], freqs
+            )
+            data_array_freq[:, _i] = _dat
+        dt = 1e-15 * delay_increment
+        delays = dt * np.array(range(data_array.shape[1]))
         delays -= np.mean(delays)
         return Spectrogram(data=data_array_freq, time=delays, freq=freqs)
     else:
         raise Exception("Interpolation failure reading dwc file")
 
-def load_spectrum_from_text(filename: str, wavelength_multiplier: float = 1e-9, wavelength_field:str='wavelength (nm)', spectrum_field:str='intensity (a.u.)', sep:str='\t'):
+
+def load_spectrum_from_text(
+    filename: str,
+    wavelength_multiplier: float = 1e-9,
+    wavelength_field: str = "wavelength (nm)",
+    spectrum_field: str = "intensity (a.u.)",
+    sep: str = "\t",
+):
     """
     Load a spectrum contained in a text file.
 
@@ -64,9 +76,21 @@ def load_spectrum_from_text(filename: str, wavelength_multiplier: float = 1e-9, 
     wavelength = wavelength_multiplier * np.array(data[wavelength_field])
     freq = constants.speed_of_light / wavelength
     spectrum = np.array(data[spectrum_field])
-    return IntensitySpectrum(spectrum=spectrum, wavelength=wavelength, freq=freq, phase=np.zeros(spectrum.shape, dtype=float))
+    return IntensitySpectrum(
+        spectrum=spectrum,
+        wavelength=wavelength,
+        freq=freq,
+        phase=np.zeros(spectrum.shape, dtype=float),
+    )
 
-def load_waveform_from_text(filename: str, time_multiplier: float = 1e-15, time_field:str='delay (fs)', wave_field:str='field (a.u.)', sep='\t') -> Waveform:
+
+def load_waveform_from_text(
+    filename: str,
+    time_multiplier: float = 1e-15,
+    time_field: str = "delay (fs)",
+    wave_field: str = "field (a.u.)",
+    sep="\t",
+) -> Waveform:
     """Loads a waveform from a text file
 
     Args:
@@ -83,10 +107,10 @@ def load_waveform_from_text(filename: str, time_multiplier: float = 1e-15, time_
     data = pd.read_csv(filename, sep=sep)
     time = time_multiplier * data[time_field].to_numpy()
     wave = data[wave_field].to_numpy()
-    dt = time[1]-time[0]
+    dt = time[1] - time[0]
     diff_time = np.diff(time)
     uniform = bool(np.all(np.isclose(diff_time, diff_time[0])))
-    return Waveform(wave = wave, time = time, dt=dt, is_uniformly_spaced = uniform)
+    return Waveform(wave=wave, time=time, dt=dt, is_uniformly_spaced=uniform)
 
 
 def load_waves_from_matfile(filename: str, phase: Optional[float] = None):
@@ -101,16 +125,18 @@ def load_waves_from_matfile(filename: str, phase: Optional[float] = None):
     """
 
     datablob = sio.loadmat(filename)
-    stage_position = datablob['xdata'][0,:]
-    time_delay = -2e-3 * stage_position/2.9979e8
-    lia_x = datablob['x0']
-    lia_y = datablob['y0']
+    stage_position = datablob["xdata"][0, :]
+    time_delay = -2e-3 * stage_position / 2.9979e8
+    lia_x = datablob["x0"]
+    lia_y = datablob["y0"]
     if phase is None:
-        optimized_phase = np.atan2(np.sum(lia_y[:]**2), np.sum(lia_x[:]**2))
-        signal = np.fliplr(lia_x*np.cos(optimized_phase) + lia_y*np.sin(optimized_phase))
+        optimized_phase = np.atan2(np.sum(lia_y[:] ** 2), np.sum(lia_x[:] ** 2))
+        signal = np.fliplr(
+            lia_x * np.cos(optimized_phase) + lia_y * np.sin(optimized_phase)
+        )
         return time_delay, signal
     else:
-        signal = np.fliplr(lia_x*np.cos(phase) - lia_y*np.sin(phase))
+        signal = np.fliplr(lia_x * np.cos(phase) - lia_y * np.sin(phase))
         return time_delay, signal
 
 
@@ -128,16 +154,19 @@ def read_Trebino_FROG_matrix(filename: Path | str) -> Spectrogram:
         n2 = int(line[1])
         line = str(f.readline())
         line = line.split()
-    measured_data = pd.read_csv(filename, sep='\t', header = None, skiprows=2)
+    measured_data = pd.read_csv(filename, sep="\t", header=None, skiprows=2)
     measure = []
-    raw_freq = 1e9*constants.speed_of_light/np.array(measured_data[0][0:n2]).squeeze()
+    raw_freq = (
+        1e9 * constants.speed_of_light / np.array(measured_data[0][0:n2]).squeeze()
+    )
     df = np.mean(np.diff(raw_freq))
     freq = raw_freq[0] + df * np.array(range(raw_freq.shape[0]))
-    time = 1e-15 * np.array(measured_data[0][n2:(n2+n1)]).squeeze()
+    time = 1e-15 * np.array(measured_data[0][n2 : (n2 + n1)]).squeeze()
     for i in range(n1):
-        measure.append(measured_data[0][(i+2)*n2:(i+3)*n2])
+        measure.append(measured_data[0][(i + 2) * n2 : (i + 3) * n2])
     data = np.array(measure)
-    return Spectrogram(data = data, time = time, freq = freq)
+    return Spectrogram(data=data, time=time, freq=freq)
+
 
 def read_Trebino_FROG_speck(filename: Path | str) -> ComplexSpectrum:
     """
@@ -146,12 +175,15 @@ def read_Trebino_FROG_speck(filename: Path | str) -> ComplexSpectrum:
     Args:
         filename (Path | str): the name (path) of the file
     """
-    data = np.array(pd.read_csv(filename, sep='\t', header = None), dtype=float)
-    raw_freq = 1e9*constants.speed_of_light/data[:,0]
+    data = np.array(pd.read_csv(filename, sep="\t", header=None), dtype=float)
+    raw_freq = 1e9 * constants.speed_of_light / data[:, 0]
     df = np.mean(np.diff(raw_freq))
-    freq = np.linspace(0.0, raw_freq[-1], int(np.ceil(raw_freq[-1]/df)))
-    spectrum = interpolate(freq, raw_freq, data[:,3]) + 1j * interpolate(freq, raw_freq, data[:,4])
+    freq = np.linspace(0.0, raw_freq[-1], int(np.ceil(raw_freq[-1] / df)))
+    spectrum = interpolate(freq, raw_freq, data[:, 3]) + 1j * interpolate(
+        freq, raw_freq, data[:, 4]
+    )
     return ComplexSpectrum(spectrum=spectrum, freq=freq)
+
 
 def read_Trebino_FROG_data(filename: str) -> FrogData:
     """
@@ -159,19 +191,25 @@ def read_Trebino_FROG_data(filename: str) -> FrogData:
 
     Args:
         filename: Base filename of the .bin file; e.g. if the data are mydata.bin.Speck.dat etc., this will be "mydata.bin" """
-    spectrum = read_Trebino_FROG_speck(filename+'.Speck.dat')
+    spectrum = read_Trebino_FROG_speck(filename + ".Speck.dat")
     pulse = spectrum.to_centered_waveform()
-    measured_spectrogram = read_Trebino_FROG_matrix(filename+'.A.dat')
-    reconstructed_spectrogram = read_Trebino_FROG_matrix(filename+'.Arecon.dat')
-    raw_speck = np.array(pd.read_csv(filename+'.Speck.dat', sep='\t', header = None), dtype=float)
-    raw_ek = np.array(pd.read_csv(filename+'.Ek.dat', sep='\t', header = None), dtype=float)
-    f0 = 1e9*np.mean(constants.speed_of_light/raw_speck[:,0])
-    dt = 1e-15*(raw_ek[1,0] - raw_ek[0,0])
-    raw_reconstruction = raw_ek[:,3] + 1.0j * raw_ek[:,4]
-    return FrogData(spectrum = spectrum,
-        pulse = pulse,
-        measured_spectrogram = measured_spectrogram,
-        reconstructed_spectrogram = reconstructed_spectrogram,
+    measured_spectrogram = read_Trebino_FROG_matrix(filename + ".A.dat")
+    reconstructed_spectrogram = read_Trebino_FROG_matrix(filename + ".Arecon.dat")
+    raw_speck = np.array(
+        pd.read_csv(filename + ".Speck.dat", sep="\t", header=None), dtype=float
+    )
+    raw_ek = np.array(
+        pd.read_csv(filename + ".Ek.dat", sep="\t", header=None), dtype=float
+    )
+    f0 = 1e9 * np.mean(constants.speed_of_light / raw_speck[:, 0])
+    dt = 1e-15 * (raw_ek[1, 0] - raw_ek[0, 0])
+    raw_reconstruction = raw_ek[:, 3] + 1.0j * raw_ek[:, 4]
+    return FrogData(
+        spectrum=spectrum,
+        pulse=pulse,
+        measured_spectrogram=measured_spectrogram,
+        reconstructed_spectrogram=reconstructed_spectrogram,
         raw_reconstruction=raw_reconstruction,
-        dt = dt,
-        f0 = float(f0))
+        dt=dt,
+        f0=float(f0),
+    )

@@ -7,8 +7,4 @@ from . import nick
 from . import vlad
 from . import marco
 
-__all__ = [
-    'nick',
-    'vlad',
-    'marco'
-]
+__all__ = ["nick", "vlad", "marco"]
