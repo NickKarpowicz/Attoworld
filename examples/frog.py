@@ -30,7 +30,7 @@ def _(mo):
 def _(aw, file_browser):
     _path = file_browser.path()
     if _path is not None:
-        input_data = aw.file.read_dwc(file_path=_path)
+        input_data = aw.data.read_dwc(file_path=_path)
     else:
         input_data = None
     return (input_data,)
