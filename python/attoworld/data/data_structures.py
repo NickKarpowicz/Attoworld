@@ -58,7 +58,7 @@ def json_io(cls):
                 loaded_data[field_name] = data[field_name]
         return cls(**loaded_data)
 
-    def load_json(cls, filename: str):
+    def from_json_file(cls, filename: str):
         """
         load from a json file
 
@@ -101,7 +101,7 @@ def json_io(cls):
         return data_dict
 
     cls.from_json_data = classmethod(from_json_data)
-    cls.load_json = classmethod(load_json)
+    cls.load_json = classmethod(from_json_file)
     cls.to_dict = to_dict
     cls.save_to_json = save_to_json
     return cls
