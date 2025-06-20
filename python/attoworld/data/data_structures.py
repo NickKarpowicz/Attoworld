@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, is_dataclass
 import numpy as np
 from typing import Optional
 from ..numeric import (
@@ -20,8 +20,73 @@ import scipy.signal as sig
 import copy
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
+import json
 
+def json_io(cls):
+    """
+    Adds functions to save and load the dataclass as json
+    """
+    def from_json_data(cls, data: dict):
+        """
+        Takes json data and makes an instance of the class
 
+        Args:
+            data (dict): the result of a call of .to_dict on the class
+        """
+        loaded_data = {}
+        for field_name, field_type in cls.__annotations__.items():
+            if field_type is np.ndarray:
+                loaded_data[field_name] = np.array(data[field_name])
+            elif is_dataclass(field_type):
+                loaded_data[field_name] = field_type.from_json_data(data[field_name])
+            else:
+                loaded_data[field_name] = data[field_name]
+        return cls(**loaded_data)
+
+    def load_json(cls, filename: str):
+        """
+        load from a json file
+
+        Args:
+            filename (str): path to the file
+        """
+        with open(filename, 'r') as file:
+            data = json.load(file)
+            return cls.from_json_data(data)
+
+    def save_to_json(instance, filename: str):
+        """
+        save to a json file
+
+        Args:
+            filename (str): path to the file
+        """
+        data_dict = instance.to_dict()
+        with open(filename, 'w') as file:
+            json.dump(data_dict, file, indent=4)
+
+    def to_dict(instance):
+        """
+        serialize the class into a dict
+        """
+        data_dict = {}
+        for field_name, field_type in instance.__annotations__.items():
+            field_value = getattr(instance, field_name)
+            if field_type is np.ndarray:
+                data_dict[field_name] = field_value.tolist()
+            elif is_dataclass(field_type):
+                data_dict[field_name] = field_value.to_dict()
+            else:
+                data_dict[field_name] = field_value
+        return data_dict
+
+    cls.from_json_data = classmethod(from_json_data)
+    cls.load_json = classmethod(load_json)
+    cls.to_dict = to_dict
+    cls.save_to_json = save_to_json
+    return cls
+
+@json_io
 @dataclass(frozen=True, slots=True)
 class Spectrogram:
     data: np.ndarray
@@ -190,7 +255,7 @@ class Spectrogram:
         plt.colorbar(a)
         return fig
 
-
+@json_io
 @dataclass(frozen=True, slots=True)
 class Waveform:
     """
@@ -381,7 +446,6 @@ class Waveform:
         uniform_self = self.to_uniformly_spaced()
         return fwhm(uniform_self.wave**2, uniform_self.dt)
 
-
 @dataclass(frozen=True, slots=True)
 class ComplexSpectrum:
     """
@@ -467,7 +531,7 @@ class ComplexSpectrum:
             is_frequency_scaled=wavelength_scaled,
         )
 
-
+@json_io
 @dataclass(frozen=True, slots=True)
 class IntensitySpectrum:
     """
@@ -664,7 +728,6 @@ class IntensitySpectrum:
         ax.legend(lines, [str(line.get_label()) for line in lines])
         return fig
 
-
 @dataclass(frozen=True, slots=True)
 class ComplexEnvelope:
     """
@@ -791,7 +854,6 @@ class ComplexEnvelope:
         lines = lines = intensity_line + phase_line
         ax.legend(lines, [str(line.get_label()) for line in lines])
         return fig
-
 
 @dataclass(frozen=True, slots=True)
 class FrogData:

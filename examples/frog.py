@@ -192,6 +192,20 @@ def _(filedialog, mo, plot, result, save_plot_button):
 
 
 @app.cell
+def _(aw):
+    test2 = aw.data.Spectrogram.load_json('test_4.json')
+    test2.plot_log()
+    test2.save_to_json('test_5.json')
+    return
+
+
+@app.cell
+def _(result):
+    result.save_to_json('test_frg.json')
+    return
+
+
+@app.cell
 def _():
     return
 
