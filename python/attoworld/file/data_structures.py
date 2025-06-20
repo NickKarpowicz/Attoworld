@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 import numpy as np
 from typing import Optional
-from ..numeric import interpolate, fwhm, find_maximum_location, derivative
+from ..numeric import interpolate, fwhm, find_maximum_location, derivative, block_binning_2d, block_binning_1d
 from ..plot import label_letter
 from ..spectrum import (
     wavelength_to_frequency,
@@ -45,6 +45,13 @@ class Spectrogram:
             for x in self.data:
                 for y in x:
                     file.write(f"{y:15.15g}\n")
+
+    def to_block_binned(self, freq_bin: int, time_bin: int, method: str = 'mean'):
+        return Spectrogram(
+            data = block_binning_2d(self.data, time_bin, freq_bin, method),
+            freq = block_binning_1d(self.freq, freq_bin, 'mean'),
+            time = block_binning_1d(self.time, time_bin, 'mean')
+        )
 
     def to_per_frequency_dc_removed(self, extra_offset: float = 0.0):
         """Perform DC offset removal on a measured spectrogram, on a per-frequency basis
