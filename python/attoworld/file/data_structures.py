@@ -51,9 +51,9 @@ class Spectrogram:
         Apply block-binning to the spectrogram.
 
         Args:
-            freq_bin: block size for averaging in the frequency direction
-            time_bin: block size for averaging in the time-direction
-            method: can be ```mean``` or ```median```
+            freq_bin (int): block size for averaging in the frequency direction
+            time_bin (int): block size for averaging in the time-direction
+            method (str): can be ```mean``` or ```median```
         """
         return Spectrogram(
             data = block_binning_2d(self.data, time_bin, freq_bin, method),
@@ -799,7 +799,7 @@ class FrogData:
         else:
             fig = ax.get_figure()
         self.measured_spectrogram.plot(ax)
-        ax.set_title("Measurement")
+        ax.set_title("Measured")
         return fig
 
     def plot_reconstructed_spectrogram(self, ax: Optional[Axes] = None):
@@ -814,7 +814,7 @@ class FrogData:
         else:
             fig = ax.get_figure()
         self.reconstructed_spectrogram.plot(ax)
-        ax.set_title(f"Reconstruction (G': {self.get_error():0.2e})")
+        ax.set_title(f"Retrieved (G': {self.get_error():0.2e}; G: {self.get_G_error():0.2e})")
         return fig
 
     def plot_pulse(
