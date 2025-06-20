@@ -3,6 +3,7 @@ This module will contain numerical tools.
 """
 
 from .atomic_units import AtomicUnits
+from .numeric import block_binning_1d, block_binning_2d
 from ..attoworld_rs import (
     fornberg_stencil,
     interpolate,
@@ -13,7 +14,6 @@ from ..attoworld_rs import (
     derivative,
     derivative_periodic,
 )
-
 __all__ = [
     "fornberg_stencil",
     "find_maximum_location",
@@ -24,4 +24,6 @@ __all__ = [
     "derivative_periodic",
     "interpolate",
     "AtomicUnits",
+    "block_binning_1d",
+    "block_binning_2d"
 ]
