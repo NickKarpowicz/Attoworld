@@ -14,6 +14,7 @@ from ..attoworld_rs import (
     derivative,
     derivative_periodic,
 )
+
 __all__ = [
     "fornberg_stencil",
     "find_maximum_location",
@@ -25,5 +26,5 @@ __all__ = [
     "interpolate",
     "AtomicUnits",
     "block_binning_1d",
-    "block_binning_2d"
+    "block_binning_2d",
 ]
