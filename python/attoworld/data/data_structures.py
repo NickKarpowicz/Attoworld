@@ -28,6 +28,14 @@ class Spectrogram:
     time: np.ndarray
     freq: np.ndarray
 
+    def lock(self):
+        """
+        Make the data immutable
+        """
+        self.data.setflags(write=False)
+        self.time.setflags(write=False)
+        self.freq.setflags(write=False)
+
     def save(self, filename):
         """
         Save in the .A.dat file format used by FROG .etc
@@ -200,6 +208,13 @@ class Waveform:
     time: np.ndarray
     dt: float
     is_uniformly_spaced: bool = False
+
+    def lock(self):
+        """
+        Make the data immutable
+        """
+        self.wave.setflags(write=False)
+        self.time.setflags(write=False)
 
     def copy(self):
         """
@@ -380,6 +395,13 @@ class ComplexSpectrum:
     spectrum: np.ndarray
     freq: np.ndarray
 
+    def lock(self):
+        """
+        Make the data immutable
+        """
+        self.spectrum.setflags(write=False)
+        self.freq.setflags(write=False)
+
     def copy(self):
         return copy.deepcopy(self)
 
@@ -464,6 +486,16 @@ class IntensitySpectrum:
     freq: np.ndarray
     wavelength: np.ndarray
     is_frequency_scaled: bool = False
+
+    def lock(self):
+        """
+        Make the data immutable
+        """
+        self.spectrum.setflags(write=False)
+        self.freq.setflags(write=False)
+        self.wavelength.setflags(write=False)
+        if self.phase is not None:
+            self.phase.setflags(write=False)
 
     def copy(self):
         return copy.deepcopy(self)
@@ -650,6 +682,13 @@ class ComplexEnvelope:
     dt: float
     carrier_frequency: float = 0.0
 
+    def lock(self):
+        """
+        Make the data immutable
+        """
+        self.envelope.setflags(write=False)
+        self.time.setflags(write=False)
+
     def time_fs(self):
         return 1e15 * self.time
 
@@ -773,6 +812,16 @@ class FrogData:
     raw_reconstruction: np.ndarray
     f0: float
     dt: float
+
+    def lock(self):
+        """
+        Make the data immutable
+        """
+        self.raw_reconstruction.setflags(write=False)
+        self.spectrum.lock()
+        self.pulse.lock()
+        self.measured_spectrogram.lock()
+        self.reconstructed_spectrogram.lock()
 
     def save(self, base_filename):
         """

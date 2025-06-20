@@ -1,5 +1,5 @@
 import numpy as np
-from ..file import ComplexEnvelope, Spectrogram, FrogData
+from ..data import ComplexEnvelope, Spectrogram, FrogData
 from ..numeric import find_maximum_location
 
 

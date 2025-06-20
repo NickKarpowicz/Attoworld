@@ -2,16 +2,16 @@
 Tools from the Attosecond science group at the Max Planck Institute of Quantum Optics, a.k.a. [Attoworld](https://www.attoworld.de)
 
 The module has several submodules to keep it organized:
-- **[file](attoworld/file.html)**: functions for reading/writing the various data formats used across the labs
+- **[data](attoworld/data.html)**: classes and for handling the various data formats used across the labs
 - **[numeric](attoworld/numeric.html)**: numerical tools
 - **[personal](attoworld/personal.html)**: a module where we can add our own functions that might not be of general interest, but are still good to have available to we can easily share work
 - **[plot](attoworld/plot.html)**: functions for plotting with a consistent style
-- **[wave](attoworld/wave.html)**: functions for processing waveforms
+- **[wave](attoworld/wave.html)**: functions for processing waveforms and pulses
 - **[spectrum](attoworld/spectrum.html)**: functions for processing spectra
 - **[attoworld_rs](attoworld/attoworld_rs.html)**: A place to put Rust code with a Python interface for cases where it's particularly important that the program be fast and correct.
 """
 
-from . import file
+from . import data
 from . import numeric
 from . import personal
 from . import plot
@@ -19,4 +19,4 @@ from . import spectrum
 from . import wave
 from . import attoworld_rs
 
-__all__ = ["file", "numeric", "personal", "plot", "spectrum", "wave", "attoworld_rs"]
+__all__ = ["data", "numeric", "personal", "plot", "spectrum", "wave", "attoworld_rs"]
