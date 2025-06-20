@@ -33,10 +33,17 @@ def json_io(cls):
         Args:
             data (dict): the result of a call of .to_dict on the class
         """
+
+        def handle_complex_array(serialized_array) -> np.ndarray:
+            """Helper function to deserialize numpy arrays, handling complex types"""
+            if isinstance(serialized_array, list) and all(isinstance(item, dict) and 're' in item and 'im' in item for item in serialized_array):
+                return np.array([complex(item['re'], item['im']) for item in serialized_array], dtype=np.complex128)
+            return np.array(serialized_array)
+
         loaded_data = {}
         for field_name, field_type in cls.__annotations__.items():
             if field_type is np.ndarray:
-                loaded_data[field_name] = np.array(data[field_name])
+                loaded_data[field_name] = handle_complex_array(data[field_name])
             elif is_dataclass(field_type):
                 loaded_data[field_name] = field_type.from_json_data(data[field_name])
             else:
@@ -73,7 +80,13 @@ def json_io(cls):
         for field_name, field_type in instance.__annotations__.items():
             field_value = getattr(instance, field_name)
             if field_type is np.ndarray:
-                data_dict[field_name] = field_value.tolist()
+                if field_value.dtype == np.complex128:
+                    data_dict[field_name] = [
+                        {'re': num.real, 'im': num.imag}
+                        for num in field_value.tolist()
+                    ]
+                else:
+                    data_dict[field_name] = field_value.tolist()
             elif is_dataclass(field_type):
                 data_dict[field_name] = field_value.to_dict()
             else:
@@ -446,6 +459,7 @@ class Waveform:
         uniform_self = self.to_uniformly_spaced()
         return fwhm(uniform_self.wave**2, uniform_self.dt)
 
+@json_io
 @dataclass(frozen=True, slots=True)
 class ComplexSpectrum:
     """
@@ -728,6 +742,7 @@ class IntensitySpectrum:
         ax.legend(lines, [str(line.get_label()) for line in lines])
         return fig
 
+@json_io
 @dataclass(frozen=True, slots=True)
 class ComplexEnvelope:
     """
@@ -854,7 +869,7 @@ class ComplexEnvelope:
         lines = lines = intensity_line + phase_line
         ax.legend(lines, [str(line.get_label()) for line in lines])
         return fig
-
+@json_io
 @dataclass(frozen=True, slots=True)
 class FrogData:
     """
