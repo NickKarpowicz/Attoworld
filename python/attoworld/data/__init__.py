@@ -13,6 +13,7 @@ from .file_io import (
 )
 from .LunaResult import LunaResult
 from .data_structures import (
+    json_io,
     Waveform,
     ComplexSpectrum,
     IntensitySpectrum,
@@ -31,6 +32,7 @@ __all__ = [
     "read_Trebino_FROG_speck",
     "read_Trebino_FROG_data",
     "LunaResult",
+    "json_io",
     "Waveform",
     "ComplexSpectrum",
     "IntensitySpectrum",
