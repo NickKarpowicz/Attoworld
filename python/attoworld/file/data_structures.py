@@ -47,6 +47,14 @@ class Spectrogram:
                     file.write(f"{y:15.15g}\n")
 
     def to_block_binned(self, freq_bin: int, time_bin: int, method: str = 'mean'):
+        """
+        Apply block-binning to the spectrogram.
+
+        Args:
+            freq_bin: block size for averaging in the frequency direction
+            time_bin: block size for averaging in the time-direction
+            method: can be ```mean``` or ```median```
+        """
         return Spectrogram(
             data = block_binning_2d(self.data, time_bin, freq_bin, method),
             freq = block_binning_1d(self.freq, freq_bin, 'mean'),
