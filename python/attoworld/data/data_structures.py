@@ -20,17 +20,17 @@ import scipy.signal as sig
 import copy
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
-import json
 import yaml
 
-def json_io(cls):
+
+def yaml_io(cls):
     """
-    Adds functions to save and load the dataclass as json
+    Adds functions to save and load the dataclass as yaml
     """
 
     def from_dict(cls, data: dict):
         """
-        Takes json data and makes an instance of the class
+        Takes a dict and makes an instance of the class
 
         Args:
             data (dict): the result of a call of .to_dict on the class
@@ -58,41 +58,20 @@ def json_io(cls):
                 loaded_data[field_name] = data[field_name]
         return cls(**loaded_data)
 
-    def from_json_file(cls, filename: str):
+    def load_yaml(cls, filename: str):
         """
-        load from a json file
+        load from a yaml file
 
         Args:
             filename (str): path to the file
         """
         with open(filename, "r") as file:
-            data = json.load(file)
+            data = yaml.load(file, yaml.SafeLoader)
             return cls.from_dict(data)
-    def from_yaml_file(cls, filename: str):
-        """
-        load from a json file
-
-        Args:
-            filename (str): path to the file
-        """
-        with open(filename, "r") as file:
-            data = yaml.load(file,yaml.SafeLoader)
-            return cls.from_dict(data)
-
-    def save_json(instance, filename: str):
-        """
-        save to a json file
-
-        Args:
-            filename (str): path to the file
-        """
-        data_dict = instance.to_dict()
-        with open(filename, "w") as file:
-            json.dump(data_dict, file, indent=4)
 
     def save_yaml(instance, filename: str):
         """
-        save to a json file
+        save to a yaml file
 
         Args:
             filename (str): path to the file
@@ -124,15 +103,13 @@ def json_io(cls):
         return data_dict
 
     cls.from_dict = classmethod(from_dict)
-    cls.load_json = classmethod(from_json_file)
-    cls.load_yaml = classmethod(from_yaml_file)
+    cls.load_yaml = classmethod(load_yaml)
     cls.to_dict = to_dict
-    cls.save_json = save_json
     cls.save_yaml = save_yaml
     return cls
 
 
-@json_io
+@yaml_io
 @dataclass(frozen=True, slots=True)
 class Spectrogram:
     data: np.ndarray
@@ -302,7 +279,7 @@ class Spectrogram:
         return fig
 
 
-@json_io
+@yaml_io
 @dataclass(frozen=True, slots=True)
 class Waveform:
     """
@@ -494,7 +471,7 @@ class Waveform:
         return fwhm(uniform_self.wave**2, uniform_self.dt)
 
 
-@json_io
+@yaml_io
 @dataclass(frozen=True, slots=True)
 class ComplexSpectrum:
     """
@@ -581,7 +558,7 @@ class ComplexSpectrum:
         )
 
 
-@json_io
+@yaml_io
 @dataclass(frozen=True, slots=True)
 class IntensitySpectrum:
     """
@@ -779,7 +756,7 @@ class IntensitySpectrum:
         return fig
 
 
-@json_io
+@yaml_io
 @dataclass(frozen=True, slots=True)
 class ComplexEnvelope:
     """
@@ -908,7 +885,7 @@ class ComplexEnvelope:
         return fig
 
 
-@json_io
+@yaml_io
 @dataclass(frozen=True, slots=True)
 class FrogData:
     """
