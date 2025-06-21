@@ -1241,7 +1241,7 @@ class TraceHandler:
         if not no_phase:
             ax2.set_ylabel("Phase (rad)")
             ax2.tick_params(axis="y")
-        ax.legend(lines, [l.get_label() for l in lines])
+        ax.legend(lines, [line.get_label() for line in lines])
         return fig
 
 

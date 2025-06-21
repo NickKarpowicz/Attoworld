@@ -42,8 +42,8 @@ def _(mo):
     bin_dt = mo.ui.number(label="dt (fs)", value=3, step=0.1)
     bin_f0 = mo.ui.number(label="f0 (THz)", value=740, step=1)
     bin_offset = mo.ui.number(label="dark noise level", value=0.0002, step=1e-5)
-    bin_fblock = mo.ui.number(label="freq block avg.", value = 16, step = 1)
-    bin_tblock = mo.ui.number(label="time block avg.", value = 1, step = 1)
+    bin_fblock = mo.ui.number(label="freq block avg.", value=16, step=1)
+    bin_tblock = mo.ui.number(label="time block avg.", value=1, step=1)
     bin_median = mo.ui.checkbox(label="median blocking", value=False)
     bin_button = mo.ui.run_button(label="bin")
     bin_live = mo.ui.checkbox(label="live update")
@@ -92,11 +92,17 @@ def _(
             _method = "median"
         else:
             _method = "mean"
-        frog_data = input_data.to_block_binned(int(bin_fblock.value),int(bin_tblock.value),method=_method).to_binned(
-            dim=int(bin_size.value),
-            dt=float(bin_dt.value * 1e-15),
-            f0=float(bin_f0.value * 1e12),
-        ).to_per_frequency_dc_removed(extra_offset=float(bin_offset.value))
+        frog_data = (
+            input_data.to_block_binned(
+                int(bin_fblock.value), int(bin_tblock.value), method=_method
+            )
+            .to_binned(
+                dim=int(bin_size.value),
+                dt=float(bin_dt.value * 1e-15),
+                f0=float(bin_f0.value * 1e12),
+            )
+            .to_per_frequency_dc_removed(extra_offset=float(bin_offset.value))
+        )
         frog_data.plot_log()
         aw.plot.showmo()
     else:
@@ -174,7 +180,7 @@ def _(filedialog, mo, result, save_button):
 
     if _file_path is not None and result is not None:
         result.save(_file_path)
-        result.save_yaml(_file_path+'.yaml')
+        result.save_yaml(_file_path + ".yaml")
     return
 
 

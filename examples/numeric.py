@@ -74,10 +74,8 @@ def _(aw, np, plt, scipy):
             return np.sin(_x**2 / beta)
 
         x = np.real(np.linspace(0.0, 16.0, 64))
-        x_fine = np.real(np.linspace(0.0, 16.0, 512))
         x2 = np.linspace(0.01, 15.99, 333)
         y = test_function(x)
-        y_fine = test_function(x_fine)
         y2 = test_function(x2)
 
         interpolated_rs = aw.numeric.interpolate(x2, x, y, neighbors=3)
@@ -112,7 +110,6 @@ def _(aw, np, scipy, timeit):
         x = np.real(np.linspace(0.0, 16.0, 333))
         x2 = np.linspace(0.1, 15.99, 2222)
         y = np.sin(x**2 / beta)
-        y2 = np.sin(x2**2 / beta)
         print(
             f"aw.numeric.interpolate: {timeit.timeit(lambda: aw.numeric.interpolate(x2, x, y, neighbors=3), number=1000)} seconds"
         )

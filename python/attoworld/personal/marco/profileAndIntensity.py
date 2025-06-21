@@ -61,7 +61,6 @@ def moments_peak(data):
     """Returns (height, x, y, width_x, width_y, np.min(data)), that is,
     the gaussian parameters of a 2D distribution by calculating its
     peak and moments"""
-    total = data.sum()
     X, Y = np.indices(data.shape)
     maxindex = np.unravel_index(np.argmax(data), data.shape)
     x, y = maxindex[0], maxindex[1]
@@ -77,7 +76,10 @@ def fitgaussian(data):
     """Returns (height, x, y, width_x, width_y)
     the gaussian parameters of a 2D distribution found by a fit"""
     params = moments_peak(data)
-    errorfunction = lambda p: np.ravel(gaussian(*p)(*np.indices(data.shape)) - data)
+
+    def errorfunction(p):
+        return np.ravel(gaussian(*p)(*np.indices(data.shape)) - data)
+
     p, success = opt.leastsq(errorfunction, params)
     return p
 
@@ -105,7 +107,7 @@ def plot_crosssect(data, fitfunct=None):
 
 def cut_tail(data, radius, pixelsize=1.0, center=None):
     radius = radius / pixelsize
-    if center == None:
+    if center is None:
         center = np.unravel_index(np.argmax(data), data.shape)
     y, x = center[0], center[1]
     Y, X = np.indices(data.shape)
@@ -115,7 +117,7 @@ def cut_tail(data, radius, pixelsize=1.0, center=None):
 
 
 def cut_trace(t, x, radius, center=None):
-    if center == None:
+    if center is None:
         center = np.argmax(abs(x))
     cut_trace = x.copy()
     cut_trace[abs(t - t[center]) > radius] = 0
@@ -209,7 +211,6 @@ def profile_analysis(
         print("subtracting background intensity: ", background)
 
     dataval = np.maximum(dataval - background, dataval * 0.0)
-    maxval = np.max(dataval)
 
     # gaussian fit
     param = moments_peak(dataval)
