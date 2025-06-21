@@ -117,7 +117,7 @@ def json_io(cls):
                     data_dict[field_name] = field_value.tolist()
             elif is_dataclass(field_type):
                 data_dict[field_name] = field_value.to_dict()
-            elif field_type is np.float64:
+            elif field_type is np.float64 or field_type is float:
                 data_dict[field_name] = float(field_value)
             else:
                 data_dict[field_name] = field_value
