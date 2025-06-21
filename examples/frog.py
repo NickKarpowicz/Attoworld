@@ -174,8 +174,7 @@ def _(filedialog, mo, result, save_button):
 
     if _file_path is not None and result is not None:
         result.save(_file_path)
-        result.save_to_json(_file_path+'.json')
-
+        result.save_yaml(_file_path+'.yaml')
     return
 
 
@@ -189,6 +188,11 @@ def _(filedialog, mo, plot, result, save_plot_button):
 
     if _file_path is not None and result is not None:
         plot.savefig(_file_path)
+    return
+
+
+@app.cell
+def _():
     return
 
 

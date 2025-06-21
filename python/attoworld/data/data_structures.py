@@ -21,14 +21,14 @@ import copy
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 import json
-
+import yaml
 
 def json_io(cls):
     """
     Adds functions to save and load the dataclass as json
     """
 
-    def from_json_data(cls, data: dict):
+    def from_dict(cls, data: dict):
         """
         Takes json data and makes an instance of the class
 
@@ -53,7 +53,7 @@ def json_io(cls):
             if field_type is np.ndarray:
                 loaded_data[field_name] = handle_complex_array(data[field_name])
             elif is_dataclass(field_type):
-                loaded_data[field_name] = field_type.from_json_data(data[field_name])
+                loaded_data[field_name] = field_type.from_dict(data[field_name])
             else:
                 loaded_data[field_name] = data[field_name]
         return cls(**loaded_data)
@@ -67,9 +67,19 @@ def json_io(cls):
         """
         with open(filename, "r") as file:
             data = json.load(file)
-            return cls.from_json_data(data)
+            return cls.from_dict(data)
+    def from_yaml_file(cls, filename: str):
+        """
+        load from a json file
 
-    def save_to_json(instance, filename: str):
+        Args:
+            filename (str): path to the file
+        """
+        with open(filename, "r") as file:
+            data = yaml.load(file,yaml.SafeLoader)
+            return cls.from_dict(data)
+
+    def save_json(instance, filename: str):
         """
         save to a json file
 
@@ -79,6 +89,17 @@ def json_io(cls):
         data_dict = instance.to_dict()
         with open(filename, "w") as file:
             json.dump(data_dict, file, indent=4)
+
+    def save_yaml(instance, filename: str):
+        """
+        save to a json file
+
+        Args:
+            filename (str): path to the file
+        """
+        data_dict = instance.to_dict()
+        with open(filename, "w") as file:
+            yaml.dump(data_dict, file)
 
     def to_dict(instance):
         """
@@ -96,14 +117,18 @@ def json_io(cls):
                     data_dict[field_name] = field_value.tolist()
             elif is_dataclass(field_type):
                 data_dict[field_name] = field_value.to_dict()
+            elif field_type is np.float64:
+                data_dict[field_name] = float(field_value)
             else:
                 data_dict[field_name] = field_value
         return data_dict
 
-    cls.from_json_data = classmethod(from_json_data)
+    cls.from_dict = classmethod(from_dict)
     cls.load_json = classmethod(from_json_file)
+    cls.load_yaml = classmethod(from_yaml_file)
     cls.to_dict = to_dict
-    cls.save_to_json = save_to_json
+    cls.save_json = save_json
+    cls.save_yaml = save_yaml
     return cls
 
 
