@@ -112,6 +112,13 @@ def yaml_io(cls):
 @yaml_io
 @dataclass(frozen=True, slots=True)
 class Spectrogram:
+    """
+    Contains the data describing a spectrogram
+
+    Attributes:
+        data (np.ndarray): 2d spectrogram
+        time (np.ndarray): time vector
+        freq (np.ndarray): frequency vector"""
     data: np.ndarray
     time: np.ndarray
     freq: np.ndarray
@@ -896,6 +903,8 @@ class FrogData:
         pulse (Waveform): time-domain reconstructed field
         measured_spectrogram (Spectrogram): measured (binned) data
         reconstructed_spectrogram (Spectrogram): spectrogram resulting from reconstructed field
+        f0: the central frequency of the spectrum
+        dt: the time step
     """
 
     spectrum: ComplexSpectrum
