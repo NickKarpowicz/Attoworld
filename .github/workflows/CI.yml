@@ -63,8 +63,9 @@ jobs:
           pip install attoworld --find-links dist --force-reinstall
           pip uninstall -y attoworld
           pip install attoworld --no-deps --no-index --find-links dist
-          pip install pytest
+          pip install pytest ruff
           pytest
+          ruff check --output-format=github .
   musllinux:
     runs-on: ${{ matrix.platform.runner }}
     strategy:
