@@ -1,6 +1,6 @@
 from dataclasses import dataclass, is_dataclass
 import numpy as np
-from typing import Optional
+from typing import Optional, Tuple
 from ..numeric import (
     interpolate,
     fwhm,
@@ -119,6 +119,7 @@ class Spectrogram:
         data (np.ndarray): 2d spectrogram
         time (np.ndarray): time vector
         freq (np.ndarray): frequency vector"""
+
     data: np.ndarray
     time: np.ndarray
     freq: np.ndarray
@@ -196,6 +197,81 @@ class Spectrogram:
             data=0.5 * (self.data + np.fliplr(self.data)),
             time=self.time,
             freq=self.freq,
+        )
+
+    def to_removed_spatial_chirp(self):
+        """
+        Remove the effects of spatial chirp on an SHG-FROG trace by centering all single-frequency autocorrelations to the same time-zero
+        """
+        new_data = np.array(self.data)
+        for i in range(len(self.freq)):
+            total = np.sum(self.data[i, :])
+            if total > 0.0:
+                t0 = np.sum(self.time * self.data[i, :]) / total
+                new_data[i, :] = interpolate(self.time + t0, self.time, self.data[i, :])
+
+        return Spectrogram(data=new_data, time=self.time, freq=self.freq)
+
+    def to_combined_and_binned(
+        self,
+        other,
+        stitching_band: Tuple[float, float],
+        dim: int = 64,
+        dt: float = 5e-15,
+        t0: Optional[Tuple[float, float]] = None,
+        f0: float = 750e12,
+    ):
+        """
+        Bin two different spectrograms, e.g. from different spectrometers, onto the time time/frequency grid
+
+        Args:
+            other: the other spectrogram
+            stitching_band (Tuple[float, float]): the lower and upper frequency of the band where the two spectrometers should have equivalent response (hopefully there is one)
+            dim (int): size of each size of the resulting square data
+            dt (float): time step of the data
+            t0: (Optional[Tuple[float, float]): time-zero of the data (this, and other). If not specified, will be calculated by the first moment of the time-distribution of the signal
+            f0: (float): central frequency of the binned array
+        """
+        t0_self = None
+        t0_other = None
+
+        if t0 is not None:
+            t0_self = t0[0]
+            t0_other = t0[1]
+
+        binned_self = self.to_binned(dim, dt, t0_self, f0)
+        binned_other = other.to_binned(dim, dt, t0_other, f0)
+        freq = binned_self.freq
+
+        # add more logic here to combine the spectrograms
+        stitching_band_integral_self = np.sum(
+            binned_self.data[
+                ((freq > stitching_band[0]) & (freq < stitching_band[1])), :
+            ][:]
+        )
+        stitching_band_integral_other = np.sum(
+            binned_other.data[
+                ((freq > stitching_band[0]) & (freq < stitching_band[1])), :
+            ][:]
+        )
+        weights_self = np.zeros(binned_self.freq.shape, dtype=float)
+        weights_other = np.zeros(binned_other.freq.shape, dtype=float)
+        other_multiplier = stitching_band_integral_self / stitching_band_integral_other
+        for i in range(len(freq)):
+            sum_self = np.sum(binned_self.data[i, :])
+            sum_other = other_multiplier * np.sum(binned_other.data[i, :])
+            total = sum_self + sum_other
+            if total > 0.0:
+                weight_self = sum_self / total
+                weight_other = other_multiplier * sum_other / total
+                weights_self[i] = weight_self
+                weights_other[i] = weight_other
+
+        return Spectrogram(
+            data=weights_self[:, np.newaxis] * binned_self.data
+            + weights_other[:, np.newaxis] * binned_other.data,
+            time=binned_self.time,
+            freq=binned_self.freq,
         )
 
     def to_binned(
@@ -716,7 +792,11 @@ class IntensitySpectrum:
         )
 
     def plot_with_group_delay(
-        self, ax: Optional[Axes] = None, phase_blanking: float = 0.05, xlim=None
+        self,
+        ax: Optional[Axes] = None,
+        phase_blanking: float = 0.05,
+        shift_from_centered=True,
+        xlim=None,
     ):
         """
         Plot the spectrum and group delay curve.
@@ -736,7 +816,13 @@ class IntensitySpectrum:
         freq = self.freq[start_index::]
         wl = constants.speed_of_light / freq
         if self.phase is not None:
-            phase = np.unwrap(self.phase[start_index::])
+            if shift_from_centered:
+                shift = -0.5 / (freq[1] - freq[0])
+                phase_shift = np.angle(np.exp(1j * 2 * np.pi * freq * shift))
+                phase = np.unwrap(phase_shift + self.phase[start_index::])
+            else:
+                phase = np.unwrap(self.phase[start_index::])
+
         else:
             phase = np.zeros(intensity.shape, dtype=float)
 
@@ -953,7 +1039,7 @@ class FrogData:
                     f"{lam[_i]:.15g}\t{np.abs(raw_spec[_i]) ** 2:.15g}\t{np.angle(raw_spec[_i]):.15g}\t{np.real(raw_spec[_i]):.15g}\t{np.imag(raw_spec[_i]):.15g}\n"
                 )
 
-    def plot_measured_spectrogram(self, ax: Optional[Axes] = None):
+    def plot_measured_spectrogram(self, ax: Optional[Axes] = None, log: bool = False):
         """
         Plot the measured spectrogram.
 
@@ -964,11 +1050,16 @@ class FrogData:
             fig, ax = plt.subplots()
         else:
             fig = ax.get_figure()
-        self.measured_spectrogram.plot(ax)
+        if log:
+            self.measured_spectrogram.plot_log(ax)
+        else:
+            self.measured_spectrogram.plot(ax)
         ax.set_title("Measured")
         return fig
 
-    def plot_reconstructed_spectrogram(self, ax: Optional[Axes] = None):
+    def plot_reconstructed_spectrogram(
+        self, ax: Optional[Axes] = None, log: bool = False
+    ):
         """
         Plot the reconstructed spectrogram.
 
@@ -979,7 +1070,10 @@ class FrogData:
             fig, ax = plt.subplots()
         else:
             fig = ax.get_figure()
-        self.reconstructed_spectrogram.plot(ax)
+        if log:
+            self.reconstructed_spectrogram.plot_log(ax)
+        else:
+            self.reconstructed_spectrogram.plot(ax)
         ax.set_title(
             f"Retrieved (G': {self.get_error():0.2e}; G: {self.get_G_error():0.2e})"
         )
@@ -1010,11 +1104,16 @@ class FrogData:
             xlim: pass arguments to set_xlim() to constrain the x-axis
         """
         return self.spectrum.to_intensity_spectrum().plot_with_group_delay(
-            ax, phase_blanking, xlim
+            ax, phase_blanking=phase_blanking, shift_from_centered=True, xlim=xlim
         )
 
     def plot_all(
-        self, phase_blanking=0.05, time_xlims=None, wavelength_xlims=None, figsize=None
+        self,
+        phase_blanking=0.05,
+        time_xlims=None,
+        wavelength_xlims=None,
+        figsize=None,
+        log: bool = False,
     ):
         """
         Produce a 4-panel plot of the FROG results, combining calls to plot_measured_spectrogram(),
@@ -1030,13 +1129,15 @@ class FrogData:
             default_figsize = plt.rcParams["figure.figsize"]
             figsize = (default_figsize[0] * 2, default_figsize[1] * 2)
         fig, ax = plt.subplots(2, 2, figsize=figsize)
-        self.plot_measured_spectrogram(ax[0, 0])
+        self.plot_measured_spectrogram(ax[0, 0], log=log)
         label_letter("a", ax[0, 0])
-        self.plot_reconstructed_spectrogram(ax[1, 0])
+        self.plot_reconstructed_spectrogram(ax[1, 0], log=log)
         label_letter("b", ax[1, 0])
-        self.plot_pulse(ax[0, 1], xlim=time_xlims)
+        self.plot_pulse(ax[0, 1], xlim=time_xlims, phase_blanking=phase_blanking)
         label_letter("c", ax[0, 1])
-        self.plot_spectrum(ax[1, 1], xlim=wavelength_xlims)
+        self.plot_spectrum(
+            ax[1, 1], xlim=wavelength_xlims, phase_blanking=phase_blanking
+        )
         label_letter("d", ax[1, 1])
         return fig
 
