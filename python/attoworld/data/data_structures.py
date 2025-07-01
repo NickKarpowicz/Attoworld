@@ -10,11 +10,7 @@ from ..numeric import (
     block_binning_1d,
 )
 from ..plot import label_letter
-from ..spectrum import (
-    wavelength_to_frequency,
-    frequency_to_wavelength,
-    transform_limited_pulse_from_spectrometer,
-)
+from .. import spectrum
 from scipy import constants
 import scipy.signal as sig
 import copy
@@ -107,6 +103,102 @@ def yaml_io(cls):
     cls.to_dict = to_dict
     cls.save_yaml = save_yaml
     return cls
+
+
+@yaml_io
+@dataclass(frozen=True, slots=True)
+class SpectrometerCalibration:
+    """
+    Set of data describing a spectrometer calibration
+
+    Attributes:
+        intensity_factors (np.ndarray): the intensity correction factors (weights)
+        shifted_wavelengths (np.ndarray): the corrected wavelength array of the spectrometer
+        shifted_frequencies (np.ndarray): the corrected frequency array of the spectrometer (c/wavelengths)
+    """
+
+    intensity_factors: np.ndarray
+    shifted_wavelengths: np.ndarray
+    shifted_frequencies: np.ndarray
+
+    def apply_to_spectrum(self, spectrum_in):
+        """
+        Applies itself to an intensity spectrum:
+
+        Args:
+            spectrum_in (IntensitySpectrum): the spectrum to be calibrated
+
+        Returns:
+            IntensitySpectrum: the calibrated spectrum
+        """
+        intensity_out = spectrum_in.spectrum * self.intensity_factors
+        return IntensitySpectrum(
+            spectrum=intensity_out,
+            phase=spectrum_in.phase,
+            wavelength=self.shifted_wavelengths,
+            freq=self.shifted_frequencies,
+        )
+
+    def apply_to_spectrogram(self, spectrogram_in):
+        """
+        Applies itself to an intensity spectrum:
+
+        Args:
+            spectrum_in (Spectrogram): the spectrogram to be calibrated
+
+        Returns:
+            Spectrogram: the calibrated spectrogram
+        """
+        data_out = self.intensity_factors[:, np.newaxis] * spectrogram_in.data
+        return Spectrogram(
+            data=data_out, freq=self.shifted_frequencies, time=spectrogram_in.time
+        )
+
+    def save_npz(self, filepath):
+        """
+        Save to an npz file
+
+        Args:
+            filepath: path to save to
+        """
+        np.savez(
+            filepath,
+            intensity_factors=self.intensity_factors,
+            shifted_wavelengths=self.shifted_wavelengths,
+            shifted_frequencies=self.shifted_frequencies,
+        )
+
+    @staticmethod
+    def from_npz(filepath):
+        """
+        Make an instance of the class from an npz file
+
+        Args:
+            filepath: path to the file
+
+        Returns:
+            SpectrometerCalibration: the calibration in the file"""
+        npzfile = np.load(filepath)
+        return SpectrometerCalibration(
+            intensity_factors=npzfile["intensity_factors"],
+            shifted_wavelengths=npzfile["shifted_wavelengths"],
+            shifted_frequencies=npzfile["shifted_frequencies"],
+        )
+
+    @staticmethod
+    def from_named(spectrometer: spectrum.CalibrationData):
+        """
+        Loads a calibration saved in the database
+
+        Args:
+            spectrometer (spectrum.CalibrationData): Value from the CalibrationData enum attoworld.spectrum.CalibrationData
+
+        Returns:
+            SpectrometerCalibration: the calibration associated with the enum value
+        """
+        return SpectrometerCalibration.from_npz(
+            spectrum.get_calibration_path() / spectrometer.value
+        )
 
 
 @yaml_io
@@ -694,8 +786,9 @@ class IntensitySpectrum:
         else:
             return None
 
+    @staticmethod
     def from_spectrometer_spectrum_nanometers(
-        self, wavelengths_nanometers: np.ndarray, spectrum: np.ndarray
+        wavelengths_nanometers: np.ndarray, spectrum: np.ndarray
     ):
         """
         Generate an instance based on a spepctrum array and wavelength array in nm (typical spectrometer data)
@@ -722,18 +815,18 @@ class IntensitySpectrum:
             ComplexEnvelope: the transform-limited pulse
         """
         if self.spectrum is not None:
-            spectrum = np.array(self.spectrum)
+            spec = np.array(self.spectrum)
             lam = None
             if self.wavelength is None and self.freq is not None:
                 lam = constants.speed_of_light / self.freq[self.freq > 0.0]
-                spectrum = spectrum[self.freq > 0.0]
+                spec = spec[self.freq > 0.0]
             elif self.wavelength is not None:
                 lam = self.wavelength
             if lam is not None:
                 if self.is_frequency_scaled:
-                    spectrum /= lam**2
-                t, intensity = transform_limited_pulse_from_spectrometer(
-                    1e9 * lam, spectrum, gate_level
+                    spec /= lam**2
+                t, intensity = spectrum.transform_limited_pulse_from_spectrometer(
+                    1e9 * lam, spec, gate_level
                 )
                 return ComplexEnvelope(
                     envelope=np.sqrt(intensity), time=t, dt=t[1] - t[0]
@@ -749,7 +842,7 @@ class IntensitySpectrum:
         """
         if self.is_frequency_scaled:
             if self.freq is not None and self.spectrum is not None:
-                return frequency_to_wavelength(self.freq, self.spectrum)
+                return spectrum.frequency_to_wavelength(self.freq, self.spectrum)
             else:
                 raise Exception("Missing data")
         else:
@@ -772,7 +865,9 @@ class IntensitySpectrum:
                 raise Exception("Missing data")
         else:
             if self.wavelength is not None and self.spectrum is not None:
-                return wavelength_to_frequency(1e9 * self.wavelength, self.spectrum)
+                return spectrum.wavelength_to_frequency(
+                    1e9 * self.wavelength, self.spectrum
+                )
             else:
                 raise Exception("Missing data")
 

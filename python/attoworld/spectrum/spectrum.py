@@ -2,6 +2,21 @@ import numpy as np
 from scipy import constants
 from typing import Optional
 from ..numeric import interpolate
+from .. import data
+from .calibration_data import get_calibration_path
+
+
+def load_calibration_reso(
+    filepath=get_calibration_path() / "Reso_Spectrometer_CalibrationCorrection.npz",
+):
+    calibration = np.load(filepath)
+    wavelength_calibration = calibration["wavelength"]
+    calibration_smoothed = np.abs(calibration["corr_factor_smoothed"])
+    return data.SpectrometerCalibration(
+        intensity_factors=calibration_smoothed,
+        shifted_wavelengths=wavelength_calibration,
+        shifted_frequencies=constants.speed_of_light / wavelength_calibration,
+    )
 
 
 def frequency_to_wavelength(

@@ -14,6 +14,7 @@ from .file_io import (
 from .LunaResult import LunaResult
 from .data_structures import (
     yaml_io,
+    SpectrometerCalibration,
     Waveform,
     ComplexSpectrum,
     IntensitySpectrum,
@@ -33,6 +34,7 @@ __all__ = [
     "read_Trebino_FROG_data",
     "LunaResult",
     "yaml_io",
+    "SpectrometerCalibration",
     "Waveform",
     "ComplexSpectrum",
     "IntensitySpectrum",
