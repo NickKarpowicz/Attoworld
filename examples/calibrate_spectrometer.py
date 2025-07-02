@@ -407,7 +407,6 @@ def _():
     import matplotlib.pyplot as plt
     import numpy as np
     import scipy
-    import pathlib
     import tkinter as tk
     from tkinter import filedialog
 
