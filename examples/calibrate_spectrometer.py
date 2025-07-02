@@ -17,7 +17,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, pathlib):
+def _(mo):
     measurement_browser = mo.ui.file_browser(multiple=False)
     measurement_browser
     return (measurement_browser,)
@@ -126,9 +126,7 @@ def _(aw, np, scipy):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""Now, manually adjust the wavelength axis (optional - if it's not necessary, set offset and slope to zero)"""
-    )
+    mo.md(r"""Now, manually adjust the wavelength axis (optional - if it's not necessary, set offset and slope to zero)""")
     return
 
 
@@ -373,9 +371,7 @@ def _(
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""If the result is good, save it as an .npz file, and contribute it to the database :)"""
-    )
+    mo.md(r"""If the result is good, save it as an .npz file, and contribute it to the database :)""")
     return
 
 
@@ -407,6 +403,7 @@ def _(adjusted_cal, filedialog, mo, save_button):
 def _():
     import marimo as mo
     import attoworld as aw
+    aw.plot.set_style('nick_dark')
     import matplotlib.pyplot as plt
     import numpy as np
     import scipy
@@ -416,7 +413,12 @@ def _():
 
     root = tk.Tk()
     root.withdraw()
-    return aw, filedialog, mo, np, pathlib, plt, scipy
+    return aw, filedialog, mo, np, plt, scipy
+
+
+@app.cell
+def _():
+    return
 
 
 if __name__ == "__main__":
