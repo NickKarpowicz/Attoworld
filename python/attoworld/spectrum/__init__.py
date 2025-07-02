@@ -2,7 +2,11 @@
 This module will contain functions related to the processing of spectra.
 """
 
-from .calibration_data import CalibrationData, get_calibration_path, CalibrationLampReferences
+from .calibration_data import (
+    CalibrationData,
+    get_calibration_path,
+    CalibrationLampReferences,
+)
 
 from .spectrum import (
     load_calibration_reso,

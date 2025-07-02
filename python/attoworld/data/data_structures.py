@@ -900,15 +900,17 @@ class IntensitySpectrum:
             phase=new_phase,
             is_frequency_scaled=self.is_frequency_scaled,
         )
+
     def to_corrected_wavelength(self, new_wavelengths: np.ndarray):
         assert len(new_wavelengths) == len(self.wavelength)
         return IntensitySpectrum(
-            spectrum = self.spectrum,
-            wavelength = new_wavelengths,
-            freq = constants.speed_of_light / new_wavelengths,
-            phase = self.phase,
-            is_frequency_scaled = self.is_frequency_scaled
+            spectrum=self.spectrum,
+            wavelength=new_wavelengths,
+            freq=constants.speed_of_light / new_wavelengths,
+            phase=self.phase,
+            is_frequency_scaled=self.is_frequency_scaled,
         )
+
     def plot_with_group_delay(
         self,
         ax: Optional[Axes] = None,

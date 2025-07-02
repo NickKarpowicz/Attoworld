@@ -53,15 +53,18 @@ def read_dwc(file_path):
     else:
         raise Exception("Interpolation failure reading dwc file")
 
+
 def load_mean_spectrum_from_scarab(filename: str):
     data = np.loadtxt(filename)
     return IntensitySpectrum(
-        spectrum=np.mean(data[:,1::],axis=1),
-        wavelength = 1e-9*data[:,0],
-        freq = 1e9*constants.speed_of_light/data[:,0],
+        spectrum=np.mean(data[:, 1::], axis=1),
+        wavelength=1e-9 * data[:, 0],
+        freq=1e9 * constants.speed_of_light / data[:, 0],
         is_frequency_scaled=False,
-        phase=None
+        phase=None,
     )
+
+
 def load_spectrum_from_text(
     filename: str,
     wavelength_multiplier: float = 1e-9,
