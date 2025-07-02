@@ -4,6 +4,7 @@ This module will contain functions for loading the various data formats used acr
 
 from .file_io import (
     read_dwc,
+    load_mean_spectrum_from_scarab,
     load_waves_from_matfile,
     load_waveform_from_text,
     load_spectrum_from_text,
@@ -25,6 +26,7 @@ from .data_structures import (
 
 __all__ = [
     "read_dwc",
+    "load_mean_spectrum_from_scarab",
     "load_waves_from_matfile",
     "load_waveform_from_text",
     "load_spectrum_from_text",

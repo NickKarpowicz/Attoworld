@@ -14,8 +14,8 @@ def load_calibration_reso(
     calibration_smoothed = np.abs(calibration["corr_factor_smoothed"])
     return data.SpectrometerCalibration(
         intensity_factors=calibration_smoothed,
-        shifted_wavelengths=wavelength_calibration,
-        shifted_frequencies=constants.speed_of_light / wavelength_calibration,
+        corrected_wavelengths=wavelength_calibration,
+        corrected_frequencies=constants.speed_of_light / wavelength_calibration,
     )
 
 

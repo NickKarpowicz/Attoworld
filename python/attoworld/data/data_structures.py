@@ -113,13 +113,13 @@ class SpectrometerCalibration:
 
     Attributes:
         intensity_factors (np.ndarray): the intensity correction factors (weights)
-        shifted_wavelengths (np.ndarray): the corrected wavelength array of the spectrometer
-        shifted_frequencies (np.ndarray): the corrected frequency array of the spectrometer (c/wavelengths)
+        corrected_wavelengths (np.ndarray): the corrected wavelength array of the spectrometer
+        corrected_frequencies (np.ndarray): the corrected frequency array of the spectrometer (c/wavelengths)
     """
 
     intensity_factors: np.ndarray
-    shifted_wavelengths: np.ndarray
-    shifted_frequencies: np.ndarray
+    corrected_wavelengths: np.ndarray
+    corrected_frequencies: np.ndarray
 
     def apply_to_spectrum(self, spectrum_in):
         """
@@ -135,8 +135,8 @@ class SpectrometerCalibration:
         return IntensitySpectrum(
             spectrum=intensity_out,
             phase=spectrum_in.phase,
-            wavelength=self.shifted_wavelengths,
-            freq=self.shifted_frequencies,
+            wavelength=self.corrected_wavelengths,
+            freq=self.corrected_frequencies,
         )
 
     def apply_to_spectrogram(self, spectrogram_in):
@@ -151,7 +151,7 @@ class SpectrometerCalibration:
         """
         data_out = self.intensity_factors[:, np.newaxis] * spectrogram_in.data
         return Spectrogram(
-            data=data_out, freq=self.shifted_frequencies, time=spectrogram_in.time
+            data=data_out, freq=self.corrected_frequencies, time=spectrogram_in.time
         )
 
     def save_npz(self, filepath):
@@ -164,8 +164,8 @@ class SpectrometerCalibration:
         np.savez(
             filepath,
             intensity_factors=self.intensity_factors,
-            shifted_wavelengths=self.shifted_wavelengths,
-            shifted_frequencies=self.shifted_frequencies,
+            corrected_wavelengths=self.corrected_wavelengths,
+            corrected_frequencies=self.corrected_frequencies,
         )
 
     @staticmethod
@@ -181,8 +181,8 @@ class SpectrometerCalibration:
         npzfile = np.load(filepath)
         return SpectrometerCalibration(
             intensity_factors=npzfile["intensity_factors"],
-            shifted_wavelengths=npzfile["shifted_wavelengths"],
-            shifted_frequencies=npzfile["shifted_frequencies"],
+            corrected_wavelengths=npzfile["corrected_wavelengths"],
+            corrected_frequencies=npzfile["corrected_frequencies"],
         )
 
     @staticmethod
@@ -880,12 +880,35 @@ class IntensitySpectrum:
 
         return IntensitySpectrum(
             spectrum=normalized_spectrum,
-            phase=np.array(self.phase),
+            phase=self.phase,
             freq=np.array(self.freq),
             wavelength=np.array(self.wavelength),
             is_frequency_scaled=self.is_frequency_scaled,
         )
 
+    def to_interpolated_wavelength(self, new_wavelengths: np.ndarray):
+        new_spectrum = interpolate(new_wavelengths, self.wavelength, self.spectrum)
+        if self.phase is not None:
+            new_phase = interpolate(new_wavelengths, self.wavelength, self.phase)
+        else:
+            new_phase = None
+
+        return IntensitySpectrum(
+            spectrum=new_spectrum,
+            wavelength=new_wavelengths,
+            freq=constants.speed_of_light / new_wavelengths,
+            phase=new_phase,
+            is_frequency_scaled=self.is_frequency_scaled,
+        )
+    def to_corrected_wavelength(self, new_wavelengths: np.ndarray):
+        assert len(new_wavelengths) == len(self.wavelength)
+        return IntensitySpectrum(
+            spectrum = self.spectrum,
+            wavelength = new_wavelengths,
+            freq = constants.speed_of_light / new_wavelengths,
+            phase = self.phase,
+            is_frequency_scaled = self.is_frequency_scaled
+        )
     def plot_with_group_delay(
         self,
         ax: Optional[Axes] = None,
