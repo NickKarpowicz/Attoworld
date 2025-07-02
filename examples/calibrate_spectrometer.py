@@ -1,3 +1,8 @@
+# /// script
+# [tool.marimo.display]
+# theme = "dark"
+# ///
+
 import marimo
 
 __generated_with = "0.14.9"
@@ -166,7 +171,7 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-    Next, set the parameters of the response model. It is a slanted supergaussian. Minimize the difference between the calibrated measurement and the reference to give the fitting routine a good initial guess.
+    Next, set the wavelength region-of-interest for the fitting, and the initial parameters of the response model. It is a slanted supergaussian. Minimize the difference between the calibrated measurement and the reference to give the fitting routine a good initial guess.
 
     Once it's decent, click run fitting.
 
@@ -174,6 +179,17 @@ def _(mo):
     """
     )
     return
+
+
+@app.cell
+def _(direct, mo, np):
+
+    roi_lowest = mo.ui.number(value=np.min(direct.wavelength_nm()), label="Shortest fitted wavelength (nm)")
+    roi_highest = mo.ui.number(value=np.max(direct.wavelength_nm()), label="Longest fitted wavelength (nm)")
+    mo.output.append(roi_lowest)
+    mo.output.append(roi_highest)
+
+    return roi_highest, roi_lowest
 
 
 @app.cell
@@ -284,6 +300,8 @@ def _(
     np,
     plt,
     reference,
+    roi_highest,
+    roi_lowest,
     wavelength_guess,
     wiener_noise_level,
 ):
@@ -307,7 +325,7 @@ def _(
             reference=reference,
             wavelength_coeffs=wavelength_guess,
             amplitude_guess=initial_guess,
-            roi=np.array([200e-9, 950e-9]),
+            roi=np.array([1e-9*roi_lowest.value, 1e-9*roi_highest.value]),
         )
         parametrized_cal = generate_calibration_from_coeffs(
             new_guess, wavelength_guess, direct.wavelength
