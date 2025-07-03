@@ -5,7 +5,7 @@
 
 import marimo
 
-__generated_with = "0.14.9"
+__generated_with = "0.14.10"
 app = marimo.App(width="full")
 
 
@@ -233,6 +233,7 @@ def _(mo):
         value=0.01, start=0.0, stop=0.1, step=1e-4, label="Noise level", show_value=True
     )
     fit_button = mo.ui.run_button(label="Run fitting")
+    fit_cb = mo.ui.checkbox(label="Fit continuously")
     mo.output.append(amplitude_lam0)
     mo.output.append(amplitude_offset)
     mo.output.append(amplitude_slope)
@@ -240,7 +241,7 @@ def _(mo):
     mo.output.append(amplitude_order)
     mo.output.append(wiener_noise_level)
     mo.output.append(fit_button)
-
+    mo.output.append(fit_cb)
     return (
         amplitude_lam0,
         amplitude_offset,
@@ -248,6 +249,7 @@ def _(mo):
         amplitude_slope,
         amplitude_width,
         fit_button,
+        fit_cb,
         wiener_noise_level,
     )
 
@@ -295,9 +297,12 @@ def _(
     first_guess,
     fit_button,
     fit_calibration_amplitude_model,
+    fit_cb,
     generate_calibration_from_coeffs,
     initial_guess,
     np,
+    plot_xmax,
+    plot_xmin,
     plt,
     reference,
     roi_highest,
@@ -306,7 +311,6 @@ def _(
     wiener_noise_level,
 ):
     fig, ax = plt.subplots(2, 3, figsize=(16, 9))
-    print(ax.shape)
     ax[0, 0].plot(direct.wavelength_nm(), direct.spectrum, label="Measurement")
     ax[0, 0].plot(reference.wavelength_nm(), reference.spectrum, label="Reference")
     ax[0, 0].set_xlabel("Wavelength (nm)")
@@ -319,7 +323,7 @@ def _(
     ax[0, 1].set_ylabel("Intensity (Arb. unit)")
     ax[0, 1].set_xlabel("Wavelength (nm)")
     ax[0, 1].legend()
-    if fit_button.value:
+    if fit_button.value or fit_cb.value:
         new_guess = fit_calibration_amplitude_model(
             measurement=direct,
             reference=reference,
@@ -383,8 +387,20 @@ def _(
         ax[1, 2].set_ylabel("Final weights")
         ax[1, 2].set_xlabel("Wavelength (nm)")
         ax[1, 2].legend()
+    for a in ax:
+        for b in a:
+            b.set_xlim(plot_xmin.value, plot_xmax.value)
     aw.plot.showmo()
     return (adjusted_cal,)
+
+
+@app.cell
+def _(direct, mo, np):
+    plot_xmin = mo.ui.number(value=np.min(direct.wavelength_nm()), label="Plot min wavelength (nm)")
+    plot_xmax = mo.ui.number(value=np.max(direct.wavelength_nm()), label="Plot max wavelength (nm)")
+    mo.output.append(plot_xmin)
+    mo.output.append(plot_xmax)
+    return plot_xmax, plot_xmin
 
 
 @app.cell
