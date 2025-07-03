@@ -17,7 +17,7 @@ import copy
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 import yaml
-
+from .. import spectrum
 
 def yaml_io(cls):
     """
@@ -185,20 +185,20 @@ class SpectrometerCalibration:
             corrected_frequencies=npzfile["corrected_frequencies"],
         )
 
-    # @staticmethod
-    # def from_named(spectrometer: spectrum.CalibrationData):
-    #     """
-    #     Loads a calibration saved in the database
+    @staticmethod
+    def from_named(spectrometer: spectrum.CalibrationData):
+        """
+        Loads a calibration saved in the database
 
-    #     Args:
-    #         spectrometer (spectrum.CalibrationData): Value from the CalibrationData enum attoworld.spectrum.CalibrationData
+        Args:
+            spectrometer (spectrum.CalibrationData): Value from the CalibrationData enum attoworld.spectrum.CalibrationData
 
-    #     Returns:
-    #         SpectrometerCalibration: the calibration associated with the enum value
-    #     """
-    #     return SpectrometerCalibration.from_npz(
-    #         spectrum.get_calibration_path() / spectrometer.value
-    #     )
+        Returns:
+            SpectrometerCalibration: the calibration associated with the enum value
+        """
+        return SpectrometerCalibration.from_npz(
+            spectrum.get_calibration_path() / spectrometer.value
+        )
 
 
 @yaml_io
