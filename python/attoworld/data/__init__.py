@@ -22,6 +22,8 @@ from .data_structures import (
     ComplexEnvelope,
     FrogData,
     Spectrogram,
+    CalibrationDataset,
+    CalibrationInput,
 )
 
 __all__ = [
@@ -42,4 +44,6 @@ __all__ = [
     "IntensitySpectrum",
     "ComplexEnvelope",
     "Spectrogram",
+    "CalibrationDataset",
+    "CalibrationInput",
 ]

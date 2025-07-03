@@ -2,21 +2,6 @@ import numpy as np
 from scipy import constants
 from typing import Optional
 from ..numeric import interpolate
-from .. import data
-from .calibration_data import get_calibration_path
-
-
-def load_calibration_reso(
-    filepath=get_calibration_path() / "Reso_Spectrometer_CalibrationCorrection.npz",
-):
-    calibration = np.load(filepath)
-    wavelength_calibration = calibration["wavelength"]
-    calibration_smoothed = np.abs(calibration["corr_factor_smoothed"])
-    return data.SpectrometerCalibration(
-        intensity_factors=calibration_smoothed,
-        corrected_wavelengths=wavelength_calibration,
-        corrected_frequencies=constants.speed_of_light / wavelength_calibration,
-    )
 
 
 def frequency_to_wavelength(
@@ -97,6 +82,8 @@ def transform_limited_pulse_from_spectrometer(
         pulse: the pulse intensity vs. time
     """
     f, spec = wavelength_to_frequency(wavelengths_nm, spectrum)
+    if f is None:
+        raise ValueError("No frequencies!")
     df = f[1] - f[0]
     t = np.fft.fftshift(np.fft.fftfreq(f.shape[0], d=df))
     gated_spectrum = np.array(spec)
