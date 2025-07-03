@@ -118,6 +118,7 @@ class SpectrometerCalibration:
     """
 
     intensity_factors: np.ndarray
+    original_wavelengths: np.ndarray
     corrected_wavelengths: np.ndarray
     corrected_frequencies: np.ndarray
 
@@ -1437,6 +1438,7 @@ def generate_calibration_from_coeffs(amplitude_coeffs, wavelength_coeffs, wavele
     )
     return SpectrometerCalibration(
         intensity_factors=intensity_factors,
+        original_wavelengths=wavelengths,
         corrected_wavelengths=new_wavelengths,
         corrected_frequencies=new_freqs,
     )
@@ -1577,6 +1579,7 @@ class CalibrationDataset:
 
         final_calibration = SpectrometerCalibration(
             intensity_factors=new_weights,
+            original_wavelengths=measurement.wavelength,
             corrected_frequencies=parameterized_calibration.corrected_frequencies,
             corrected_wavelengths=parameterized_calibration.corrected_wavelengths,
         )
