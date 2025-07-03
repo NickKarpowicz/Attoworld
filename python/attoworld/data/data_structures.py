@@ -106,7 +106,7 @@ def yaml_io(cls):
 
 
 @yaml_io
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class SpectrometerCalibration:
     """
     Set of data describing a spectrometer calibration
@@ -150,9 +150,15 @@ class SpectrometerCalibration:
         Returns:
             Spectrogram: the calibrated spectrogram
         """
-        data_out = self.intensity_factors[:, np.newaxis] * spectrogram_in.data
+        original_freqs = constants.speed_of_light/self.original_wavelengths
+        original_freq_projection = interpolate(spectrogram_in.freq, original_freqs, self.corrected_frequencies, inputs_are_sorted=False)
+        data_out = np.zeros(spectrogram_in.data.shape,dtype=float)
+        intensity_factors = interpolate(spectrogram_in.freq, self.corrected_frequencies, self.intensity_factors, inputs_are_sorted=False)
+        for i in range(spectrogram_in.data.shape[1]):
+            data_out[:,i] = intensity_factors * interpolate(spectrogram_in.freq, original_freq_projection, np.array(spectrogram_in.data[:,i]))
+
         return Spectrogram(
-            data=data_out, freq=self.corrected_frequencies, time=spectrogram_in.time
+            data=data_out, freq=spectrogram_in.freq, time=spectrogram_in.time
         )
 
     def save_npz(self, filepath):
@@ -165,6 +171,7 @@ class SpectrometerCalibration:
         np.savez(
             filepath,
             intensity_factors=self.intensity_factors,
+            original_wavelengths=self.original_wavelengths,
             corrected_wavelengths=self.corrected_wavelengths,
             corrected_frequencies=self.corrected_frequencies,
         )
@@ -182,6 +189,7 @@ class SpectrometerCalibration:
         npzfile = np.load(filepath)
         return SpectrometerCalibration(
             intensity_factors=npzfile["intensity_factors"],
+            original_wavelengths=npzfile["original_wavelengths"],
             corrected_wavelengths=npzfile["corrected_wavelengths"],
             corrected_frequencies=npzfile["corrected_frequencies"],
         )
@@ -203,7 +211,7 @@ class SpectrometerCalibration:
 
 
 @yaml_io
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class Spectrogram:
     """
     Contains the data describing a spectrogram
@@ -456,7 +464,7 @@ class Spectrogram:
 
 
 @yaml_io
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class Waveform:
     """
     Contains data describing an electric field waveform.
@@ -648,7 +656,7 @@ class Waveform:
 
 
 @yaml_io
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class ComplexSpectrum:
     """
     Contains a complex spectrum, with spectral weights on a frequency scale
@@ -735,7 +743,7 @@ class ComplexSpectrum:
 
 
 @yaml_io
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class IntensitySpectrum:
     """
     Contains an intensity spectrum - real valued. SI units
@@ -975,7 +983,7 @@ class IntensitySpectrum:
 
 
 @yaml_io
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class ComplexEnvelope:
     """
     Data corresponding to a complex envelope of a pulse, e.g. from a FROG measurement.
@@ -1104,7 +1112,7 @@ class ComplexEnvelope:
 
 
 @yaml_io
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class FrogData:
     """
     Stores data from a FROG measurement

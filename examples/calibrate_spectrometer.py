@@ -331,10 +331,5 @@ def _():
     return aw, filedialog, mo, np
 
 
-@app.cell
-def _():
-    return
-
-
 if __name__ == "__main__":
     app.run()
