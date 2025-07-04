@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.13.15"
+__generated_with = "0.14.10"
 app = marimo.App(width="medium")
 
 
@@ -12,7 +12,6 @@ def _():
     import matplotlib.pyplot as plt
     import scipy
     import timeit
-
     aw.plot.set_style("nick_dark", font_size=14)
     return aw, mo, np, plt, scipy, timeit
 
@@ -198,7 +197,7 @@ def _(mo):
 def _(aw, np, plt):
     _t = 1e-15 * np.linspace(-50.0, 50.0, 2048)
     _E = np.exp(-(_t**2) / (2 * 50e-15**2)) * np.cos(2 * np.pi * 400e12 * _t)
-    _w = aw.file.Waveform(
+    _w = aw.data.Waveform(
         wave=_E, time=_t, dt=(_t[1] - _t[0]), is_uniformly_spaced=True
     )
     _s = _w.to_intensity_spectrum()
@@ -223,16 +222,6 @@ def _(aw, np, plt):
     _ax[1].set_ylim(1, 1e18)
     _ax[1].set_xlabel(aw.plot.Char.wavelength_micron)
     aw.plot.showmo()
-    return
-
-
-@app.cell
-def _():
-    return
-
-
-@app.cell
-def _():
     return
 
 
