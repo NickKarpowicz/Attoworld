@@ -126,8 +126,8 @@ def label_letter(
     Put a letter in the corner of a set of axes to label them
 
     Args:
-        axis: The axes to use (default is current ones)
         letter (str): The letter to use
+        axis: The axes to use (default is current ones)
         style (str): The journal style to apply. Options are ```Nature```, ```Science```, and ```OSA```
         x_position (float): where to put the label horizontally relative to the axes of the figure
         y_position (float): vertical position
