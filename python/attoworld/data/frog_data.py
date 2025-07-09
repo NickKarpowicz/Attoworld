@@ -5,7 +5,7 @@ from ..plot import label_letter
 from scipy import constants
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
-from .yaml_io_decoration import yaml_io
+from .decorators import yaml_io
 from .interop import ComplexSpectrum, Waveform
 from .spectrogram import Spectrogram
 

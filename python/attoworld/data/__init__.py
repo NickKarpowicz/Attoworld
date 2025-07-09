@@ -25,7 +25,7 @@ from .spectrometer_calibration_dataset import (
     CalibrationDataset,
     CalibrationInput,
 )
-from .yaml_io_decoration import yaml_io
+from .decorators import yaml_io, add_method
 
 __all__ = [
     "read_dwc",
@@ -39,6 +39,7 @@ __all__ = [
     "read_Trebino_FROG_data",
     "LunaResult",
     "yaml_io",
+    "add_method",
     "SpectrometerCalibration",
     "Waveform",
     "ComplexSpectrum",

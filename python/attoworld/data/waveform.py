@@ -7,7 +7,8 @@ from ..numeric import (
 )
 import scipy.signal as sig
 import copy
-from .yaml_io_decoration import yaml_io
+from .decorators import yaml_io
+
 
 @yaml_io
 @dataclass(slots=True)

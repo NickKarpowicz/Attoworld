@@ -1,14 +1,12 @@
 from dataclasses import dataclass
 import numpy as np
 from typing import Optional
-from ..numeric import (
-    fwhm,
-    derivative
-)
+from ..numeric import fwhm, derivative
 import copy
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
-from .yaml_io_decoration import yaml_io
+from .decorators import yaml_io
+
 
 @yaml_io
 @dataclass(slots=True)

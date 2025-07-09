@@ -2,6 +2,23 @@ import yaml
 import numpy as np
 from dataclasses import is_dataclass
 
+
+def add_method(cls, name: str):
+    """
+    Adds the decorated function as a member function of a class. The first argument of the function should be 'self'.
+
+    Args:
+        cls: The class type
+        name: What the method will be called
+    """
+
+    def decorator(func):
+        setattr(cls, name, func)
+        return func
+
+    return decorator
+
+
 def yaml_io(cls):
     """
     Adds functions to save and load the dataclass as yaml

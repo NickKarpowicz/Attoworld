@@ -1,4 +1,4 @@
-from .yaml_io_decoration import yaml_io
+from .decorators import yaml_io
 from dataclasses import dataclass
 import numpy as np
 from .. import spectrum

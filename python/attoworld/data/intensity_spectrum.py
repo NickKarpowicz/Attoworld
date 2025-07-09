@@ -10,7 +10,7 @@ from scipy import constants
 import copy
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
-from .yaml_io_decoration import yaml_io
+from .decorators import yaml_io
 
 
 @yaml_io

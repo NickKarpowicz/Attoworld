@@ -1,4 +1,4 @@
-from .yaml_io_decoration import yaml_io
+from .decorators import yaml_io, add_method
 from dataclasses import dataclass
 import matplotlib.pyplot as plt
 from scipy import constants
@@ -10,6 +10,7 @@ from ..numeric import interpolate
 import numpy as np
 
 
+@add_method(SpectrometerCalibration, "apply_to_spectrum")
 def calibration_apply_to_spectrum(self, spectrum_in):
     """
     Applies itself to an intensity spectrum:
@@ -29,6 +30,7 @@ def calibration_apply_to_spectrum(self, spectrum_in):
     )
 
 
+@add_method(SpectrometerCalibration, "apply_to_spectrogram")
 def calibration_apply_to_spectrogram(self, spectrogram_in):
     """
     Applies itself to an intensity spectrum:
@@ -63,10 +65,6 @@ def calibration_apply_to_spectrogram(self, spectrogram_in):
     return Spectrogram(
         data=data_out, freq=spectrogram_in.freq, time=spectrogram_in.time
     )
-
-
-SpectrometerCalibration.apply_to_spectrum = calibration_apply_to_spectrum
-SpectrometerCalibration.apply_to_spectrogram = calibration_apply_to_spectrogram
 
 
 @yaml_io
@@ -120,6 +118,7 @@ class CalibrationInput:
             self.get_wavelength_array(),
             measurement.wavelength,
         )
+
         initial_guess_spectrum = initial_guess_calibration.apply_to_spectrum(
             measurement
         )

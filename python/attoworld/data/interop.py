@@ -9,9 +9,10 @@ from ..numeric import (
 )
 from scipy import constants
 import scipy.signal as sig
+from .decorators import add_method
 
 
-
+@add_method(Waveform, "to_complex_spectrum")
 def waveform_to_complex_spectrum(self, padding_factor: int = 1):
     """
     Converts to a ComplexSpectrum class
@@ -36,6 +37,7 @@ def waveform_to_complex_spectrum(self, padding_factor: int = 1):
     return ComplexSpectrum(spectrum=new_spectrum, freq=new_freq)
 
 
+@add_method(Waveform, "to_intensity_spectrum")
 def waveform_to_intensity_spectrum(
     self, wavelength_scaled: bool = True, padding_factor: int = 1
 ):
@@ -50,6 +52,7 @@ def waveform_to_intensity_spectrum(
     )
 
 
+@add_method(Waveform, "to_time_derivative")
 def waveform_to_time_derivative(self):
     """
     Return the time-derivative of the waveform
@@ -57,6 +60,7 @@ def waveform_to_time_derivative(self):
     return self.to_complex_spectrum().to_time_derivative().to_waveform()
 
 
+@add_method(Waveform, "to_complex_envelope")
 def waveform_to_complex_envelope(self, f0: float = 0.0):
     """
     Return a ComplexEnvelope class corresponding to the waveform
@@ -77,12 +81,7 @@ def waveform_to_complex_envelope(self, f0: float = 0.0):
     )
 
 
-Waveform.to_complex_spectrum = waveform_to_complex_spectrum
-Waveform.to_intensity_spectrum = waveform_to_intensity_spectrum
-Waveform.to_time_derivative = waveform_to_time_derivative
-Waveform.to_complex_envelope = waveform_to_complex_envelope
-
-
+@add_method(ComplexSpectrum, "to_waveform")
 def complexspectrum_to_waveform(self):
     """
     Create a Waveform based on this complex spectrum.
@@ -93,6 +92,7 @@ def complexspectrum_to_waveform(self):
     return Waveform(wave=wave, time=time, dt=dt, is_uniformly_spaced=True)
 
 
+@add_method(ComplexSpectrum, "to_centered_waveform")
 def complexspectrum_to_centered_waveform(self):
     """
     Create a Waveform based on this complex spectrum and center it in the time window
@@ -108,6 +108,7 @@ def complexspectrum_to_centered_waveform(self):
     return Waveform(wave=wave, time=time, dt=dt, is_uniformly_spaced=True)
 
 
+@add_method(ComplexSpectrum, "to_intensity_spectrum")
 def complexspectrum_to_intensity_spectrum(self, wavelength_scaled: bool = True):
     """Create an IntensitySpectrum based on the current ComplexSpectrum
 
@@ -127,11 +128,7 @@ def complexspectrum_to_intensity_spectrum(self, wavelength_scaled: bool = True):
     )
 
 
-ComplexSpectrum.to_waveform = complexspectrum_to_waveform
-ComplexSpectrum.to_centered_waveform = complexspectrum_to_centered_waveform
-ComplexSpectrum.to_intensity_spectrum = complexspectrum_to_intensity_spectrum
-
-
+@add_method(IntensitySpectrum, "get_transform_limited_pulse")
 def get_transform_limited_pulse(self, gate_level: Optional[float] = None):
     """
     Returns the transform-limited pulse corresponding to the spectrum.
@@ -162,9 +159,7 @@ def get_transform_limited_pulse(self, gate_level: Optional[float] = None):
     raise Exception("Missing data")
 
 
-IntensitySpectrum.get_transform_limited_pulse = get_transform_limited_pulse
-
-
+@add_method(ComplexEnvelope, "to_complex_spectrum")
 def complex_envelope_to_complex_spectrum(
     self, padding_factor: int = 1
 ) -> ComplexSpectrum:
@@ -179,6 +174,7 @@ def complex_envelope_to_complex_spectrum(
     )
 
 
+@add_method(ComplexEnvelope, "to_waveform")
 def complex_envelope_to_waveform(
     self, interpolation_factor: int = 1, CEP_shift: float = 0.0
 ) -> Waveform:
@@ -206,7 +202,3 @@ def complex_envelope_to_waveform(
         dt=output_dt,
         is_uniformly_spaced=True,
     )
-
-
-ComplexEnvelope.to_complex_spectrum = complex_envelope_to_complex_spectrum
-ComplexEnvelope.to_waveform = complex_envelope_to_waveform
