@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import numpy as np
 
 import copy
-from .yaml_io import yaml_io
+from .yaml_io_decoration import yaml_io
 
 
 @yaml_io

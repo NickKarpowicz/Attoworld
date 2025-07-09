@@ -12,7 +12,7 @@ from .file_io import (
     read_Trebino_FROG_speck,
     read_Trebino_FROG_data,
 )
-from .LunaResult import LunaResult
+from .luna_result import LunaResult
 from .interop import (
     Waveform,
     ComplexSpectrum,
@@ -25,7 +25,7 @@ from .spectrometer_calibration_dataset import (
     CalibrationDataset,
     CalibrationInput,
 )
-from .yaml_io import yaml_io
+from .yaml_io_decoration import yaml_io
 
 __all__ = [
     "read_dwc",

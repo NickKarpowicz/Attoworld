@@ -1,4 +1,4 @@
-from .yaml_io import yaml_io
+from .yaml_io_decoration import yaml_io
 from dataclasses import dataclass
 import matplotlib.pyplot as plt
 from scipy import constants

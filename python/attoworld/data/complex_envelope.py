@@ -8,7 +8,7 @@ from ..numeric import (
 import copy
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
-from .yaml_io import yaml_io
+from .yaml_io_decoration import yaml_io
 
 @yaml_io
 @dataclass(slots=True)
