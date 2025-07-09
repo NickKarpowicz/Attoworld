@@ -1,29 +1,30 @@
-import marimo as mo
+"""Tools for setting the style and appearance of plots."""
 import io
-import matplotlib.pyplot as plt
-from matplotlib.axes import Axes
-from cycler import cycler
 from dataclasses import dataclass
+
+import marimo as mo
+import matplotlib.pyplot as plt
+from cycler import cycler
+from matplotlib.axes import Axes
 
 
 def showmo():
-    """
-    Helper function to plot as an svg to have vector plots in marimo notebooks
-    """
+    """Display a plot as an svg in marimo notebooks."""
     svg_buffer = io.StringIO()
     plt.savefig(svg_buffer, format="svg")
     return mo.output.append(mo.Html(svg_buffer.getvalue()))
 
 
 def set_style(theme: str = "light", font_size: int = 11):
-    """
-    Set colors and fonts for matplotlib plots
+    """Set colors and fonts for matplotlib plots.
 
     Args:
-        mode (str): Select color theme.
+        theme (str): Select color theme.
                     Options:
                         ```light```: color-blind friendly colors (default)
                         ```nick_dark```: dark mode that matches Nick's slides
+        font_size (int): Font size to apply to all plots.
+
     """
     plt.rcParams.update(
         {
@@ -122,8 +123,7 @@ def label_letter(
     x_position: float = -0.14,
     y_position: float = 1.08,
 ):
-    """
-    Put a letter in the corner of a set of axes to label them
+    """Put a letter in the corner of a set of axes to label them.
 
     Args:
         letter (str): The letter to use
@@ -158,12 +158,12 @@ def label_letter(
 
 @dataclass
 class Char:
-    """
-    Contains useful characters and strings for plot labels.
+    """Contains useful characters and strings for plot labels.
 
     Examples:
         >>> plt.xlabel(aw.plot.Char.wavelength_micron)
         >>> plt.ylabel(f'{aw.plot.Char.theta} ({aw.plot.Char.degrees})')
+
     """
 
     mu: str = "\u03bc"

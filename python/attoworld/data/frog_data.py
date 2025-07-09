@@ -1,10 +1,12 @@
 from dataclasses import dataclass
-import numpy as np
 from typing import Optional
-from ..plot import label_letter
-from scipy import constants
+
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.axes import Axes
+from scipy import constants
+
+from ..plot import label_letter
 from .decorators import yaml_io
 from .interop import ComplexSpectrum, Waveform
 from .spectrogram import Spectrogram
@@ -13,8 +15,7 @@ from .spectrogram import Spectrogram
 @yaml_io
 @dataclass(slots=True)
 class FrogData:
-    """
-    Stores data from a FROG measurement
+    """Stores data from a FROG measurement.
 
     Attributes:
         spectrum (ComplexSpectrum): the reconstructed complex spectrum
@@ -23,6 +24,7 @@ class FrogData:
         reconstructed_spectrogram (Spectrogram): spectrogram resulting from reconstructed field
         f0: the central frequency of the spectrum
         dt: the time step
+
     """
 
     spectrum: ComplexSpectrum
@@ -34,9 +36,7 @@ class FrogData:
     dt: float
 
     def lock(self):
-        """
-        Make the data immutable
-        """
+        """Make the data immutable."""
         self.raw_reconstruction.setflags(write=False)
         self.spectrum.lock()
         self.pulse.lock()
@@ -44,11 +44,11 @@ class FrogData:
         self.reconstructed_spectrogram.lock()
 
     def save(self, base_filename):
-        """
-        Save in the Trebino FROG format
+        """Save in the Trebino FROG format.
 
         Args:
             base_filename: base of the file path; 4 files will be made from it: .A.dat, .Arecon.dat, .Ek.dat, and .Speck.dat
+
         """
         self.measured_spectrogram.save(base_filename + ".A.dat")
         self.reconstructed_spectrogram.save(base_filename + ".Arecon.dat")
@@ -72,11 +72,11 @@ class FrogData:
                 )
 
     def plot_measured_spectrogram(self, ax: Optional[Axes] = None, log: bool = False):
-        """
-        Plot the measured spectrogram.
+        """Plot the measured spectrogram.
 
         Args:
             ax: optionally plot onto a pre-existing matplotlib Axes
+
         """
         if ax is None:
             fig, ax = plt.subplots()
@@ -92,11 +92,11 @@ class FrogData:
     def plot_reconstructed_spectrogram(
         self, ax: Optional[Axes] = None, log: bool = False
     ):
-        """
-        Plot the reconstructed spectrogram.
+        """Plot the reconstructed spectrogram.
 
         Args:
             ax: optionally plot onto a pre-existing matplotlib Axes
+
         """
         if ax is None:
             fig, ax = plt.subplots()
@@ -114,26 +114,26 @@ class FrogData:
     def plot_pulse(
         self, ax: Optional[Axes] = None, phase_blanking: float = 0.05, xlim=None
     ):
-        """
-        Plot the reconstructed pulse.
+        """Plot the reconstructed pulse.
 
         Args:
             ax: optionally plot onto a pre-existing matplotlib Axes
             phase_blanking: only show phase information (instantaneous frequency) above this level relative to max intensity
             xlim: pass arguments to set_xlim() to constrain the x-axis
+
         """
         return self.pulse.to_complex_envelope().plot(ax, phase_blanking, xlim)
 
     def plot_spectrum(
         self, ax: Optional[Axes] = None, phase_blanking: float = 0.05, xlim=None
     ):
-        """
-        Plot the reconstructed spectrum and group delay curve.
+        """Plot the reconstructed spectrum and group delay curve.
 
         Args:
             ax: optionally plot onto a pre-existing matplotlib Axes
             phase_blanking: only show phase information (group delay) above this level relative to max intensity
             xlim: pass arguments to set_xlim() to constrain the x-axis
+
         """
         return self.spectrum.to_intensity_spectrum().plot_with_group_delay(
             ax, phase_blanking=phase_blanking, shift_from_centered=True, xlim=xlim
@@ -147,8 +147,7 @@ class FrogData:
         figsize=None,
         log: bool = False,
     ):
-        """
-        Produce a 4-panel plot of the FROG results, combining calls to plot_measured_spectrogram(),
+        """Produce a 4-panel plot of the FROG results, combining calls to plot_measured_spectrogram(),
         plot_reconstructed_spectrogram(), plot_pulse() and plot_spectrum() as subplots, with letter labels.
 
         Args:
@@ -156,6 +155,7 @@ class FrogData:
             time_xlim: x-axis limits to pass to the plot of the pulse
             wavelength_xlim: x-axis limits to pass to the plot of the spectrum
             figsize: custom figure size
+
         """
         if figsize is None:
             default_figsize = plt.rcParams["figure.figsize"]
@@ -174,9 +174,7 @@ class FrogData:
         return fig
 
     def get_error(self) -> float:
-        """
-        Get the G' error of the reconstruction
-        """
+        """Get the G' error of the reconstruction."""
         norm_measured = np.linalg.norm(self.measured_spectrogram.data)
         norm_retrieved = np.linalg.norm(self.reconstructed_spectrogram.data)
         return np.sqrt(
@@ -191,8 +189,7 @@ class FrogData:
         )
 
     def get_G_error(self) -> float:
-        """
-        Get the G (note: no apostrophe) error. This one doesn't mean much, but is useful
+        """Get the G (note: no apostrophe) error. This one doesn't mean much, but is useful
         for comparing reconstructions of the same spectrogram between different programs.
         """
         return np.sqrt(
@@ -209,7 +206,5 @@ class FrogData:
         )
 
     def get_fwhm(self) -> float:
-        """
-        Get the full-width-at-half-max value of the reconstructed pulse
-        """
+        """Get the full-width-at-half-max value of the reconstructed pulse."""
         return self.pulse.get_envelope_fwhm()

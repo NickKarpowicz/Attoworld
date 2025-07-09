@@ -65,7 +65,7 @@ jobs:
           pip install attoworld --no-deps --no-index --find-links dist
           pip install pytest ruff
           pytest
-          ruff check --output-format=github --target-version=py310 .
+          ruff check --output-format=github .
   musllinux:
     runs-on: ${{ matrix.platform.runner }}
     strategy:

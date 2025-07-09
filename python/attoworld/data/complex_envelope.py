@@ -1,24 +1,26 @@
-from dataclasses import dataclass
-import numpy as np
-from typing import Optional
-from ..numeric import fwhm, derivative
 import copy
+from dataclasses import dataclass
+from typing import Optional
+
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.axes import Axes
+
+from ..numeric import derivative, fwhm
 from .decorators import yaml_io
 
 
 @yaml_io
 @dataclass(slots=True)
 class ComplexEnvelope:
-    """
-    Data corresponding to a complex envelope of a pulse, e.g. from a FROG measurement.
+    """Data corresponding to a complex envelope of a pulse, e.g. from a FROG measurement.
 
     Attributes:
         envelope (np.ndarray): the complex envelope
         time: (np.ndarray): the time array
         dt (float): the time step
         carrier_frequency (float): the carrier frequency of the envelope
+
     """
 
     envelope: np.ndarray
@@ -27,9 +29,7 @@ class ComplexEnvelope:
     carrier_frequency: float = 0.0
 
     def lock(self):
-        """
-        Make the data immutable
-        """
+        """Make the data immutable."""
         self.envelope.setflags(write=False)
         self.time.setflags(write=False)
 
@@ -40,21 +40,20 @@ class ComplexEnvelope:
         return copy.deepcopy(self)
 
     def get_fwhm(self) -> float:
-        """
-        Full-width-at-half-maximum value of the envelope
+        """Full-width-at-half-maximum value of the envelope
         Returns:
-            float: the fwhm
+            float: the fwhm.
         """
         return fwhm(np.abs(self.envelope) ** 2, self.dt)
 
     def plot(self, ax: Optional[Axes] = None, phase_blanking: float = 0.05, xlim=None):
-        """
-        Plot the pulse.
+        """Plot the pulse.
 
         Args:
             ax: optionally plot onto a pre-existing matplotlib Axes
             phase_blanking: only show phase information (instantaneous frequency) above this level relative to max intensity
             xlim: pass arguments to set_xlim() to constrain the x-axis
+
         """
         if ax is None:
             fig, ax = plt.subplots()

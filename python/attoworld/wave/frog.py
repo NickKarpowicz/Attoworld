@@ -1,13 +1,14 @@
+"""Frog reconstruction and handling."""
+
 import numpy as np
-from ..data import ComplexEnvelope, Spectrogram, FrogData
+
+from ..data import ComplexEnvelope, FrogData, Spectrogram
 from ..numeric import find_maximum_location
 
 
 # Helper functions
 def shift_to_zero_and_normalize(Et):
-    """
-    Fix the fact that the reconstructed pulse from FROG has random delay
-    """
+    """Fix the fact that the reconstructed pulse from FROG has random delay."""
     max_loc, max_val = find_maximum_location(np.abs(Et))
     Ew = np.fft.fft(Et)
     _f = np.fft.fftfreq(len(Et))
@@ -19,8 +20,7 @@ def shift_to_zero_and_normalize(Et):
 def bundle_frog_reconstruction(
     t, result, measurement, f0: float = 375e12, interpolation_factor: int = 100
 ):
-    """
-    Turn the results of a FROG reconstruction into a FrogData struct
+    """Turn the results of a FROG reconstruction into a FrogData struct.
 
     Args:
         t: the time vector (s)
@@ -31,6 +31,7 @@ def bundle_frog_reconstruction(
 
     Returns:
         FrogData: the bundled data
+
     """
     f = np.fft.fftfreq(len(t), d=(t[1] - t[0]))
     sg_freq = np.fft.fftshift(f) + 2 * f0
@@ -62,14 +63,15 @@ def bundle_frog_reconstruction(
 
 # FROG functions
 def generate_shg_spectrogram(Et, Gt):
-    """
-    Generate a SHG spectrogram, same pattern as in FROG book
+    """Generate a SHG spectrogram, same pattern as in FROG book.
 
     Args:
         Et: field
         Gt: gate (same as field unless XFROG)
+
     Returns:
         np.ndarray: the complex spectrogram
+
     """
     spectrogram_timetime = np.outer(Et, Gt)
     for _i in range(Et.shape[0]):
@@ -81,7 +83,7 @@ def generate_shg_spectrogram(Et, Gt):
 
 
 def blank_roll(data: np.ndarray, step):
-    """np.roll, but pulse entering from other side set to zero"""
+    """np.roll, but pulse entering from other side set to zero."""
     rolled = np.roll(data, step)
     if step > 0:
         rolled[0:step] = 0.0
@@ -91,8 +93,7 @@ def blank_roll(data: np.ndarray, step):
 
 
 def apply_iteration(Et, Gt, meas_sqrt):
-    """
-    Apply an iteration of the generalized projections SHG-FROG
+    """Apply an iteration of the generalized projections SHG-FROG.
 
     Args:
         Et: field
@@ -100,7 +101,9 @@ def apply_iteration(Et, Gt, meas_sqrt):
         meas_sqrt: the measurement, sqrt-ed and fftshift, axes=0
 
     Returns:
-        np.ndarray, np.ndarray: field, gate"""
+        np.ndarray, np.ndarray: field, gate
+
+    """
     new_sg = generate_shg_spectrogram(Et, Gt)
     new_sg = meas_sqrt * np.exp(1j * np.angle(new_sg))
     new_sg = np.fft.ifft(new_sg, axis=0)
@@ -113,7 +116,7 @@ def apply_iteration(Et, Gt, meas_sqrt):
 
 
 def calculate_g_error(measurement, pulse):
-    """Calculate G' error helper function"""
+    """Calculate G' error helper function."""
     meas_squared = measurement**2
     meas_squared /= np.linalg.norm(meas_squared)
     reconstructed = np.abs(generate_shg_spectrogram(pulse, pulse)) ** 2
@@ -126,16 +129,16 @@ def calculate_g_error(measurement, pulse):
 def reconstruct_shg_frog_core(
     measurement_sg_sqrt, guess=None, max_iterations: int = 200
 ):
-    """
-    Run the core FROG loop
+    """Run the core FROG loop.
 
     Args:
-        measurement: measured spectrogram, sqrt + fftshift(axes=0)
+        measurement_sg_sqrt: measured spectrogram, sqrt + fftshift(axes=0)
         guess: initial guess for the field (will be randomly generated if not set)
         max_iterations: number of iterations to run
 
     Returns:
         np.ndarray: the reconstructed field
+
     """
     if guess is None:
         guess_pulse = np.random.randn(
@@ -159,12 +162,17 @@ def reconstruct_shg_frog_core(
 
 
 def fix_aliasing(result):
+    """Check if the reconstruction is aliased.
+
+    Args:
+        result: the result to check
+
+    """
     offset = int(len(result) / 2)
     firstprod = np.real(result[offset]) * np.real(result[offset + 1])
     if firstprod < 0.0:
         return np.fft.ifft(np.fft.fftshift(np.fft.fft(result)))
-    else:
-        return result
+    return result
 
 
 def reconstruct_shg_frog(
@@ -173,17 +181,17 @@ def reconstruct_shg_frog(
     polish_iterations=5000,
     repeats: int = 256,
 ):
-    """
-    Run the core FROG loop several times and pick the best result
+    """Run the core FROG loop several times and pick the best result.
 
     Args:
         measurement (np.ndarray): measured spectrogram, sqrt + fftshift(axes=0)
         test_iterations (int): number of iterations for the multiple tests
-        polish_iteration (int): number of extra iterations to apply to the winner
+        polish_iterations (int): number of extra iterations to apply to the winner
         repeats (int): number of different initial guesses to try
 
     Returns:
     FrogData: the completed reconstruction
+
     """
     sqrt_sg = np.fft.fftshift(
         np.sqrt(measurement.data - np.min(measurement.data[:])), axes=0

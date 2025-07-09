@@ -13,6 +13,7 @@ class AtomicUnits:
       speed_of_light: Vacuum speed of light in atomic units.
       Coulomb: Atomic unit of electric charge in Coulombs.
       PW_per_cm2_au: PW/cm^2 in atomic units.
+
     """
 
     meter: float = 5.2917720859e-11

@@ -1,8 +1,9 @@
-import numpy as np
 import h5py
 import matplotlib.pyplot as plt
-from ..plot import Char
+import numpy as np
 from scipy import constants
+
+from ..plot import Char
 
 
 def check_equal_length(*arg):
@@ -54,6 +55,7 @@ class LunaResult:
         stats_peakpower: peak power of the pulse along the fiber (W)
         stats_peakintensity: peak intensity of the pulse along the fiber
         stats_peak_ionization_rate: peak ionization rate along the fiber
+
     """
 
     def __init__(self, filename):
@@ -61,8 +63,8 @@ class LunaResult:
 
         Args:
             filename: saved result, file path
-        """
 
+        """
         self.filename = filename
         self.fieldFT = None
         self.omega = None
@@ -81,7 +83,7 @@ class LunaResult:
         self.open_Luna_result(filename)
 
     def open_Luna_result(self, filename):
-        """Opens the Luna result file and loads the data"""
+        """Opens the Luna result file and loads the data."""
         with h5py.File(filename, "r") as data:
             # FIELD DATA
             self.fieldFT = np.array(data["Eω"])
@@ -102,7 +104,7 @@ class LunaResult:
             )
 
     def average_modes(self):
-        """Averages the propagation modes in the Luna result file"""
+        """Averages the propagation modes in the Luna result file."""
         if len(self.fieldFT.shape) == 3:
             self.fieldFT = np.mean(self.fieldFT, axis=1)
             self.stats_zdw = None
@@ -130,6 +132,7 @@ class LunaResult:
         Returns:
             timeV (numpy.ndarray): time axis in seconds
             fieldV (numpy.ndarray): electric field in V/m
+
         """
         self.average_modes()
         if position is None:
@@ -146,7 +149,7 @@ class LunaResult:
         return timeV, np.real(fieldV)
 
     def get_wavelength_spectrum(self, position=None):
-        """Get the spectrum from the Luna result file (|FFT|^2 * (2 * pi * c / λ^2))
+        """Get the spectrum from the Luna result file (|FFT|^2 * (2 * pi * c / λ^2)).
 
         Args:
             position (float): position along the fiber in m. If None, the end of the fiber is used.
@@ -154,6 +157,7 @@ class LunaResult:
         Returns:
             wvl (numpy.ndarray): wavelength axis in m
             wvlSpectrum (numpy.ndarray): electric field spectrum in V/m
+
         """
         self.average_modes()
         if position is None:
@@ -168,7 +172,7 @@ class LunaResult:
         return wvl, wvlSpectrum
 
     def get_spectral_phase(self, position=None):
-        """Get the spectral phase from the Luna result file
+        """Get the spectral phase from the Luna result file.
 
         Args:
             position (float): position along the fiber in m. If None, the end of the fiber is used.
@@ -176,6 +180,7 @@ class LunaResult:
         Returns:
             wvl (numpy.ndarray): wavelength axis in m
             phase (numpy.ndarray): spectral phase in rad
+
         """
         self.average_modes()
         if position is None:
@@ -189,7 +194,6 @@ class LunaResult:
 
     def plot_stats(self):
         """Plots the 'stats_' attribute of the simulation stored in the present object."""
-
         fig, axs = plt.subplots(2, 2, figsize=[7, 5])
         axs[0, 0].plot(self.stats_z, self.stats_pressure)
         axs[0, 0].set_xlabel("z (m)")

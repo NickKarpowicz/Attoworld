@@ -1,45 +1,45 @@
 from dataclasses import dataclass
-import numpy as np
 from typing import Optional, Tuple
-from ..numeric import (
-    interpolate,
-    block_binning_2d,
-    block_binning_1d,
-)
-from scipy import constants
+
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.axes import Axes
+from scipy import constants
+
+from ..numeric import (
+    block_binning_1d,
+    block_binning_2d,
+    interpolate,
+)
 from .decorators import yaml_io
 
 
 @yaml_io
 @dataclass(slots=True)
 class Spectrogram:
-    """
-    Contains the data describing a spectrogram
+    """Contains the data describing a spectrogram.
 
     Attributes:
         data (np.ndarray): 2d spectrogram
         time (np.ndarray): time vector
-        freq (np.ndarray): frequency vector"""
+        freq (np.ndarray): frequency vector
+
+    """
 
     data: np.ndarray
     time: np.ndarray
     freq: np.ndarray
 
     def lock(self):
-        """
-        Make the data immutable
-        """
+        """Make the data immutable."""
         self.data.setflags(write=False)
         self.time.setflags(write=False)
         self.freq.setflags(write=False)
 
     def save(self, filename):
-        """
-        Save in the .A.dat file format used by FROG .etc
+        """Save in the .A.dat file format used by FROG .etc
         Args:
-            filename: the file to be saved
+            filename: the file to be saved.
 
         The file is structured like this:
         [number of wavelengths] [number of times]
@@ -62,13 +62,13 @@ class Spectrogram:
                     file.write(f"{y:15.15g}\n")
 
     def to_block_binned(self, freq_bin: int, time_bin: int, method: str = "mean"):
-        """
-        Apply block-binning to the spectrogram.
+        """Apply block-binning to the spectrogram.
 
         Args:
             freq_bin (int): block size for averaging in the frequency direction
             time_bin (int): block size for averaging in the time-direction
             method (str): can be ```mean``` or ```median```
+
         """
         return Spectrogram(
             data=block_binning_2d(self.data, time_bin, freq_bin, method),
@@ -77,13 +77,15 @@ class Spectrogram:
         )
 
     def to_per_frequency_dc_removed(self, extra_offset: float = 0.0):
-        """Perform DC offset removal on a measured spectrogram, on a per-frequency basis
+        """Perform DC offset removal on a measured spectrogram, on a per-frequency basis.
 
         Args:
             extra_offset (float): subtract a value from the entire array (negative values are always set to zero)
 
         Returns:
-            Spectrogram: the spectrogram with offset removed."""
+            Spectrogram: the spectrogram with offset removed.
+
+        """
         new_data = np.array(self.data)
         new_data -= extra_offset
         new_data[new_data < 0.0] = 0.0
@@ -93,9 +95,7 @@ class Spectrogram:
         return Spectrogram(data=new_data, time=self.time, freq=self.freq)
 
     def to_symmetrized(self):
-        """
-        Average the trace with a time-reversed copy. This might be useful for getting a reconstruction of difficult data, but keep in mind that the resulting measured trace will no longer represent the real measurement and should not be published as such.
-        """
+        """Average the trace with a time-reversed copy. This might be useful for getting a reconstruction of difficult data, but keep in mind that the resulting measured trace will no longer represent the real measurement and should not be published as such."""
         return Spectrogram(
             data=0.5 * (self.data + np.fliplr(self.data)),
             time=self.time,
@@ -103,9 +103,7 @@ class Spectrogram:
         )
 
     def to_removed_spatial_chirp(self):
-        """
-        Remove the effects of spatial chirp on an SHG-FROG trace by centering all single-frequency autocorrelations to the same time-zero
-        """
+        """Remove the effects of spatial chirp on an SHG-FROG trace by centering all single-frequency autocorrelations to the same time-zero."""
         new_data = np.array(self.data)
         for i in range(len(self.freq)):
             total = np.sum(self.data[i, :])
@@ -124,8 +122,7 @@ class Spectrogram:
         t0: Optional[Tuple[float, float]] = None,
         f0: float = 750e12,
     ):
-        """
-        Bin two different spectrograms, e.g. from different spectrometers, onto the time time/frequency grid
+        """Bin two different spectrograms, e.g. from different spectrometers, onto the time time/frequency grid.
 
         Args:
             other: the other spectrogram
@@ -134,6 +131,7 @@ class Spectrogram:
             dt (float): time step of the data
             t0: (Optional[Tuple[float, float]): time-zero of the data (this, and other). If not specified, will be calculated by the first moment of the time-distribution of the signal
             f0: (float): central frequency of the binned array
+
         """
         t0_self = None
         t0_other = None
@@ -184,7 +182,7 @@ class Spectrogram:
         t0: Optional[float] = None,
         f0: float = 750e12,
     ):
-        """Bin a spectrogram to a FFT-appropriate shape
+        """Bin a spectrogram to a FFT-appropriate shape.
 
         Args:
             dim (int): size of each size of the resulting square data
@@ -194,6 +192,7 @@ class Spectrogram:
 
         Returns:
             Spectrogram: the binned spectrogram
+
         """
         _t = np.array(range(dim)) * dt
         _t -= np.mean(_t)
@@ -215,11 +214,11 @@ class Spectrogram:
         return Spectrogram(data=binned_data_square, time=_t, freq=_f)
 
     def plot(self, ax: Optional[Axes] = None):
-        """
-        Plot the spectrogram.
+        """Plot the spectrogram.
 
         Args:
             ax: optionally plot onto a pre-existing matplotlib Axes
+
         """
         if ax is None:
             fig, ax = plt.subplots()
@@ -237,11 +236,11 @@ class Spectrogram:
         return fig
 
     def plot_log(self, ax: Optional[Axes] = None):
-        """
-        Plot the spectrogram.
+        """Plot the spectrogram.
 
         Args:
             ax: optionally plot onto a pre-existing matplotlib Axes
+
         """
         if ax is None:
             fig, ax = plt.subplots()

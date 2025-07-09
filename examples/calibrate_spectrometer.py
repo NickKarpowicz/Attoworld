@@ -322,13 +322,14 @@ def _(calibration_dataset, filedialog, mo, save_dataset_button):
 
 @app.cell
 def _():
-    import marimo as mo
     import attoworld as aw
+    import marimo as mo
 
     aw.plot.set_style("nick_dark")
-    import numpy as np
     import tkinter as tk
     from tkinter import filedialog
+
+    import numpy as np
 
     root = tk.Tk()
     root.withdraw()

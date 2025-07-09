@@ -1,13 +1,15 @@
+"""Waveform processing tools."""
+
 import numpy as np
-import scipy.signal as sig
 import scipy.optimize as opt
+import scipy.signal as sig
 
 
 def align_waves(
     waves, dt: float, frequency_roi_start: float, frequency_roi_stop: float
 ):
-    """
-    Align a set of waveforms, inside of a 2D numpy array.
+    """Align a set of waveforms, inside of a 2D numpy array.
+
     Args:
         waves: set of waveforms
         dt (float): time step (assuming constant spacing), (s)
@@ -16,8 +18,8 @@ def align_waves(
 
     Returns:
         np.ndarray: set of aligned waves
-    """
 
+    """
     waves_f = np.array(waves)
 
     # windowing and offset removal

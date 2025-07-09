@@ -1,23 +1,23 @@
+import copy
 from dataclasses import dataclass
-import numpy as np
 from typing import Optional
-from ..numeric import (
-    interpolate,
-    derivative,
-)
+
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.axes import Axes
 from scipy import constants
 
-import copy
-import matplotlib.pyplot as plt
-from matplotlib.axes import Axes
+from ..numeric import (
+    derivative,
+    interpolate,
+)
 from .decorators import yaml_io
 
 
 @yaml_io
 @dataclass(slots=True)
 class IntensitySpectrum:
-    """
-    Contains an intensity spectrum - real valued. SI units
+    """Contains an intensity spectrum - real valued. SI units.
 
     Attributes:
         spectrum (Optional[np.ndarray]): the spectral intensity
@@ -25,6 +25,7 @@ class IntensitySpectrum:
         freq (Optional[np.ndarray]): the frequencies corresponding to the spectrum
         wavelength (Optional[np.ndarray]): the wavelengths
         is_frequency_scaled (bool): has the lamda^-2 Jakobian been applied to Fourier transformed data?
+
     """
 
     spectrum: np.ndarray
@@ -34,9 +35,7 @@ class IntensitySpectrum:
     is_frequency_scaled: bool = False
 
     def lock(self):
-        """
-        Make the data immutable
-        """
+        """Make the data immutable."""
         self.spectrum.setflags(write=False)
         self.freq.setflags(write=False)
         self.wavelength.setflags(write=False)
@@ -47,35 +46,33 @@ class IntensitySpectrum:
         return copy.deepcopy(self)
 
     def wavelength_nm(self):
-        """
-        Returns:
-            Optional[np.ndarray]: the wavelengths in nm
+        """Returns:
+        Optional[np.ndarray]: the wavelengths in nm.
+
         """
         if self.wavelength is not None:
             return 1e9 * self.wavelength
-        else:
-            return None
+        return None
 
     def wavelength_micron(self):
-        """
-        Returns:
-            Optional[np.ndarray]: the wavelengths in microns
+        """Returns:
+        Optional[np.ndarray]: the wavelengths in microns.
+
         """
         if self.wavelength is not None:
             return 1e6 * self.wavelength
-        else:
-            return None
+        return None
 
     @staticmethod
     def from_spectrometer_spectrum_nanometers(
         wavelengths_nanometers: np.ndarray, spectrum: np.ndarray
     ):
-        """
-        Generate an instance based on a spepctrum array and wavelength array in nm (typical spectrometer data)
+        """Generate an instance based on a spepctrum array and wavelength array in nm (typical spectrometer data).
 
         Args:
             wavelengths_nanometers: the wavelengths in nanometers
             spectrum: the spectral intensity
+
         """
         wavelengths = 1e-9 * wavelengths_nanometers
         freqs = constants.speed_of_light / wavelengths
@@ -85,50 +82,41 @@ class IntensitySpectrum:
         )
 
     def get_wavelength_spectrum(self):
-        """
-        Return a wavelength-scaled spectrum, independent of the state of the current instance
+        """Return a wavelength-scaled spectrum, independent of the state of the current instance.
 
         Returns:
             np.ndarray, np.ndarray: wavelength and spectrum
+
         """
         if self.is_frequency_scaled:
             if self.freq is not None and self.spectrum is not None:
                 from ..spectrum import frequency_to_wavelength
 
                 return frequency_to_wavelength(self.freq, self.spectrum)
-            else:
-                raise Exception("Missing data")
-        else:
-            if self.wavelength is not None and self.spectrum is not None:
-                return self.wavelength, self.spectrum
-            else:
-                raise Exception("Missing data")
+            raise Exception("Missing data")
+        if self.wavelength is not None and self.spectrum is not None:
+            return self.wavelength, self.spectrum
+        raise Exception("Missing data")
 
     def get_frequency_spectrum(self):
-        """
-        Return a frequency-scaled spectrum, independent of the state of the current instance
+        """Return a frequency-scaled spectrum, independent of the state of the current instance.
 
         Returns:
             np.ndarray, np.ndarray: wavelength and spectrum
+
         """
         if self.is_frequency_scaled:
             if self.freq is not None and self.spectrum is not None:
                 return self.freq, self.spectrum
-            else:
-                raise Exception("Missing data")
-        else:
-            if self.wavelength is not None and self.spectrum is not None:
-                from ..spectrum import wavelength_to_frequency
+            raise Exception("Missing data")
+        if self.wavelength is not None and self.spectrum is not None:
+            from ..spectrum import wavelength_to_frequency
 
-                return wavelength_to_frequency(1e9 * self.wavelength, self.spectrum)
-            else:
-                raise Exception("Missing data")
+            return wavelength_to_frequency(1e9 * self.wavelength, self.spectrum)
+        raise Exception("Missing data")
 
     def to_normalized(self):
-        """
-        Returns a normalized version of the current instance.
-        """
-
+        """Returns a normalized version of the current instance."""
         normalized_spectrum = self.spectrum / np.max(self.spectrum)
 
         return IntensitySpectrum(
@@ -171,13 +159,13 @@ class IntensitySpectrum:
         shift_from_centered=True,
         xlim=None,
     ):
-        """
-        Plot the spectrum and group delay curve.
+        """Plot the spectrum and group delay curve.
 
         Args:
             ax: optionally plot onto a pre-existing matplotlib Axes
             phase_blanking: only show phase information (group delay) above this level relative to max intensity
             xlim: pass arguments to set_xlim() to constrain the x-axis
+
         """
         if ax is None:
             fig, ax = plt.subplots()

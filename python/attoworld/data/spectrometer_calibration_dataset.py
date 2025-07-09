@@ -1,25 +1,27 @@
-from .decorators import yaml_io, add_method
 from dataclasses import dataclass
+
 import matplotlib.pyplot as plt
-from scipy import constants
-import scipy.optimize
-from .interop import IntensitySpectrum
-from .frog_data import Spectrogram
-from .spectrometer_calibration import SpectrometerCalibration
-from ..numeric import interpolate
 import numpy as np
+import scipy.optimize
+from scipy import constants
+
+from ..numeric import interpolate
+from .decorators import add_method, yaml_io
+from .frog_data import Spectrogram
+from .interop import IntensitySpectrum
+from .spectrometer_calibration import SpectrometerCalibration
 
 
 @add_method(SpectrometerCalibration, "apply_to_spectrum")
 def calibration_apply_to_spectrum(self, spectrum_in):
-    """
-    Applies itself to an intensity spectrum:
+    """Applies itself to an intensity spectrum:
 
     Args:
         spectrum_in (IntensitySpectrum): the spectrum to be calibrated
 
     Returns:
         IntensitySpectrum: the calibrated spectrum
+
     """
     intensity_out = spectrum_in.spectrum * self.intensity_factors
     return IntensitySpectrum(
@@ -32,14 +34,14 @@ def calibration_apply_to_spectrum(self, spectrum_in):
 
 @add_method(SpectrometerCalibration, "apply_to_spectrogram")
 def calibration_apply_to_spectrogram(self, spectrogram_in):
-    """
-    Applies itself to an intensity spectrum:
+    """Applies itself to an intensity spectrum:
 
     Args:
         spectrum_in (Spectrogram): the spectrogram to be calibrated
 
     Returns:
         Spectrogram: the calibrated spectrogram
+
     """
     original_freqs = constants.speed_of_light / self.original_wavelengths
     original_freq_projection = interpolate(

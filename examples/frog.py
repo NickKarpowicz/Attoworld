@@ -6,8 +6,8 @@ app = marimo.App(width="medium")
 
 @app.cell
 def _():
-    import marimo as mo
     import attoworld as aw
+    import marimo as mo
     import numpy as np
 
     aw.plot.set_style("nick_dark")

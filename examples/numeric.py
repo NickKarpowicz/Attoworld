@@ -6,12 +6,13 @@ app = marimo.App(width="medium")
 
 @app.cell
 def _():
-    import marimo as mo
-    import numpy as np
-    import attoworld as aw
-    import matplotlib.pyplot as plt
-    import scipy
     import timeit
+
+    import attoworld as aw
+    import marimo as mo
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import scipy
 
     aw.plot.set_style("nick_dark", font_size=14)
     return aw, mo, np, plt, scipy, timeit

@@ -35,3 +35,11 @@ include = ["python/attoworld/spectrum/calibration_data/*"]
 [project.urls]
 Homepage = "https://github.com/NickKarpowicz/Attoworld"
 Issues = "https://github.com/NickKarpowicz/Attoworld/issues"
+
+[tool.ruff]
+exclude = ["examples"]
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "A", "ICN", "PIE", "RET", "ARG", "D"]
+ignore = ["E501"]
