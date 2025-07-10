@@ -1,3 +1,5 @@
+"""Contain data describing a spectrogram."""
+
 from dataclasses import dataclass
 from typing import Optional, Tuple
 
@@ -17,6 +19,7 @@ from .decorators import yaml_io
 @yaml_io
 @dataclass(slots=True)
 class Spectrogram:
+
     """Contains the data describing a spectrogram.
 
     Attributes:

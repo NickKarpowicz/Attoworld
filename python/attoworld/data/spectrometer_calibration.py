@@ -1,3 +1,4 @@
+"""Define the base class for handling spectrometer calibrations."""
 from dataclasses import dataclass
 
 import numpy as np
@@ -9,6 +10,7 @@ from .decorators import yaml_io
 @yaml_io
 @dataclass
 class SpectrometerCalibration:
+
     """Set of data describing a spectrometer calibration.
 
     Attributes:

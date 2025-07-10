@@ -1,3 +1,5 @@
+"""Classes for organizing data from a Frequency Resolved Optical Gating measurement."""
+
 from dataclasses import dataclass
 from typing import Optional
 
@@ -15,6 +17,7 @@ from .spectrogram import Spectrogram
 @yaml_io
 @dataclass(slots=True)
 class FrogData:
+
     """Stores data from a FROG measurement.
 
     Attributes:
@@ -76,6 +79,7 @@ class FrogData:
 
         Args:
             ax: optionally plot onto a pre-existing matplotlib Axes
+            log (bool): plot on log scale
 
         """
         if ax is None:
@@ -96,6 +100,7 @@ class FrogData:
 
         Args:
             ax: optionally plot onto a pre-existing matplotlib Axes
+            log (bool): plot on log scale
 
         """
         if ax is None:
@@ -152,9 +157,10 @@ class FrogData:
 
         Args:
             phase_blanking: relative intensity at which to show phase information
-            time_xlim: x-axis limits to pass to the plot of the pulse
-            wavelength_xlim: x-axis limits to pass to the plot of the spectrum
+            time_xlims: x-axis limits to pass to the plot of the pulse
+            wavelength_xlims: x-axis limits to pass to the plot of the spectrum
             figsize: custom figure size
+            log (bool): plot on log scale
 
         """
         if figsize is None:

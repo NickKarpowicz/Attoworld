@@ -11,12 +11,14 @@ def get_calibration_path():
 
 
 class CalibrationData(Enum):
+
     """Contains a list of the calibration files store in the module."""
 
     mpq_atto_reso_marco = "MPQ_Atto_Reso_Spectrometer_Marco.npz"
 
 
 class CalibrationLampReferences(Enum):
+
     """Contains a list of the calibration lamp references stored in the module."""
 
     mpq_atto_deuterium_halogen = "7315273LS-Deuterium-Halogen_CC-VISNIR.lmp"

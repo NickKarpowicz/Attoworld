@@ -1,3 +1,4 @@
+"""Operations for converting the data containters into each other."""
 from typing import Optional
 
 import numpy as np
@@ -19,6 +20,7 @@ def waveform_to_complex_spectrum(self, padding_factor: int = 1):
     """Converts to a ComplexSpectrum class.
 
     Args:
+        self: the class
         padding_factor (int): factor by which to expand the temporal length in the FFT, giving a smoother spectrum
 
     """
@@ -46,7 +48,9 @@ def waveform_to_intensity_spectrum(
     """Converts to an intensity spectrum.
 
     Args:
+        self: the class
         wavelength_scaled (bool): Correct the spectral intensities for plotting on a wavelength scale
+        padding_factor (int): the factor by which the length will be multiplied
 
     """
     return self.to_complex_spectrum(padding_factor).to_intensity_spectrum(
@@ -65,6 +69,7 @@ def waveform_to_complex_envelope(self, f0: float = 0.0):
     """Return a ComplexEnvelope class corresponding to the waveform.
 
     Args:
+        self: the class
         f0 (float): central frequency to use when constructing the envelope. E.g. oscillation at this frequency will be cancelled.
 
     """
@@ -109,6 +114,7 @@ def complexspectrum_to_intensity_spectrum(self, wavelength_scaled: bool = True):
     """Create an IntensitySpectrum based on the current ComplexSpectrum.
 
     Args:
+        self: the class
         wavelength_scaled (bool): Apply the wavelength^-2 Jakobian such to correspond to W/nm spectrum
 
     """
@@ -131,6 +137,7 @@ def get_transform_limited_pulse(self, gate_level: Optional[float] = None):
     """Returns the transform-limited pulse corresponding to the spectrum.
 
     Args:
+        self: the class
         gate_level (float): Apply a gate such that only values above gate_level*max(spectrum) are included
 
     Returns:

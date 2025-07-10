@@ -1,3 +1,5 @@
+"""Class and function decorators."""
+
 from dataclasses import is_dataclass
 
 import numpy as np
@@ -27,6 +29,7 @@ def yaml_io(cls):
         """Takes a dict and makes an instance of the class.
 
         Args:
+            cls: the class (hidden)
             data (dict): the result of a call of .to_dict on the class
 
         """
@@ -57,6 +60,7 @@ def yaml_io(cls):
         """Load from a yaml file.
 
         Args:
+            cls: the class (hidden)
             filename (str): path to the file
 
         """
@@ -68,6 +72,7 @@ def yaml_io(cls):
         """Save to a yaml file.
 
         Args:
+            instance: the class (hidden)
             filename (str): path to the file
 
         """

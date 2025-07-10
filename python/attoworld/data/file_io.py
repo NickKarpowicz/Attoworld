@@ -1,3 +1,5 @@
+"""Functions for accessing and saving data."""
+
 from pathlib import Path
 from typing import Optional
 
@@ -53,6 +55,7 @@ def read_dwc(file_path):
 
 
 def load_mean_spectrum_from_scarab(filename: str):
+    """Load data produced by Scarab (Nick's C++ interface for Ocean Optics spectrometers)."""
     data = np.loadtxt(filename)
     return IntensitySpectrum(
         spectrum=np.mean(data[:, 1::], axis=1),

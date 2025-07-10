@@ -1,3 +1,5 @@
+"""Class for handling a complex pulse envelope."""
+
 import copy
 from dataclasses import dataclass
 from typing import Optional
@@ -13,6 +15,7 @@ from .decorators import yaml_io
 @yaml_io
 @dataclass(slots=True)
 class ComplexEnvelope:
+
     """Data corresponding to a complex envelope of a pulse, e.g. from a FROG measurement.
 
     Attributes:
@@ -34,9 +37,11 @@ class ComplexEnvelope:
         self.time.setflags(write=False)
 
     def time_fs(self):
+        """Time axis in femtoseconds."""
         return 1e15 * self.time
 
     def copy(self):
+        """Return a copy."""
         return copy.deepcopy(self)
 
     def get_fwhm(self) -> float:

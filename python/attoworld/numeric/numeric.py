@@ -1,3 +1,4 @@
+"""Numerical tools implemented in python (most are in Rust here now)."""
 import numpy as np
 
 
@@ -6,7 +7,7 @@ def block_binning_1d(data: np.ndarray, bin_size: int, method: str) -> np.ndarray
 
     Args:
         data (np.ndarray): the 1d array to bin
-        bin (int): the size of bins
+        bin_size (int): the size of bins
         method (str): the method for averaging: ```mean``` (default) or ```median```
 
     Returns:

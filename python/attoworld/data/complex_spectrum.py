@@ -1,3 +1,5 @@
+"""Data class for handing complex spectra."""
+
 import copy
 from dataclasses import dataclass
 
@@ -9,6 +11,7 @@ from .decorators import yaml_io
 @yaml_io
 @dataclass(slots=True)
 class ComplexSpectrum:
+
     """Contains a complex spectrum, with spectral weights on a frequency scale.
 
     Attributes:
@@ -26,6 +29,7 @@ class ComplexSpectrum:
         self.freq.setflags(write=False)
 
     def copy(self):
+        """Return a copy of the data."""
         return copy.deepcopy(self)
 
     def to_time_derivative(self):

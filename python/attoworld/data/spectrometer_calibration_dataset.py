@@ -1,3 +1,5 @@
+"""Handle data sets related to producing a calibration, and complete the SpectrometerCalibration class."""
+
 from dataclasses import dataclass
 
 import matplotlib.pyplot as plt
@@ -14,9 +16,10 @@ from .spectrometer_calibration import SpectrometerCalibration
 
 @add_method(SpectrometerCalibration, "apply_to_spectrum")
 def calibration_apply_to_spectrum(self, spectrum_in):
-    """Applies itself to an intensity spectrum:
+    """Apply the calibration to an intensity spectrum.
 
     Args:
+        self: the calibration (implicit)
         spectrum_in (IntensitySpectrum): the spectrum to be calibrated
 
     Returns:
@@ -34,10 +37,11 @@ def calibration_apply_to_spectrum(self, spectrum_in):
 
 @add_method(SpectrometerCalibration, "apply_to_spectrogram")
 def calibration_apply_to_spectrogram(self, spectrogram_in):
-    """Applies itself to an intensity spectrum:
+    """Apply the calibration to an intensity spectrum.
 
     Args:
-        spectrum_in (Spectrogram): the spectrogram to be calibrated
+        self: the calibration (implicit)
+        spectrogram_in (Spectrogram): the spectrogram to be calibrated
 
     Returns:
         Spectrogram: the calibrated spectrogram
@@ -72,6 +76,9 @@ def calibration_apply_to_spectrogram(self, spectrogram_in):
 @yaml_io
 @dataclass
 class CalibrationInput:
+
+    """Input parameters for fitting a calibration curve from a data set."""
+
     wavelength_center: float
     wavelength_offset: float
     wavelength_slope: float
@@ -85,11 +92,13 @@ class CalibrationInput:
     noise_level: float
 
     def get_wavelength_array(self):
+        """Produce an array of the wavelength parameters for fitting routines."""
         return np.array(
             [self.wavelength_center, self.wavelength_offset, self.wavelength_slope]
         )
 
     def get_amplitude_array(self):
+        """Produce an array of the amplitude parameters for the fitting routine."""
         return np.array(
             [
                 self.amplitude_center,
@@ -107,6 +116,7 @@ class CalibrationInput:
         plot_xmin=None,
         plot_xmax=None,
     ):
+        """Combare the reference and measurement."""
         fig, ax = plt.subplots(1, 2, figsize=(8, 4))
         ax[0].plot(
             measurement.wavelength_nm(), measurement.spectrum, label="Measurement"
@@ -144,6 +154,7 @@ class CalibrationInput:
 def generate_response_curve(
     wavelength: np.ndarray, coefficients: np.ndarray
 ) -> np.ndarray:
+    """Turn the parameter efficients array and wavelengths into a response curve."""
     relative_wl = wavelength - coefficients[0]
     taylor_series = coefficients[1] + 0.5 * relative_wl * coefficients[2]
     gaussian = np.exp(
@@ -154,6 +165,7 @@ def generate_response_curve(
 
 
 def get_new_wavelength(wavelengths_micron, taylor_coefficients_micron):
+    """Apply the wavelength adjustment coefficients to the input wavelengths."""
     distance = wavelengths_micron - taylor_coefficients_micron[0]
     taylor_shift = taylor_coefficients_micron[1] * np.ones(distance.shape, dtype=float)
     for i in range(2, len(taylor_coefficients_micron)):
@@ -167,6 +179,7 @@ def get_new_wavelength(wavelengths_micron, taylor_coefficients_micron):
 def fit_calibration_amplitude_model(
     measurement, reference, wavelength_coeffs, amplitude_guess, roi
 ):
+    """Fit the model calibration."""
     initial_cal = generate_calibration_from_coeffs(
         amplitude_guess, wavelength_coeffs, measurement.wavelength
     )
@@ -192,6 +205,7 @@ def fit_calibration_amplitude_model(
 
 
 def generate_calibration_from_coeffs(amplitude_coeffs, wavelength_coeffs, wavelengths):
+    """Generate a model calibration."""
     new_wavelengths, new_freqs = get_new_wavelength(
         wavelengths * 1e6, wavelength_coeffs
     )
@@ -209,6 +223,9 @@ def generate_calibration_from_coeffs(amplitude_coeffs, wavelength_coeffs, wavele
 @yaml_io
 @dataclass
 class CalibrationDataset:
+
+    """Collects all of the data related to a spectrometer calibration."""
+
     measurement: IntensitySpectrum
     reference: IntensitySpectrum
     input_parameters: CalibrationInput
@@ -218,6 +235,7 @@ class CalibrationDataset:
     final_calibration: SpectrometerCalibration
 
     def plot(self, plot_xmin=None, plot_xmax=None):
+        """Plot the calibration."""
         fig, ax = plt.subplots(2, 3, figsize=(16, 9))
         ax[0, 0].plot(
             self.measurement.wavelength_nm(),
@@ -306,6 +324,17 @@ class CalibrationDataset:
         reference: IntensitySpectrum,
         input_parameters: CalibrationInput,
     ):
+        """Create a SpectrometerCalibration from a measured lamp spectrum and reference spectrom, and a set of parameters.
+
+        Args:
+            measurement (IntensitySpectrum): Lamp spectrum measured with the spectrometer in question
+            reference (IntensitySpectrum): Known reference spectrum for the lamp
+            input_parameters (CalibrationInput): Set of input parameters for the calibration fitting
+
+        Returns:
+            SpectrometerCalibration: The resulting calibration
+
+        """
         new_guess = fit_calibration_amplitude_model(
             measurement=measurement,
             reference=reference,

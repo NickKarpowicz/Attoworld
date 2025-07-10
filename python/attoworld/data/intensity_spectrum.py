@@ -1,3 +1,5 @@
+"""Base class for containing spectral data."""
+
 import copy
 from dataclasses import dataclass
 from typing import Optional
@@ -17,6 +19,7 @@ from .decorators import yaml_io
 @yaml_io
 @dataclass(slots=True)
 class IntensitySpectrum:
+
     """Contains an intensity spectrum - real valued. SI units.
 
     Attributes:
@@ -43,6 +46,7 @@ class IntensitySpectrum:
             self.phase.setflags(write=False)
 
     def copy(self):
+        """Make a copy of the class."""
         return copy.deepcopy(self)
 
     def wavelength_nm(self):
@@ -128,6 +132,7 @@ class IntensitySpectrum:
         )
 
     def to_interpolated_wavelength(self, new_wavelengths: np.ndarray):
+        """Replace the wavelength axis and interpolate the rest of the data onto it."""
         new_spectrum = interpolate(new_wavelengths, self.wavelength, self.spectrum)
         if self.phase is not None:
             new_phase = interpolate(new_wavelengths, self.wavelength, self.phase)
@@ -143,6 +148,7 @@ class IntensitySpectrum:
         )
 
     def to_corrected_wavelength(self, new_wavelengths: np.ndarray):
+        """Correct the wavelength axis by replacing it with new wavelengths."""
         assert len(new_wavelengths) == len(self.wavelength)
         return IntensitySpectrum(
             spectrum=self.spectrum,
@@ -164,6 +170,7 @@ class IntensitySpectrum:
         Args:
             ax: optionally plot onto a pre-existing matplotlib Axes
             phase_blanking: only show phase information (group delay) above this level relative to max intensity
+            shift_from_centered (bool): if the pulse is centered, the group delay will be near +/- the grid length, tells whether to fix this.
             xlim: pass arguments to set_xlim() to constrain the x-axis
 
         """

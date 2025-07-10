@@ -1,4 +1,4 @@
-"""This module will contain numerical tools."""
+"""A collection of numerical tools."""
 
 from ..attoworld_rs import (
     derivative,

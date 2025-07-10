@@ -1,3 +1,5 @@
+"""Handle the results from a Luna simulation."""
+
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
@@ -7,6 +9,7 @@ from ..plot import Char
 
 
 def check_equal_length(*arg):
+    """Make ture the size matches."""
     n = len(arg[0])
     for v in arg:
         if len(v) != n:
@@ -15,13 +18,15 @@ def check_equal_length(*arg):
             raise Exception("Vector size mismatch")
 
 
-def fourier_transform(TimeV, FieldV):  # complex!!!
+def fourier_transform(TimeV, FieldV):
+    """Apply forward transform."""
     freq = np.fft.fftfreq(TimeV.size, d=TimeV[1] - TimeV[0])
     fft = np.fft.fft(FieldV)
     return freq, fft
 
 
-def inverse_fourier_transform(freq, fullSpectrum):  # complex!!!
+def inverse_fourier_transform(freq, fullSpectrum):
+    """Apply inverse transform."""
     timeV = np.fft.fftfreq(len(freq), freq[1] - freq[0])
     if len(timeV) % 2 == 0:
         timeV = np.concatenate(
@@ -37,6 +42,7 @@ def inverse_fourier_transform(freq, fullSpectrum):  # complex!!!
 
 
 class LunaResult:
+
     """Loads and handles the Luna simulation result.
 
     The result must be in the HDF5 format using the saving option in the Luna.Interface.prop_capillary() function [filepath="..."].
@@ -112,6 +118,7 @@ class LunaResult:
             self.stats_energy = np.sum(self.stats_energy, axis=1)
 
     def select_mode(self, mode: int):
+        """Select the fiber mode."""
         if len(self.fieldFT.shape) < 3:
             print("WARNING: No mode to select")
         elif mode >= self.fieldFT.shape[1] or mode < 0:

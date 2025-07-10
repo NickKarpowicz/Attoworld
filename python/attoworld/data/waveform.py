@@ -1,3 +1,5 @@
+"""Define the base version of the Waveform class, which is extended in interop.py."""
+
 import copy
 from dataclasses import dataclass
 
@@ -15,6 +17,7 @@ from .decorators import yaml_io
 @yaml_io
 @dataclass(slots=True)
 class Waveform:
+
     """Contains data describing an electric field waveform.
     In SI units.
 
@@ -41,6 +44,7 @@ class Waveform:
         return copy.deepcopy(self)
 
     def time_fs(self):
+        """Returns the time in femtoseconds."""
         if self.time is not None:
             return 1e15 * self.time
         raise Exception("No data")

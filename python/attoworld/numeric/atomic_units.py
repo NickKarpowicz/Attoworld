@@ -1,4 +1,7 @@
+"""Class definition related to atomic unit conversions."""
+
 class AtomicUnits:
+
     """Defines various physical constants in atomic units.
 
     Attributes:

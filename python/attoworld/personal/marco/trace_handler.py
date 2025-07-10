@@ -1374,14 +1374,14 @@ class MultiTraceHandler:
         """Append a new trace to the list. Usual rules apply.
 
         Args:
-            filename
-            filename_spectrum
-            timeV
-            fieldV
-            stdevV
-            wvl
-            spectrum
-            traceHandler
+            filename: file path
+            filename_spectrum: spectrum path
+            timeV: time vector
+            fieldV: field vector
+            stdevV: standard deviation
+            wvl: wavelength
+            spectrum: spectrum
+            traceHandler: TraceHandler instance
 
         """
         if filename_spectrum is not None and filename is not None:

@@ -1,4 +1,4 @@
-"""This file contains functions primarily used by Nick Karpowicz."""
+"""Contains functions primarily used by Nick Karpowicz."""
 
 from .impulse_response import get_effective_response
 from .nick import dark_plot

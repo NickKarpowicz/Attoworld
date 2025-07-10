@@ -1,3 +1,5 @@
+"""A few small functions that I might take apart and put into the main module."""
+
 from cycler import cycler
 from matplotlib import rcParams
 
