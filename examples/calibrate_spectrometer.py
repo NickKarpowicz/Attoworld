@@ -5,7 +5,7 @@
 
 import marimo
 
-__generated_with = "0.14.10"
+__generated_with = "0.14.13"
 app = marimo.App(width="full")
 
 
@@ -67,9 +67,7 @@ def _():
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""Now, manually adjust the wavelength axis (optional - if it's not necessary, set offset and slope to zero)"""
-    )
+    mo.md(r"""Now, manually adjust the wavelength axis (optional - if it's not necessary, set offset and slope to zero)""")
     return
 
 
@@ -272,9 +270,7 @@ def _(measurement, mo, np):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""If the result is good, save it as an .npz file, and contribute it to the database :)"""
-    )
+    mo.md(r"""If the result is good, save it as an .npz file, and contribute it to the database :)""")
     return
 
 

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.14.0"
+__generated_with = "0.14.13"
 app = marimo.App(width="medium")
 
 
@@ -27,10 +27,22 @@ def _(mo):
 
 
 @app.cell
-def _(aw, file_browser):
+def _(aw, mo):
+    calibration_selector = mo.ui.dropdown(options=[e.value for e in aw.spectrum.CalibrationData],label="Calibration:")
+    calibration_selector
+    return (calibration_selector,)
+
+
+@app.cell
+def _(aw, calibration_selector, file_browser):
     _path = file_browser.path()
     if _path is not None:
         input_data = aw.data.read_dwc(file_path=_path)
+        if calibration_selector.value is not None:
+            calibration = aw.data.SpectrometerCalibration.from_npz(
+                aw.spectrum.get_calibration_path() / calibration_selector.value
+            )
+            input_data = calibration.apply_to_spectrogram(input_data)
     else:
         input_data = None
     return (input_data,)
