@@ -200,7 +200,7 @@ jobs:
           target: ${{ matrix.platform.target }}
           args: --release --out dist -i ${{ env.PYTHON_VERSION }}
           sccache: "true"
-          rust-toolchain: 2025-02-20
+          rust-toolchain: nightly-2025-02-20
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
