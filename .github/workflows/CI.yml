@@ -175,7 +175,7 @@ jobs:
     strategy:
       matrix:
         platform:
-          - runner: ubuntu-22.04
+          - runner: ubuntu-24.04
             target: wasm32-unknown-emscripten
     steps:
       - uses: actions/checkout@v4
