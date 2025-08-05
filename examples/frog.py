@@ -29,7 +29,7 @@ async def _():
 
 @app.cell
 def _(mo):
-    file_browser = mo.ui.file(filetypes=[".dwc"], label="Select file")#mo.ui.file_browser(multiple=False, filetypes=[".dwc"])
+    file_browser = mo.ui.file(filetypes=[".dwc"], label="Select file")
     file_browser
     return (file_browser,)
 
