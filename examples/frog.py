@@ -12,7 +12,7 @@ async def _():
     is_in_web_notebook = sys.platform == "emscripten"
     if is_in_web_notebook:
         import micropip
-        path_to_attoworld = mo.notebook_location() / "public" / "attoworld-2025.0.36-cp312-cp312-emscripten_3_1_58_wasm32.whl"
+        path_to_attoworld = mo.notebook_location() / "public" / "attoworld-2025.0.37-cp312-cp312-emscripten_3_1_58_wasm32.whl"
         await micropip.install(str(path_to_attoworld))
     else:
         import tkinter as tk
