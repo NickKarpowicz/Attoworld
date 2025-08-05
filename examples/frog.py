@@ -1,27 +1,35 @@
 import marimo
 
-__generated_with = "0.14.13"
+__generated_with = "0.14.16"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def _():
-    import attoworld as aw
+async def _():
     import marimo as mo
+    #check if running in a browser, install attoworld from local copy
+    import sys
+    is_in_web_notebook = sys.platform == "emscripten"
+    if is_in_web_notebook:
+        import micropip
+        path_to_attoworld = mo.notebook_location() / "public" / "attoworld-2025.0.36-cp312-cp312-emscripten_3_1_58_wasm32.whl"
+        await micropip.install(str(path_to_attoworld))
+    else:
+        import tkinter as tk
+        from tkinter import filedialog
+        root = tk.Tk()
+        root.withdraw()
+
+    import attoworld as aw
     import numpy as np
 
     aw.plot.set_style("nick_dark")
-    import tkinter as tk
-    from tkinter import filedialog
-
-    root = tk.Tk()
-    root.withdraw()
-    return aw, filedialog, mo, np
+    return aw, filedialog, is_in_web_notebook, mo, np
 
 
 @app.cell
 def _(mo):
-    file_browser = mo.ui.file_browser(multiple=False, filetypes=[".dwc"])
+    file_browser = mo.ui.file(filetypes=[".dwc"], label="Select file")#mo.ui.file_browser(multiple=False, filetypes=[".dwc"])
     file_browser
     return (file_browser,)
 
@@ -34,15 +42,17 @@ def _(aw, mo):
 
 
 @app.cell
-def _(aw, calibration_selector, file_browser):
-    _path = file_browser.path()
+def _(aw, bin_spatial_chirp_correction, calibration_selector, file_browser):
+    _path = file_browser.contents()
     if _path is not None:
-        input_data = aw.data.read_dwc(file_path=_path)
+        input_data = aw.data.read_dwc(file_or_path=_path, is_buffer=True)
         if calibration_selector.value is not None:
             calibration = aw.data.SpectrometerCalibration.from_npz(
                 aw.spectrum.get_calibration_path() / calibration_selector.value
             )
             input_data = calibration.apply_to_spectrogram(input_data)
+        if bin_spatial_chirp_correction.value:
+            input_data.to_removed_spatial_chirp()   
     else:
         input_data = None
     return (input_data,)
@@ -57,6 +67,7 @@ def _(mo):
     bin_fblock = mo.ui.number(label="freq block avg.", value=16, step=1)
     bin_tblock = mo.ui.number(label="time block avg.", value=1, step=1)
     bin_median = mo.ui.checkbox(label="median blocking", value=False)
+    bin_spatial_chirp_correction = mo.ui.checkbox(label="correct spatial chirp", value=False)
     bin_button = mo.ui.run_button(label="bin")
     bin_live = mo.ui.checkbox(label="live update")
     mo.output.append(bin_size)
@@ -66,6 +77,7 @@ def _(mo):
     mo.output.append(bin_fblock)
     mo.output.append(bin_tblock)
     mo.output.append(bin_median)
+    mo.output.append(bin_spatial_chirp_correction)
     mo.output.append(bin_live)
     mo.output.append(bin_button)
 
@@ -78,6 +90,7 @@ def _(mo):
         bin_median,
         bin_offset,
         bin_size,
+        bin_spatial_chirp_correction,
         bin_tblock,
     )
 
@@ -103,7 +116,7 @@ def _(
         if bin_median.value:
             _method = "median"
         else:
-            _method = "mean"
+            _method = "mean"    
         frog_data = (
             input_data.to_block_binned(
                 int(bin_fblock.value), int(bin_tblock.value), method=_method
@@ -124,9 +137,9 @@ def _(
 
 @app.cell
 def _(mo):
-    recon_trials = mo.ui.number(value=64, label="Initial guesses")
-    recon_trial_length = mo.ui.number(value=128, label="Trial iterations")
-    recon_followups = mo.ui.number(value=5000, label="Finishing iterations")
+    recon_trials = mo.ui.number(value=8, label="Initial guesses")
+    recon_trial_length = mo.ui.number(value=64, label="Trial iterations")
+    recon_followups = mo.ui.number(value=512, label="Finishing iterations")
     reconstruct_button = mo.ui.run_button(label="reconstruct")
     save_button = mo.ui.run_button(label="save")
     save_plot_button = mo.ui.run_button(label="save plot")
@@ -183,29 +196,29 @@ def _(aw, np, result):
 
 
 @app.cell
-def _(filedialog, mo, result, save_button):
+def _(filedialog, is_in_web_notebook, mo, result, save_button):
     mo.stop(not save_button.value)
+    if not is_in_web_notebook:
+        _file_path = filedialog.asksaveasfilename(
+            title="Save File", filetypes=[("All Files", "*.*")]
+        )
 
-    _file_path = filedialog.asksaveasfilename(
-        title="Save File", filetypes=[("All Files", "*.*")]
-    )
-
-    if _file_path is not None and result is not None:
-        result.save(_file_path)
-        result.save_yaml(_file_path + ".yaml")
+        if _file_path is not None and result is not None:
+            result.save(_file_path)
+            result.save_yaml(_file_path + ".yaml")
     return
 
 
 @app.cell
-def _(filedialog, mo, plot, result, save_plot_button):
+def _(filedialog, is_in_web_notebook, mo, plot, result, save_plot_button):
     mo.stop(not save_plot_button.value)
+    if not is_in_web_notebook:
+        _file_path = filedialog.asksaveasfilename(
+            title="Save File", filetypes=[("SVG files", "*.svg"), ("PDF files", "*.pdf")]
+        )
 
-    _file_path = filedialog.asksaveasfilename(
-        title="Save File", filetypes=[("SVG files", "*.svg"), ("PDF files", "*.pdf")]
-    )
-
-    if _file_path is not None and result is not None:
-        plot.savefig(_file_path)
+        if _file_path is not None and result is not None:
+            plot.savefig(_file_path)
     return
 
 
