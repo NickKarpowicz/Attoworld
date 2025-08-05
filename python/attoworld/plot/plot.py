@@ -1,4 +1,5 @@
 """Tools for setting the style and appearance of plots."""
+
 import io
 from dataclasses import dataclass
 

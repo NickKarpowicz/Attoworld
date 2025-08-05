@@ -1,5 +1,6 @@
 """Functions for accessing and saving data."""
 
+import io
 from pathlib import Path
 from typing import Optional
 
@@ -7,18 +8,19 @@ import numpy as np
 import pandas as pd
 import scipy.io as sio
 from scipy import constants
-import io
 
 from .. import spectrum
 from ..numeric import interpolate
 from .frog_data import FrogData, Spectrogram
 from .interop import ComplexSpectrum, IntensitySpectrum, Waveform
 
-def read_dwc(file_or_path, is_buffer: bool=False):
+
+def read_dwc(file_or_path, is_buffer: bool = False):
     """Reads files in the .dwc format produced by many FROG scanners.
 
     Args:
         file_or_path: path to the .dwc file
+        is_buffer: set to true if you are giving a file in a bytes buffer instead of a path
 
     Returns:
         Spectrogram: the loaded data
@@ -41,7 +43,7 @@ def read_dwc(file_or_path, is_buffer: bool=False):
 
     if is_buffer:
         file_or_path.seek(0)
-        
+
     data_array = pd.read_csv(
         file_or_path, skiprows=8, delimiter="\t", header=None, dtype=float
     ).values

@@ -1,4 +1,5 @@
 """Define the base class for handling spectrometer calibrations."""
+
 from dataclasses import dataclass
 
 import numpy as np

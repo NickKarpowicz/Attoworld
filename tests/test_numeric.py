@@ -1,4 +1,5 @@
 """Test the numeric functions."""
+
 import attoworld as aw
 import numpy as np
 
