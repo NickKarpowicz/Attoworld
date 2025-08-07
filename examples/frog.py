@@ -29,7 +29,7 @@ async def _():
 
 @app.cell
 def _(mo):
-    file_browser = mo.ui.file(filetypes=[".dwc"], label="Select file")
+    file_browser = mo.ui.file(filetypes=[".dwc"], label="Select .dwc file")
     file_browser
     return (file_browser,)
 
@@ -203,7 +203,7 @@ def _(filedialog, is_in_web_notebook, mo, result, save_button):
             title="Save File", filetypes=[("All Files", "*.*")]
         )
 
-        if _file_path is not None and result is not None:
+        if (_file_path is not None) and (result is not None) and (_file_path != ""):
             result.save(_file_path)
             result.save_yaml(_file_path + ".yaml")
     return
@@ -212,7 +212,17 @@ def _(filedialog, is_in_web_notebook, mo, result, save_button):
 @app.cell
 def _(filedialog, is_in_web_notebook, mo, plot, result, save_plot_button):
     mo.stop(not save_plot_button.value)
-    if not is_in_web_notebook:
+    if is_in_web_notebook:
+        from js import Blob, document
+        from js import window
+        plot.savefig("/test.svg")
+        with open('/test.svg', 'r') as fh:
+            dat = fh.read()
+        
+        blob = Blob.new([dat], {type : 'application/image'})
+        url = window.URL.createObjectURL(blob) 
+        window.location.assign(url)
+    else:
         _file_path = filedialog.asksaveasfilename(
             title="Save File", filetypes=[("SVG files", "*.svg"), ("PDF files", "*.pdf")]
         )
