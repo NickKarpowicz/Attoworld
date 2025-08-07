@@ -4,6 +4,7 @@ use rayon::prelude::*;
 use std::f64;
 use wasm_bindgen::prelude::wasm_bindgen;
 pub use wasm_bindgen_rayon::init_thread_pool;
+
 /// Functions written in Rust for improved performance and correctness.
 #[pymodule]
 #[pyo3(name = "attoworld_rs")]
@@ -29,6 +30,12 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
                 "No maximum value possible; does the array contain a NaN value?",
             )),
         }
+    }
+
+    #[pyfn(m)]
+    /// Call init_thread_pool to allow rayon to work in wasm context
+    fn wasm_init_thread_pool(num_threads: usize) {
+        init_thread_pool(num_threads);
     }
 
     /// Find the first intercept with a value
