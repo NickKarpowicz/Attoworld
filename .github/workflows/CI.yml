@@ -198,7 +198,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.platform.target }}
-          args: --release --out dist -i ${{ env.PYTHON_VERSION }} -C target-feature=+atomics,+bulk-memory
+          args: --release --out dist -i ${{ env.PYTHON_VERSION }} -- -C target-feature=+atomics,+bulk-memory
           sccache: "true"
           rust-toolchain: nightly-2025-01-01
       - name: Upload wheels
