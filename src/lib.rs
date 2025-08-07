@@ -2,7 +2,8 @@ use numpy::{IntoPyArray, PyArray1, PyReadonlyArrayDyn};
 use pyo3::prelude::*;
 use rayon::prelude::*;
 use std::f64;
-
+use wasm_bindgen::prelude::wasm_bindgen;
+pub use wasm_bindgen_rayon::init_thread_pool;
 /// Functions written in Rust for improved performance and correctness.
 #[pymodule]
 #[pyo3(name = "attoworld_rs")]
@@ -250,6 +251,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
     }
 
     /// Sort x,y values in two slices such that x values are in ascending order
+
     fn sort_paired_xy(x_in: &[f64], y_in: &[f64]) -> (Vec<f64>, Vec<f64>) {
         let mut pairs: Vec<(f64, f64)> = x_in
             .iter()
@@ -320,7 +322,8 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
     ///
     /// Returns:
     ///     the interpolated y_out
-    fn interpolate_sorted_1d_slice(
+    #[wasm_bindgen]
+    pub fn interpolate_sorted_1d_slice(
         x_out: &[f64],
         x_in: &[f64],
         y_in: &[f64],
