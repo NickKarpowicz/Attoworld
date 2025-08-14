@@ -1,8 +1,6 @@
 use numpy::{IntoPyArray, PyArray1, PyReadonlyArrayDyn};
 use pyo3::prelude::*;
 use std::f64;
-
-#[cfg(not(target_arch = "wasm32"))]
 use rayon::prelude::*;
 
 
