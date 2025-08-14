@@ -7,18 +7,47 @@ app = marimo.App(width="medium")
 @app.cell
 async def _():
     import marimo as mo
-    #check if running in a browser, install attoworld from local copy
+
+    # check if running in a browser, install attoworld from local copy
     import sys
+
     is_in_web_notebook = sys.platform == "emscripten"
     if is_in_web_notebook:
         import micropip
         import os
-        path_to_attoworld = mo.notebook_location() / "public" / "attoworld-2025.0.38-cp312-cp312-emscripten_3_1_58_wasm32.whl"
+
+        path_to_attoworld = (
+            mo.notebook_location()
+            / "public"
+            / "attoworld-2025.0.38-cp312-cp312-emscripten_3_1_58_wasm32.whl"
+        )
         micropip.uninstall("attoworld")
         await micropip.install(str(path_to_attoworld))
+
+        import base64
+        import zipfile
+
+        def create_download_link(data, filename, mime_type="text/plain"):
+            encoded_data = base64.b64encode(data).decode("utf-8")
+            data_uri = f"data:{mime_type};base64,{encoded_data}"
+            html = f'<a href="{data_uri}" download="{filename}">Download {filename}</a>'
+            return mo.Html(html)
+
+        def display_download_link_from_file(
+            path, output_name, mime_type="text/plain"
+        ):
+            with open(path, "rb") as _file:
+                mo.output.append(
+                    create_download_link(
+                        data=_file.read(),
+                        filename=output_name,
+                        mime_type=mime_type,
+                    )
+                )
     else:
         import tkinter as tk
         from tkinter import filedialog
+
         root = tk.Tk()
         root.withdraw()
 
@@ -26,7 +55,15 @@ async def _():
     import numpy as np
 
     aw.plot.set_style("nick_dark")
-    return aw, filedialog, is_in_web_notebook, mo, np
+    return (
+        aw,
+        display_download_link_from_file,
+        filedialog,
+        is_in_web_notebook,
+        mo,
+        np,
+        zipfile,
+    )
 
 
 @app.cell
@@ -138,19 +175,23 @@ def _(
 
 
 @app.cell
-def _(mo):
+def _(is_in_web_notebook, mo):
     recon_trials = mo.ui.number(value=8, label="Initial guesses")
     recon_trial_length = mo.ui.number(value=64, label="Trial iterations")
     recon_followups = mo.ui.number(value=512, label="Finishing iterations")
     reconstruct_button = mo.ui.run_button(label="reconstruct")
     save_button = mo.ui.run_button(label="save")
     save_plot_button = mo.ui.run_button(label="save plot")
+
     mo.output.append(recon_trials)
     mo.output.append(recon_trial_length)
     mo.output.append(recon_followups)
     mo.output.append(reconstruct_button)
-    mo.output.append(save_button)
-    mo.output.append(save_plot_button)
+
+    if not is_in_web_notebook:
+        mo.output.append(save_button)
+        mo.output.append(save_plot_button)
+
     return (
         recon_followups,
         recon_trial_length,
@@ -159,6 +200,14 @@ def _(mo):
         save_button,
         save_plot_button,
     )
+
+
+@app.cell
+def _(is_in_web_notebook, mo):
+    if is_in_web_notebook:
+        file_base = mo.ui.text(value="output", label="Output name")
+        mo.output.append(file_base)
+    return (file_base,)
 
 
 @app.cell
@@ -185,15 +234,44 @@ def _(
 
 
 @app.cell
-def _(aw, np, result):
+def _(
+    aw,
+    display_download_link_from_file,
+    file_base,
+    is_in_web_notebook,
+    np,
+    result,
+    zipfile,
+):
     if result is not None:
         spec = result.spectrum.to_intensity_spectrum()
         indices = np.where(spec.spectrum / np.max(spec.spectrum) > 3e-3)[0]
         wl_nm = spec.wavelength_nm()
         plot = result.plot_all(
-            figsize=(9, 6), wavelength_xlims=(wl_nm[indices[-1]], wl_nm[indices[0]])
+            figsize=(9, 6),
+            wavelength_xlims=(wl_nm[indices[-1]], wl_nm[indices[0]]),
         )
         aw.plot.showmo()
+
+        if is_in_web_notebook:
+            plot.savefig("temp.svg")
+            display_download_link_from_file(
+                "temp.svg", output_name=f"{file_base.value}.svg"
+            )
+
+            result.save(file_base.value)
+            result.save_yaml(f"{file_base.value}.yaml")
+            with zipfile.ZipFile(f"{file_base.value}.zip", "w") as zip:
+                zip.write(f"{file_base.value}.A.dat")
+                zip.write(f"{file_base.value}.Arecon.dat")
+                zip.write(f"{file_base.value}.Ek.dat")
+                zip.write(f"{file_base.value}.Speck.dat")
+                zip.write(f"{file_base.value}.yaml")
+            display_download_link_from_file(
+                f"{file_base.value}.zip",
+                output_name=f"{file_base.value}.zip",
+                mime_type="application/zip",
+            )
     return (plot,)
 
 
@@ -214,17 +292,7 @@ def _(filedialog, is_in_web_notebook, mo, result, save_button):
 @app.cell
 def _(filedialog, is_in_web_notebook, mo, plot, result, save_plot_button):
     mo.stop(not save_plot_button.value)
-    if is_in_web_notebook:
-        from js import Blob, document
-        from js import window
-        plot.savefig("/test.svg")
-        with open('/test.svg', 'r') as fh:
-            dat = fh.read()
-
-        blob = Blob.new([dat], {type : 'application/image'})
-        url = window.URL.createObjectURL(blob)
-        window.location.assign(url)
-    else:
+    if not is_in_web_notebook:
         _file_path = filedialog.asksaveasfilename(
             title="Save File", filetypes=[("SVG files", "*.svg"), ("PDF files", "*.pdf")]
         )
