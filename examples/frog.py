@@ -14,6 +14,7 @@ async def _():
         import micropip
         import os
         path_to_attoworld = mo.notebook_location() / "public" / "attoworld-2025.0.38-cp312-cp312-emscripten_3_1_58_wasm32.whl"
+        micropip.uninstall("attoworld")
         await micropip.install(str(path_to_attoworld))
     else:
         import tkinter as tk
