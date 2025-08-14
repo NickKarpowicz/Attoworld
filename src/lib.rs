@@ -1,6 +1,5 @@
 use numpy::{IntoPyArray, PyArray1, PyReadonlyArrayDyn};
 use pyo3::prelude::*;
-use rayon::prelude::*;
 
 use std::f64;
 
