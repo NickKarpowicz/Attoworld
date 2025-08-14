@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.14.16"
+__generated_with = "0.14.17"
 app = marimo.App(width="medium")
 
 
@@ -12,6 +12,8 @@ async def _():
     is_in_web_notebook = sys.platform == "emscripten"
     if is_in_web_notebook:
         import micropip
+        import os
+        os.environ['RAYON_NUM_THREADS'] = '1'
         path_to_attoworld = mo.notebook_location() / "public" / "attoworld-2025.0.37-cp312-cp312-emscripten_3_1_58_wasm32.whl"
         await micropip.install(str(path_to_attoworld))
     else:
@@ -218,7 +220,7 @@ def _(filedialog, is_in_web_notebook, mo, plot, result, save_plot_button):
         plot.savefig("/test.svg")
         with open('/test.svg', 'r') as fh:
             dat = fh.read()
-        
+
         blob = Blob.new([dat], {type : 'application/image'})
         url = window.URL.createObjectURL(blob) 
         window.location.assign(url)

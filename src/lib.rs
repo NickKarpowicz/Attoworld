@@ -1,9 +1,8 @@
 use numpy::{IntoPyArray, PyArray1, PyReadonlyArrayDyn};
 use pyo3::prelude::*;
 use rayon::prelude::*;
+
 use std::f64;
-use wasm_bindgen::prelude::wasm_bindgen;
-pub use wasm_bindgen_rayon::init_thread_pool;
 
 /// Functions written in Rust for improved performance and correctness.
 #[pymodule]
@@ -30,12 +29,6 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
                 "No maximum value possible; does the array contain a NaN value?",
             )),
         }
-    }
-
-    #[pyfn(m)]
-    /// Call init_thread_pool to allow rayon to work in wasm context
-    fn wasm_init_thread_pool(num_threads: usize) {
-        init_thread_pool(num_threads);
     }
 
     /// Find the first intercept with a value
@@ -265,7 +258,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
             .zip(y_in.iter())
             .map(|(a, b)| (*a, *b))
             .collect();
-        pairs.par_sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Greater));
+        pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Greater));
         pairs.into_iter().unzip()
     }
 
@@ -329,7 +322,6 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
     ///
     /// Returns:
     ///     the interpolated y_out
-    #[wasm_bindgen]
     pub fn interpolate_sorted_1d_slice(
         x_out: &[f64],
         x_in: &[f64],
@@ -340,7 +332,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
     ) -> Box<[f64]> {
         let core_stencil_size: usize = 2 * neighbors as usize;
         x_out
-            .par_iter()
+            .iter()
             .map(|x| {
                 let index: usize = x_in
                     .binary_search_by(|a| a.partial_cmp(x).unwrap_or(std::cmp::Ordering::Greater))
