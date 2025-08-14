@@ -17,7 +17,6 @@ from .decorators import yaml_io
 @yaml_io
 @dataclass(slots=True)
 class Waveform:
-
     """Contains data describing an electric field waveform.
     In SI units.
 

@@ -17,7 +17,6 @@ from .spectrogram import Spectrogram
 @yaml_io
 @dataclass(slots=True)
 class FrogData:
-
     """Stores data from a FROG measurement.
 
     Attributes:

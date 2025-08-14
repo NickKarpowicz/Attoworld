@@ -76,7 +76,6 @@ def calibration_apply_to_spectrogram(self, spectrogram_in):
 @yaml_io
 @dataclass
 class CalibrationInput:
-
     """Input parameters for fitting a calibration curve from a data set."""
 
     wavelength_center: float
@@ -223,7 +222,6 @@ def generate_calibration_from_coeffs(amplitude_coeffs, wavelength_coeffs, wavele
 @yaml_io
 @dataclass
 class CalibrationDataset:
-
     """Collects all of the data related to a spectrometer calibration."""
 
     measurement: IntensitySpectrum

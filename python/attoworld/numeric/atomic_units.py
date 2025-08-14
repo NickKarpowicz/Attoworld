@@ -2,7 +2,6 @@
 
 
 class AtomicUnits:
-
     """Defines various physical constants in atomic units.
 
     Attributes:

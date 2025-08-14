@@ -11,7 +11,6 @@ from .decorators import yaml_io
 @yaml_io
 @dataclass(slots=True)
 class ComplexSpectrum:
-
     """Contains a complex spectrum, with spectral weights on a frequency scale.
 
     Attributes:

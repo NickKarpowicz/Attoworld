@@ -42,7 +42,6 @@ def inverse_fourier_transform(freq, fullSpectrum):
 
 
 class LunaResult:
-
     """Loads and handles the Luna simulation result.
 
     The result must be in the HDF5 format using the saving option in the Luna.Interface.prop_capillary() function [filepath="..."].

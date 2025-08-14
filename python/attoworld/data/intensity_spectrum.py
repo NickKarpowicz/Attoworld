@@ -19,7 +19,6 @@ from .decorators import yaml_io
 @yaml_io
 @dataclass(slots=True)
 class IntensitySpectrum:
-
     """Contains an intensity spectrum - real valued. SI units.
 
     Attributes:

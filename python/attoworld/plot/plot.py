@@ -159,7 +159,6 @@ def label_letter(
 
 @dataclass
 class Char:
-
     """Contains useful characters and strings for plot labels.
 
     Examples:

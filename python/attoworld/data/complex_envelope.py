@@ -15,7 +15,6 @@ from .decorators import yaml_io
 @yaml_io
 @dataclass(slots=True)
 class ComplexEnvelope:
-
     """Data corresponding to a complex envelope of a pulse, e.g. from a FROG measurement.
 
     Attributes:

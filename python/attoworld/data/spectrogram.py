@@ -19,7 +19,6 @@ from .decorators import yaml_io
 @yaml_io
 @dataclass(slots=True)
 class Spectrogram:
-
     """Contains the data describing a spectrogram.
 
     Attributes:
