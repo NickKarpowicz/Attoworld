@@ -13,8 +13,7 @@ async def _():
     if is_in_web_notebook:
         import micropip
         import os
-        os.environ['RAYON_NUM_THREADS'] = '1'
-        path_to_attoworld = mo.notebook_location() / "public" / "attoworld-2025.0.37-cp312-cp312-emscripten_3_1_58_wasm32.whl"
+        path_to_attoworld = mo.notebook_location() / "public" / "attoworld-2025.0.38-cp312-cp312-emscripten_3_1_58_wasm32.whl"
         await micropip.install(str(path_to_attoworld))
     else:
         import tkinter as tk
@@ -54,7 +53,7 @@ def _(aw, bin_spatial_chirp_correction, calibration_selector, file_browser):
             )
             input_data = calibration.apply_to_spectrogram(input_data)
         if bin_spatial_chirp_correction.value:
-            input_data.to_removed_spatial_chirp()   
+            input_data.to_removed_spatial_chirp()
     else:
         input_data = None
     return (input_data,)
@@ -118,7 +117,7 @@ def _(
         if bin_median.value:
             _method = "median"
         else:
-            _method = "mean"    
+            _method = "mean"
         frog_data = (
             input_data.to_block_binned(
                 int(bin_fblock.value), int(bin_tblock.value), method=_method
@@ -222,7 +221,7 @@ def _(filedialog, is_in_web_notebook, mo, plot, result, save_plot_button):
             dat = fh.read()
 
         blob = Blob.new([dat], {type : 'application/image'})
-        url = window.URL.createObjectURL(blob) 
+        url = window.URL.createObjectURL(blob)
         window.location.assign(url)
     else:
         _file_path = filedialog.asksaveasfilename(

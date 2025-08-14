@@ -1,6 +1,6 @@
 use numpy::{IntoPyArray, PyArray1, PyReadonlyArrayDyn};
 use pyo3::prelude::*;
-
+use rayon::prelude::*;
 use std::f64;
 
 /// Functions written in Rust for improved performance and correctness.
@@ -257,7 +257,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
             .zip(y_in.iter())
             .map(|(a, b)| (*a, *b))
             .collect();
-        pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Greater));
+        pairs.par_sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Greater));
         pairs.into_iter().unzip()
     }
 
@@ -331,7 +331,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
     ) -> Box<[f64]> {
         let core_stencil_size: usize = 2 * neighbors as usize;
         x_out
-            .iter()
+            .par_iter()
             .map(|x| {
                 let index: usize = x_in
                     .binary_search_by(|a| a.partial_cmp(x).unwrap_or(std::cmp::Ordering::Greater))
