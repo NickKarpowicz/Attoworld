@@ -86,9 +86,9 @@ def blank_roll(data: np.ndarray, step):
     """np.roll, but pulse entering from other side set to zero."""
     rolled = np.roll(data, step)
     if step > 0:
-        rolled[0:step] = 0.0
+        rolled[:step] = 0.0
     elif step < 0:
-        rolled[(-1 + step) : :] = 0.0
+        rolled[step:] = 0.0
     return rolled
 
 
