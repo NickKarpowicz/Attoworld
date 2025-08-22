@@ -140,9 +140,12 @@ def apply_power_method_iteration(Et, Gt, meas_sqrt, power_method_iterations:int=
     return field, field
 
 
-def calculate_g_error(measurement_normalized, pulse):
+def calculate_g_error(measurement_normalized, pulse, gate=None):
     """Calculate G' error helper function."""
-    recon_normalized = np.abs(generate_shg_spectrogram(pulse, pulse)) ** 2
+    if gate is None:
+        recon_normalized = np.abs(generate_shg_spectrogram(pulse, pulse)) ** 2
+    else:
+        recon_normalized = np.abs(generate_shg_spectrogram(pulse, gate)) ** 2
     recon_normalized /= np.linalg.norm(recon_normalized)
     return np.sqrt(
         np.sum((measurement_normalized[:] - recon_normalized[:]) ** 2) / np.sum(measurement_normalized[:] ** 2)
