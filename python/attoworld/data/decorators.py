@@ -68,6 +68,10 @@ def yaml_io(cls):
             data = yaml.load(file, yaml.SafeLoader)
             return cls.from_dict(data)
 
+    def load_yaml_bytestream(cls, stream):
+        data = yaml.load(stream, yaml.SafeLoader)
+        return cls.from_dict(data)
+
     def save_yaml(instance, filename: str):
         """Save to a yaml file.
 
@@ -102,6 +106,7 @@ def yaml_io(cls):
 
     cls.from_dict = classmethod(from_dict)
     cls.load_yaml = classmethod(load_yaml)
+    cls.load_yaml_bytestream = classmethod(load_yaml_bytestream)
     cls.to_dict = to_dict
     cls.save_yaml = save_yaml
     return cls

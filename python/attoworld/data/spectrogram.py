@@ -15,6 +15,20 @@ from ..numeric import (
 )
 from .decorators import yaml_io
 
+@yaml_io
+@dataclass(slots=True)
+class FrogBinSettings:
+    """
+    Stores the settings for binning a FROG measurement
+    """
+    size: int
+    dt: float
+    f0: float
+    dc_offset: float
+    time_binning: int
+    freq_binning: int
+    median_binning: bool
+    spatial_chirp_correction: bool
 
 @yaml_io
 @dataclass(slots=True)
@@ -214,6 +228,35 @@ class Spectrogram:
                 _t, self.time - t0, np.array(binned_data[_i, :]), neighbors=2
             )
         return Spectrogram(data=binned_data_square, time=_t, freq=_f)
+
+    def to_bin_pipeline_result(self, settings: FrogBinSettings):
+        """Apply a FrogBinSettings dataclass to the spectrogram.
+
+        Args:
+            settings (FrogBinSettings): the dataclass to apply
+        """
+        if settings.median_binning:
+            method = "media"
+        else:
+            method = "mean"
+        def maybe_correct_chirp(instance, apply:bool):
+            return instance.to_removed_spatial_chirp() if apply else instance
+
+        return (
+        maybe_correct_chirp(self, settings.spatial_chirp_correction)
+        .to_block_binned(
+            settings.freq_binning,
+            settings.time_binning,
+            method
+        )
+        .to_binned(
+            dim = settings.size,
+            dt = settings.dt,
+            f0 = settings.f0
+        )
+        .to_per_frequency_dc_removed(extra_offset=settings.dc_offset)
+        )
+
 
     def plot(self, ax: Optional[Axes] = None):
         """Plot the spectrogram.

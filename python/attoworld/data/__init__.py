@@ -12,6 +12,7 @@ from .file_io import (
     read_Trebino_FROG_speck,
 )
 from .frog_data import FrogData, Spectrogram
+from .spectrogram import FrogBinSettings
 from .interop import (
     ComplexEnvelope,
     ComplexSpectrum,
@@ -44,6 +45,7 @@ __all__ = [
     "IntensitySpectrum",
     "ComplexEnvelope",
     "Spectrogram",
+    "FrogBinSettings",
     "CalibrationDataset",
     "CalibrationInput",
 ]

@@ -31,7 +31,6 @@ def read_dwc(file_or_path, is_buffer: bool = False):
         lines = file_or_path.readlines()
         delay_increment = float(lines[2].decode().strip().split("=")[1])
         file_or_path.seek(0)
-        print(delay_increment)
     else:
         with open(file_or_path, "r") as file:
             lines = file.readlines()
