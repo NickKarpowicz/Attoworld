@@ -110,7 +110,7 @@ def apply_iteration(Et, Gt, meas_sqrt):
     new_sg = meas_sqrt * np.exp(1j * np.angle(new_sg))
     new_sg = np.fft.ifft(new_sg, axis=0)
     for _i in range(len(Et)):
-        new_sg[_i, :] = blank_roll(new_sg[_i, :], _i - +int(Et.shape[0] / 2))
+        new_sg[_i, :] = blank_roll(new_sg[_i, :], _i - int(Et.shape[0] / 2))
     u, s, v = np.linalg.svd(new_sg)
     field = u[:, 0].squeeze()
     gate = v[0, :].squeeze()
@@ -192,11 +192,11 @@ def reconstruct_shg_frog_core(
 
 def generate_gate_from_frog(reconstructed_gate: FrogData, target_spectrogram: Spectrogram):
     """Generate a gate array to be used in an XFROG reconstruction.
-    
+
     Args:
         reconstructed_gate: a previous FROG result of the gate pulse
         target_spectrogram: the XFROG spectrogram to match the gate to
-    
+
     Returns:
         np.ndarray: the gate to give to the reconstruct_xfrog_core function
     """
@@ -297,7 +297,7 @@ def reconstruct_shg_frog(
         measurement=sqrt_sg,
         f0=float(np.mean(measurement.freq) / 2.0),
     )
-    
+
 def reconstruct_xfrog(
     measurement: Spectrogram,
     gate: FrogData,
@@ -318,7 +318,7 @@ def reconstruct_xfrog(
     FrogData: the completed reconstruction
 
     """
-    
+
     gate = generate_gate_from_frog(gate, measurement)
     sqrt_sg = np.fft.fftshift(
         np.sqrt(measurement.data - np.min(measurement.data[:])), axes=0

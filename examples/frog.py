@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.1"
+__generated_with = "0.15.2"
 app = marimo.App(width="medium")
 
 
@@ -113,10 +113,8 @@ def _(aw, calibration_selector, file_browser):
 @app.cell
 def _(mo):
     bin_loaded_file = mo.ui.file(filetypes=[".yml"], label="Load settings from .yml")
-    bin_use_loaded_settings = mo.ui.checkbox(label="Use loaded settings", value=False)
-    mo.output.append(bin_loaded_file)
-    mo.output.append(bin_use_loaded_settings)
-    return bin_loaded_file, bin_use_loaded_settings
+    bin_loaded_file
+    return (bin_loaded_file,)
 
 
 @app.cell
@@ -125,33 +123,32 @@ def _(aw, bin_loaded_file):
     if _contents is not None:
         loaded_settings = aw.data.FrogBinSettings.load_yaml_bytestream(_contents)
     else:
-        loaded_settings = None
+        loaded_settings = aw.data.FrogBinSettings(size=96,dt=3e-15,f0=740e12,dc_offset=0.0002,freq_binning=16,time_binning=2,median_binning=False,spatial_chirp_correction=False)
     return (loaded_settings,)
 
 
 @app.cell
-def _(bin_use_loaded_settings, is_in_web_notebook, mo):
-    if not bin_use_loaded_settings.value:
-        bin_size = mo.ui.number(label="size", value=96, step=2)
-        bin_dt = mo.ui.number(label="dt (fs)", value=3, step=0.1)
-        bin_f0 = mo.ui.number(label="f0 (THz)", value=740, step=1)
-        bin_offset = mo.ui.number(label="dark noise level", value=0.0002, step=1e-5)
-        bin_fblock = mo.ui.number(label="freq block avg.", value=16, step=1)
-        bin_tblock = mo.ui.number(label="time block avg.", value=1, step=1)
-        bin_median = mo.ui.checkbox(label="median blocking", value=False)
-        bin_spatial_chirp_correction = mo.ui.checkbox(label="correct spatial chirp", value=False)
-        mo.output.append(bin_size)
-        mo.output.append(bin_dt)
-        mo.output.append(bin_f0)
-        mo.output.append(bin_offset)
-        mo.output.append(bin_fblock)
-        mo.output.append(bin_tblock)
-        mo.output.append(bin_median)
-        mo.output.append(bin_spatial_chirp_correction)
+def _(is_in_web_notebook, loaded_settings, mo):
+    bin_size = mo.ui.number(label="size", value=loaded_settings.size, step=2)
+    bin_dt = mo.ui.number(label="dt (fs)", value=loaded_settings.dt*1e15, step=0.1)
+    bin_f0 = mo.ui.number(label="f0 (THz)", value=loaded_settings.f0*1e-12, step=1)
+    bin_offset = mo.ui.number(label="dark noise level", value=loaded_settings.dc_offset, step=1e-5)
+    bin_fblock = mo.ui.number(label="freq block avg.", value=loaded_settings.freq_binning, step=1)
+    bin_tblock = mo.ui.number(label="time block avg.", value=loaded_settings.time_binning, step=1)
+    bin_median = mo.ui.checkbox(label="median blocking", value=loaded_settings.median_binning)
+    bin_spatial_chirp_correction = mo.ui.checkbox(label="correct spatial chirp", value=loaded_settings.spatial_chirp_correction)
+    mo.output.append(bin_size)
+    mo.output.append(bin_dt)
+    mo.output.append(bin_f0)
+    mo.output.append(bin_offset)
+    mo.output.append(bin_fblock)
+    mo.output.append(bin_tblock)
+    mo.output.append(bin_median)
+    mo.output.append(bin_spatial_chirp_correction)
 
-        if not is_in_web_notebook:
-            bin_save_button = mo.ui.run_button(label="Save settings")
-            mo.output.append(bin_save_button)
+    if not is_in_web_notebook:
+        bin_save_button = mo.ui.run_button(label="Save settings")
+        mo.output.append(bin_save_button)
     return (
         bin_dt,
         bin_f0,
@@ -166,15 +163,6 @@ def _(bin_use_loaded_settings, is_in_web_notebook, mo):
 
 
 @app.cell
-def _(mo):
-    bin_button = mo.ui.run_button(label="bin")
-    bin_live = mo.ui.checkbox(label="live update")
-    mo.output.append(bin_live)
-    mo.output.append(bin_button)
-    return bin_button, bin_live
-
-
-@app.cell
 def _(
     aw,
     bin_dt,
@@ -185,38 +173,30 @@ def _(
     bin_size,
     bin_spatial_chirp_correction,
     bin_tblock,
-    bin_use_loaded_settings,
-    loaded_settings,
 ):
-    if bin_use_loaded_settings.value:
-        bin_settings = loaded_settings
-    else:
-        bin_settings = aw.data.FrogBinSettings(
-            size=int(bin_size.value),
-            dt=bin_dt.value * 1e-15,
-            f0=bin_f0.value * 1e12,
-            dc_offset=bin_offset.value,
-            time_binning=int(bin_tblock.value),
-            freq_binning=int(bin_fblock.value),
-            median_binning=bool(bin_median.value),
-            spatial_chirp_correction=bool(bin_spatial_chirp_correction.value),
-        )
+    bin_settings = aw.data.FrogBinSettings(
+        size=int(bin_size.value),
+        dt=bin_dt.value * 1e-15,
+        f0=bin_f0.value * 1e12,
+        dc_offset=bin_offset.value,
+        time_binning=int(bin_tblock.value),
+        freq_binning=int(bin_fblock.value),
+        median_binning=bool(bin_median.value),
+        spatial_chirp_correction=bool(bin_spatial_chirp_correction.value),
+    )
     return (bin_settings,)
 
 
 @app.cell
 def _(
     aw,
-    bin_button,
-    bin_live,
     bin_settings,
     display_download_link_from_file,
     input_data,
     is_in_web_notebook,
-    mo,
 ):
-    if not bin_live.value:
-        mo.stop(not bin_button.value)
+    # if not bin_live.value:
+    #     mo.stop(not bin_button.value)
     if input_data is not None:
         frog_data = input_data.to_bin_pipeline_result(bin_settings)
         frog_data.plot_log()
