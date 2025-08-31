@@ -53,6 +53,7 @@ async def _():
 
     import attoworld as aw
     import numpy as np
+    import pathlib
 
     aw.plot.set_style("nick_dark")
     return (
@@ -62,6 +63,7 @@ async def _():
         is_in_web_notebook,
         mo,
         np,
+        pathlib,
         zipfile,
     )
 
@@ -89,10 +91,37 @@ def _(mo):
 
 @app.cell
 def _(mo, mode_selector):
-    xfrog_reference_file = mo.ui.file(filetypes=[".yml"], label="Select reference .yml file")
+    xfrog_reference_file = mo.ui.file(filetypes=[".yml",".dat"], label="Select reference file")
+    xfrog_time_reverse_checkbox = mo.ui.checkbox(label="Reverse time")
     if(mode_selector.value == "XFROG"):
         mo.output.append(xfrog_reference_file)
-    return
+        mo.output.append(xfrog_time_reverse_checkbox)
+    return xfrog_reference_file, xfrog_time_reverse_checkbox
+
+
+@app.cell
+def _(
+    aw,
+    mo,
+    mode_selector,
+    np,
+    pathlib,
+    xfrog_reference_file,
+    xfrog_time_reverse_checkbox,
+):
+    if((mode_selector.value == "XFROG") and (xfrog_reference_file.name() is not None)):
+        mo.output.append(mo.md("### Loaded reference:"))
+        print(xfrog_reference_file.name())
+        _type = pathlib.Path(xfrog_reference_file.name()).suffix
+        if _type == ".yml":
+            xfrog_reference = aw.data.FrogData.load_yaml_bytestream(xfrog_reference_file.contents())
+            if xfrog_time_reverse_checkbox.value:
+                xfrog_reference.raw_reconstruction = np.flipud(xfrog_reference.raw_reconstruction)
+                xfrog_reference.pulse.wave = np.flipud(xfrog_reference.pulse.wave)
+                xfrog_reference.spectrum.spectrum = np.conj(xfrog_reference.spectrum.spectrum)
+            xfrog_reference.plot_all(figsize=(9,6))
+            aw.plot.showmo()
+    return (xfrog_reference,)
 
 
 @app.cell
@@ -255,19 +284,31 @@ def _(
     aw,
     frog_data,
     mo,
+    mode_selector,
     recon_followups,
     recon_trial_length,
     recon_trials,
     reconstruct_button,
+    xfrog_reference,
 ):
     mo.stop(not reconstruct_button.value)
     if frog_data is not None:
-        result = aw.wave.reconstruct_shg_frog(
-            measurement=frog_data,
-            repeats=int(recon_trials.value),
-            test_iterations=int(recon_trial_length.value),
-            polish_iterations=int(recon_followups.value),
-        )
+        if (mode_selector.value == "XFROG"):
+            result = aw.wave.reconstruct_xfrog(
+                measurement=frog_data,
+                gate=xfrog_reference,
+                repeats=int(recon_trials.value),
+                test_iterations=int(recon_trial_length.value),
+                polish_iterations=int(recon_followups.value),
+            )
+        else:
+            result = aw.wave.reconstruct_shg_frog(
+                measurement=frog_data,
+                repeats=int(recon_trials.value),
+                test_iterations=int(recon_trial_length.value),
+                polish_iterations=int(recon_followups.value),
+            )
+
     else:
         result = None
     return (result,)

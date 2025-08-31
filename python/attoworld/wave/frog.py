@@ -203,8 +203,8 @@ def generate_gate_from_frog(reconstructed_gate: FrogData, target_spectrogram: Sp
     t_gate = reconstructed_gate.dt * np.arange(reconstructed_gate.raw_reconstruction.shape[0])
     t_gate -= np.mean(t_gate)
     t_reconstruction = target_spectrogram.time - np.mean(target_spectrogram.time)
-    interpolated_real = interpolate(t_reconstruction, t_gate, np.real(reconstructed_gate.raw_reconstruction),inputs_are_sorted=True)
-    interpolated_imag = interpolate(t_reconstruction, t_gate, np.imag(reconstructed_gate.raw_reconstruction),inputs_are_sorted=True)
+    interpolated_real = interpolate(t_reconstruction, t_gate, np.array(np.real(reconstructed_gate.raw_reconstruction)),inputs_are_sorted=True)
+    interpolated_imag = interpolate(t_reconstruction, t_gate, np.array(np.imag(reconstructed_gate.raw_reconstruction)),inputs_are_sorted=True)
     return interpolated_real + 1j * interpolated_imag
 
 def reconstruct_xfrog_core(
