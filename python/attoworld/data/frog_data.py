@@ -148,6 +148,7 @@ class FrogData:
         self,
         phase_blanking=0.05,
         time_xlims=None,
+        wavelength_autoscale=1e-3,
         wavelength_xlims=None,
         figsize=None,
         log: bool = False,
@@ -158,6 +159,7 @@ class FrogData:
         Args:
             phase_blanking: relative intensity at which to show phase information
             time_xlims: x-axis limits to pass to the plot of the pulse
+            wavelength_autoscale: intensity relative to the peak to include within the spectrum (overrides wavelength_xlims unless set to None)
             wavelength_xlims: x-axis limits to pass to the plot of the spectrum
             figsize: custom figure size
             log (bool): plot on log scale
@@ -173,6 +175,12 @@ class FrogData:
         label_letter("b", ax[1, 0])
         self.plot_pulse(ax[0, 1], xlim=time_xlims, phase_blanking=phase_blanking)
         label_letter("c", ax[0, 1])
+        if wavelength_autoscale is not None:
+            if not isinstance(wavelength_xlims, tuple):
+                spec = self.spectrum.to_intensity_spectrum()
+                wl_nm = spec.wavelength_nm()
+                indices = np.where(spec.spectrum / np.max(spec.spectrum) > wavelength_autoscale)[0]
+                wavelength_xlims = (wl_nm[indices[-1]], wl_nm[indices[0]])
         self.plot_spectrum(
             ax[1, 1], xlim=wavelength_xlims, phase_blanking=phase_blanking
         )

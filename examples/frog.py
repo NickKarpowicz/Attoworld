@@ -320,17 +320,13 @@ def _(
     display_download_link_from_file,
     file_base,
     is_in_web_notebook,
-    np,
     result,
     zipfile,
 ):
     if result is not None:
-        spec = result.spectrum.to_intensity_spectrum()
-        indices = np.where(spec.spectrum / np.max(spec.spectrum) > 3e-3)[0]
-        wl_nm = spec.wavelength_nm()
         plot = result.plot_all(
             figsize=(9, 6),
-            wavelength_xlims=(wl_nm[indices[-1]], wl_nm[indices[0]]),
+            wavelength_autoscale=1e-3
         )
         aw.plot.showmo()
 
@@ -355,16 +351,6 @@ def _(
             )
             display_download_link_from_file(f"{file_base.value}.yml",output_name=f"{file_base.value}.yml",mime_type="text/yaml")
     return (plot,)
-
-
-@app.cell
-def _(aw, np, result):
-    if result is not None:
-        import matplotlib.pyplot as plt
-        print(result.pulse.dt)
-        plt.plot(np.fft.fftfreq(result.pulse.time.shape[0], result.pulse.dt), np.abs(np.fft.fft(result.pulse.wave)))
-        aw.plot.showmo()
-    return
 
 
 @app.cell
