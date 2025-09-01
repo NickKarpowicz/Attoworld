@@ -291,11 +291,13 @@ def reconstruct_shg_frog(
     result = reconstruct_shg_frog_core(
         sqrt_sg, guess=results[:, min_error_index], max_iterations=polish_iterations
     )
+    nyquist_factor = int(np.ceil(2 * (measurement.time[1] - measurement.time[0]) * measurement.freq[-1]))
     return bundle_frog_reconstruction(
         t=measurement.time,
         result=result,
         measurement=sqrt_sg,
         f0=float(np.mean(measurement.freq) / 2.0),
+        interpolation_factor = nyquist_factor
     )
 
 def reconstruct_xfrog(
@@ -337,10 +339,12 @@ def reconstruct_xfrog(
     result = reconstruct_xfrog_core(
         sqrt_sg, gate, guess=results[:, min_error_index], max_iterations=polish_iterations
     )
+    nyquist_factor = int(np.ceil(2 * (measurement.time[1] - measurement.time[0]) * measurement.freq[-1]))
     return bundle_frog_reconstruction(
         t=measurement.time,
         result=result,
         measurement=sqrt_sg,
         f0=float(np.mean(measurement.freq) / 2.0),
-        gate=gate
+        gate=gate,
+        interpolation_factor = nyquist_factor
     )

@@ -160,7 +160,7 @@ def _(aw, bin_loaded_file):
 def _(is_in_web_notebook, loaded_settings, mo):
     bin_size = mo.ui.number(label="size", value=loaded_settings.size, step=2)
     bin_dt = mo.ui.number(label="dt (fs)", value=loaded_settings.dt*1e15, step=0.1)
-    bin_f0 = mo.ui.number(label="f0 (THz)", value=loaded_settings.f0*1e-12, step=1)
+    bin_f0 = mo.ui.number(label="f0 (THz)", value=loaded_settings.f0*1e-12, step=0.1)
     bin_offset = mo.ui.number(label="dark noise level", value=loaded_settings.dc_offset, step=1e-5)
     bin_fblock = mo.ui.number(label="freq block avg.", value=loaded_settings.freq_binning, step=1)
     bin_tblock = mo.ui.number(label="time block avg.", value=loaded_settings.time_binning, step=1)
@@ -355,6 +355,16 @@ def _(
             )
             display_download_link_from_file(f"{file_base.value}.yml",output_name=f"{file_base.value}.yml",mime_type="text/yaml")
     return (plot,)
+
+
+@app.cell
+def _(aw, np, result):
+    if result is not None:
+        import matplotlib.pyplot as plt
+        print(result.pulse.dt)
+        plt.plot(np.fft.fftfreq(result.pulse.time.shape[0], result.pulse.dt), np.abs(np.fft.fft(result.pulse.wave)))
+        aw.plot.showmo()
+    return
 
 
 @app.cell
