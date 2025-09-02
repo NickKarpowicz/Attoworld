@@ -12,7 +12,6 @@ from .file_io import (
     read_Trebino_FROG_speck,
 )
 from .frog_data import FrogData, Spectrogram
-from .spectrogram import FrogBinSettings
 from .interop import (
     ComplexEnvelope,
     ComplexSpectrum,
@@ -20,6 +19,7 @@ from .interop import (
     Waveform,
 )
 from .luna_result import LunaResult
+from .spectrogram import FrogBinSettings
 from .spectrometer_calibration_dataset import (
     CalibrationDataset,
     CalibrationInput,

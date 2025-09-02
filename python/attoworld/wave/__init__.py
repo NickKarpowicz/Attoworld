@@ -4,7 +4,7 @@ from .frog import (
     bundle_frog_reconstruction,
     generate_shg_spectrogram,
     reconstruct_shg_frog,
-    reconstruct_xfrog
+    reconstruct_xfrog,
 )
 from .wave import align_waves
 

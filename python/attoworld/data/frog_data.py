@@ -179,7 +179,9 @@ class FrogData:
             if not isinstance(wavelength_xlims, tuple):
                 spec = self.spectrum.to_intensity_spectrum()
                 wl_nm = spec.wavelength_nm()
-                indices = np.where(spec.spectrum / np.max(spec.spectrum) > wavelength_autoscale)[0]
+                indices = np.where(
+                    spec.spectrum / np.max(spec.spectrum) > wavelength_autoscale
+                )[0]
                 wavelength_xlims = (wl_nm[indices[-1]], wl_nm[indices[0]])
         self.plot_spectrum(
             ax[1, 1], xlim=wavelength_xlims, phase_blanking=phase_blanking

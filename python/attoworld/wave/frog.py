@@ -18,7 +18,12 @@ def shift_to_zero_and_normalize(Et):
 
 
 def bundle_frog_reconstruction(
-    t, result, measurement, f0: float = 375e12, interpolation_factor: int = 100, gate = None
+    t,
+    result,
+    measurement,
+    f0: float = 375e12,
+    interpolation_factor: int = 100,
+    gate=None,
 ):
     """Turn the results of a FROG reconstruction into a FrogData struct.
 
@@ -28,6 +33,7 @@ def bundle_frog_reconstruction(
         measurement: the measured spectrogram, sqrt-ed and fftshift-ed
         f0 (float): the central frequency (Hz)
         interpolation_factor (int): factor by which to interpolate to get a valid waveform (Nyquist)
+        gate: the gate complex envelope (optional, used in xfrog)
 
     Returns:
         FrogData: the bundled data
@@ -122,13 +128,15 @@ def apply_iteration(Et, Gt, meas_sqrt):
     gate = np.mean(new_sg, axis=1)
     return field, gate
 
-def apply_power_method_iteration(Et, Gt, meas_sqrt, power_method_iterations:int=2):
+
+def apply_power_method_iteration(Et, Gt, meas_sqrt, power_method_iterations: int = 2):
     """Apply an iteration of the generalized projections SHG-FROG.
 
     Args:
         Et: field
         Gt: gate
         meas_sqrt: the measurement, sqrt-ed and fftshift, axes=0
+        power_method_iterations: number of iterations to apply
 
     Returns:
         np.ndarray, np.ndarray: field, gate
@@ -156,7 +164,8 @@ def calculate_g_error(measurement_normalized, pulse, gate=None):
         recon_normalized = np.abs(generate_shg_spectrogram(pulse, gate)) ** 2
     recon_normalized /= np.linalg.norm(recon_normalized)
     return np.sqrt(
-        np.sum((measurement_normalized[:] - recon_normalized[:]) ** 2) / np.sum(measurement_normalized[:] ** 2)
+        np.sum((measurement_normalized[:] - recon_normalized[:]) ** 2)
+        / np.sum(measurement_normalized[:] ** 2)
     )
 
 
@@ -175,7 +184,7 @@ def reconstruct_shg_frog_core(
 
     """
     measurement_norm = measurement_sg_sqrt**2
-    measurement_norm = measurement_norm/np.linalg.norm(measurement_norm)
+    measurement_norm = measurement_norm / np.linalg.norm(measurement_norm)
     if guess is None:
         guess_pulse = np.random.randn(
             measurement_sg_sqrt.shape[0]
@@ -196,7 +205,10 @@ def reconstruct_shg_frog_core(
             best = current
     return best
 
-def generate_gate_from_frog(reconstructed_gate: FrogData, target_spectrogram: Spectrogram):
+
+def generate_gate_from_frog(
+    reconstructed_gate: FrogData, target_spectrogram: Spectrogram
+):
     """Generate a gate array to be used in an XFROG reconstruction.
 
     Args:
@@ -205,13 +217,27 @@ def generate_gate_from_frog(reconstructed_gate: FrogData, target_spectrogram: Sp
 
     Returns:
         np.ndarray: the gate to give to the reconstruct_xfrog_core function
+
     """
-    t_gate = reconstructed_gate.dt * np.arange(reconstructed_gate.raw_reconstruction.shape[0])
+    t_gate = reconstructed_gate.dt * np.arange(
+        reconstructed_gate.raw_reconstruction.shape[0]
+    )
     t_gate -= np.mean(t_gate)
     t_reconstruction = target_spectrogram.time - np.mean(target_spectrogram.time)
-    interpolated_real = interpolate(t_reconstruction, t_gate, np.array(np.real(reconstructed_gate.raw_reconstruction)),inputs_are_sorted=True)
-    interpolated_imag = interpolate(t_reconstruction, t_gate, np.array(np.imag(reconstructed_gate.raw_reconstruction)),inputs_are_sorted=True)
+    interpolated_real = interpolate(
+        t_reconstruction,
+        t_gate,
+        np.array(np.real(reconstructed_gate.raw_reconstruction)),
+        inputs_are_sorted=True,
+    )
+    interpolated_imag = interpolate(
+        t_reconstruction,
+        t_gate,
+        np.array(np.imag(reconstructed_gate.raw_reconstruction)),
+        inputs_are_sorted=True,
+    )
     return interpolated_real + 1j * interpolated_imag
+
 
 def reconstruct_xfrog_core(
     measurement_sg_sqrt, gate, guess=None, max_iterations: int = 200
@@ -220,6 +246,7 @@ def reconstruct_xfrog_core(
 
     Args:
         measurement_sg_sqrt: measured spectrogram, sqrt + fftshift(axes=0)
+        gate: complex-valued time-domain gate pulse
         guess: initial guess for the field (will be randomly generated if not set)
         max_iterations: number of iterations to run
 
@@ -228,7 +255,7 @@ def reconstruct_xfrog_core(
 
     """
     measurement_norm = measurement_sg_sqrt**2
-    measurement_norm = measurement_norm/np.linalg.norm(measurement_norm)
+    measurement_norm = measurement_norm / np.linalg.norm(measurement_norm)
     if guess is None:
         guess_pulse = np.random.randn(
             measurement_sg_sqrt.shape[0]
@@ -247,6 +274,7 @@ def reconstruct_xfrog_core(
             best_error = current_error
             best = current
     return best
+
 
 def fix_aliasing(result):
     """Check if the reconstruction is aliased.
@@ -285,7 +313,7 @@ def reconstruct_shg_frog(
     )
     sqrt_sg /= np.max(sqrt_sg)
     measurement_norm = sqrt_sg**2
-    measurement_norm = measurement_norm/np.linalg.norm(measurement_norm)
+    measurement_norm = measurement_norm / np.linalg.norm(measurement_norm)
     results = np.zeros((sqrt_sg.shape[0], repeats), dtype=np.complex128)
     errors = np.zeros(repeats, dtype=float)
     for _i in range(repeats):
@@ -297,14 +325,17 @@ def reconstruct_shg_frog(
     result = reconstruct_shg_frog_core(
         sqrt_sg, guess=results[:, min_error_index], max_iterations=polish_iterations
     )
-    nyquist_factor = int(np.ceil(2 * (measurement.time[1] - measurement.time[0]) * measurement.freq[-1]))
+    nyquist_factor = int(
+        np.ceil(2 * (measurement.time[1] - measurement.time[0]) * measurement.freq[-1])
+    )
     return bundle_frog_reconstruction(
         t=measurement.time,
         result=result,
         measurement=sqrt_sg,
         f0=float(np.mean(measurement.freq) / 2.0),
-        interpolation_factor = nyquist_factor
+        interpolation_factor=nyquist_factor,
     )
+
 
 def reconstruct_xfrog(
     measurement: Spectrogram,
@@ -326,14 +357,13 @@ def reconstruct_xfrog(
     FrogData: the completed reconstruction
 
     """
-
     gate_pulse = generate_gate_from_frog(gate, measurement)
     sqrt_sg = np.fft.fftshift(
         np.sqrt(measurement.data - np.min(measurement.data[:])), axes=0
     )
     sqrt_sg /= np.max(sqrt_sg)
     measurement_norm = sqrt_sg**2
-    measurement_norm = measurement_norm/np.linalg.norm(measurement_norm)
+    measurement_norm = measurement_norm / np.linalg.norm(measurement_norm)
     results = np.zeros((sqrt_sg.shape[0], repeats), dtype=np.complex128)
     errors = np.zeros(repeats, dtype=float)
     for _i in range(repeats):
@@ -343,14 +373,19 @@ def reconstruct_xfrog(
         errors[_i] = calculate_g_error(measurement_norm, results[:, _i])
     min_error_index = np.argmin(errors)
     result = reconstruct_xfrog_core(
-        sqrt_sg, gate_pulse, guess=results[:, min_error_index], max_iterations=polish_iterations
+        sqrt_sg,
+        gate_pulse,
+        guess=results[:, min_error_index],
+        max_iterations=polish_iterations,
     )
-    nyquist_factor = int(np.ceil(2 * (measurement.time[1] - measurement.time[0]) * measurement.freq[-1]))
+    nyquist_factor = int(
+        np.ceil(2 * (measurement.time[1] - measurement.time[0]) * measurement.freq[-1])
+    )
     return bundle_frog_reconstruction(
         t=measurement.time,
         result=result,
         measurement=sqrt_sg,
         f0=float(np.mean(measurement.freq) - gate.f0),
         gate=gate_pulse,
-        interpolation_factor = nyquist_factor
+        interpolation_factor=nyquist_factor,
     )
