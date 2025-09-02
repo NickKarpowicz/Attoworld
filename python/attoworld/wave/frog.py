@@ -111,9 +111,15 @@ def apply_iteration(Et, Gt, meas_sqrt):
     new_sg = np.fft.ifft(new_sg, axis=0)
     for _i in range(len(Et)):
         new_sg[_i, :] = blank_roll(new_sg[_i, :], _i - int(Et.shape[0] / 2))
-    u, s, v = np.linalg.svd(new_sg)
-    field = u[:, 0].squeeze()
-    gate = v[0, :].squeeze()
+
+    # Principle component based pulse extraction
+    # u, s, v = np.linalg.svd(new_sg)
+    # field = u[:, 0].squeeze()
+    # gate = v[0, :].squeeze()
+
+    # Simpler extraction
+    field = np.mean(new_sg, axis=0)
+    gate = np.mean(new_sg, axis=1)
     return field, gate
 
 def apply_power_method_iteration(Et, Gt, meas_sqrt, power_method_iterations:int=2):
@@ -321,7 +327,7 @@ def reconstruct_xfrog(
 
     """
 
-    gate = generate_gate_from_frog(gate, measurement)
+    gate_pulse = generate_gate_from_frog(gate, measurement)
     sqrt_sg = np.fft.fftshift(
         np.sqrt(measurement.data - np.min(measurement.data[:])), axes=0
     )
@@ -332,19 +338,19 @@ def reconstruct_xfrog(
     errors = np.zeros(repeats, dtype=float)
     for _i in range(repeats):
         results[:, _i] = reconstruct_xfrog_core(
-            sqrt_sg, gate, max_iterations=test_iterations
+            sqrt_sg, gate_pulse, max_iterations=test_iterations
         )
         errors[_i] = calculate_g_error(measurement_norm, results[:, _i])
     min_error_index = np.argmin(errors)
     result = reconstruct_xfrog_core(
-        sqrt_sg, gate, guess=results[:, min_error_index], max_iterations=polish_iterations
+        sqrt_sg, gate_pulse, guess=results[:, min_error_index], max_iterations=polish_iterations
     )
     nyquist_factor = int(np.ceil(2 * (measurement.time[1] - measurement.time[0]) * measurement.freq[-1]))
     return bundle_frog_reconstruction(
         t=measurement.time,
         result=result,
         measurement=sqrt_sg,
-        f0=float(np.mean(measurement.freq) / 2.0),
-        gate=gate,
+        f0=float(np.mean(measurement.freq) - gate.f0),
+        gate=gate_pulse,
         interpolation_factor = nyquist_factor
     )

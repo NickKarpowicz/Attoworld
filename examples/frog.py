@@ -19,7 +19,7 @@ async def _():
         path_to_attoworld = (
             mo.notebook_location()
             / "public"
-            / "attoworld-2025.0.38-cp312-cp312-emscripten_3_1_58_wasm32.whl"
+            / "attoworld-2025.0.39-cp312-cp312-emscripten_3_1_58_wasm32.whl"
         )
         micropip.uninstall("attoworld")
         await micropip.install(str(path_to_attoworld))
