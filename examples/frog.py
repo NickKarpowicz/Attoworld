@@ -84,7 +84,7 @@ def _(aw, mo):
 
 @app.cell
 def _(mo):
-    mode_selector = mo.ui.dropdown(options=["SHG", "THG", "Kerr", "XFROG"], label="FROG type:", value="SHG")
+    mode_selector = mo.ui.dropdown(options=["SHG", "THG", "Kerr", "XFROG", "BlindFROG"], label="FROG type:", value="SHG")
     mode_selector
     return (mode_selector,)
 
@@ -111,7 +111,6 @@ def _(
 ):
     if((mode_selector.value == "XFROG") and (xfrog_reference_file.name() is not None)):
         mo.output.append(mo.md("### Loaded reference:"))
-        print(xfrog_reference_file.name())
         _type = pathlib.Path(xfrog_reference_file.name()).suffix
         if _type == ".yml":
             xfrog_reference = aw.data.FrogData.load_yaml_bytestream(xfrog_reference_file.contents())
@@ -293,26 +292,36 @@ def _(
 ):
     mo.stop(not reconstruct_button.value)
     if frog_data is not None:
-        if (mode_selector.value == "XFROG"):
-            result, xfrog_gate = aw.wave.reconstruct_xfrog(
-                measurement=frog_data,
-                gate=xfrog_reference,
-                repeats=int(recon_trials.value),
-                test_iterations=int(recon_trial_length.value),
-                polish_iterations=int(recon_followups.value),
-            )
-        else:
-            result = aw.wave.reconstruct_frog(
-                measurement=frog_data,
-                repeats=int(recon_trials.value),
-                test_iterations=int(recon_trial_length.value),
-                polish_iterations=int(recon_followups.value),
-                nonlinearity=mode_selector.value
-            )
+
+        match mode_selector.value:
+            case "XFROG":
+                result = aw.wave.reconstruct_xfrog(
+                    measurement=frog_data,
+                    gate=xfrog_reference,
+                    repeats=int(recon_trials.value),
+                    test_iterations=int(recon_trial_length.value),
+                    polish_iterations=int(recon_followups.value),
+                )
+            case "BlindFROG":
+                result, result_gate = aw.wave.reconstruct_blindfrog(
+                    measurement=frog_data,
+                    repeats=int(recon_trials.value),
+                    test_iterations=int(recon_trial_length.value),
+                    polish_iterations=int(recon_followups.value),
+                )
+            case _:
+                result = aw.wave.reconstruct_frog(
+                    measurement=frog_data,
+                    repeats=int(recon_trials.value),
+                    test_iterations=int(recon_trial_length.value),
+                    polish_iterations=int(recon_followups.value),
+                    nonlinearity=mode_selector.value
+                )
+        
 
     else:
         result = None
-    return result, xfrog_gate
+    return result, result_gate
 
 
 @app.cell
@@ -321,7 +330,10 @@ def _(
     display_download_link_from_file,
     file_base,
     is_in_web_notebook,
+    mo,
+    mode_selector,
     result,
+    result_gate,
     zipfile,
 ):
     if result is not None:
@@ -330,6 +342,13 @@ def _(
             wavelength_autoscale=1e-3
         )
         aw.plot.showmo()
+        if mode_selector.value == "BlindFROG":
+            mo.output.append(mo.md("### Gate"))
+            plot_gate = result_gate.plot_all(
+                figsize=(9, 6),
+                wavelength_autoscale=1e-3
+            )
+            aw.plot.showmo()
 
         if is_in_web_notebook:
             plot.savefig("temp.svg")
@@ -352,17 +371,6 @@ def _(
             )
             display_download_link_from_file(f"{file_base.value}.yml",output_name=f"{file_base.value}.yml",mime_type="text/yaml")
     return (plot,)
-
-
-@app.cell
-def _(aw, mode_selector, np, xfrog_gate):
-    import matplotlib.pyplot as plt
-    if (mode_selector.value == "XFROG"):
-        plt.plot(np.real(xfrog_gate))
-        plt.plot(np.imag(xfrog_gate))
-        plt.plot(np.abs(xfrog_gate))
-        aw.plot.showmo()
-    return
 
 
 @app.cell

@@ -284,12 +284,10 @@ def reconstruct_blindfrog_core(
     """
     measurement_norm = measurement_sg_sqrt**2
     measurement_norm = measurement_norm / np.linalg.norm(measurement_norm)
-
     if guess is None:
         guess = np.random.randn(
             measurement_sg_sqrt.shape[0]
         ) + 1j * np.random.randn(measurement_sg_sqrt.shape[0])
-
     if gate is None:
         gate = np.random.randn(
             measurement_sg_sqrt.shape[0]
