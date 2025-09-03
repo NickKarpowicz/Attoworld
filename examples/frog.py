@@ -295,7 +295,7 @@ def _(
 
         match mode_selector.value:
             case "XFROG":
-                result = aw.wave.reconstruct_xfrog(
+                result, _ = aw.wave.reconstruct_xfrog(
                     measurement=frog_data,
                     gate=xfrog_reference,
                     repeats=int(recon_trials.value),
@@ -317,7 +317,7 @@ def _(
                     polish_iterations=int(recon_followups.value),
                     nonlinearity=mode_selector.value
                 )
-        
+
 
     else:
         result = None
