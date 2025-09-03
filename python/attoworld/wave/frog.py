@@ -114,18 +114,21 @@ def apply_iteration(Et, Gt, meas_sqrt):
     """
     new_sg = generate_shg_spectrogram(Et, Gt)
     new_sg = meas_sqrt * np.exp(1j * np.angle(new_sg))
-    new_sg = np.fft.ifft(new_sg, axis=0)
+    # new_sg = np.fft.ifft(new_sg, axis=0)
+    shifter = np.exp(-1j * (len(Et)//2) * np.fft.fftfreq(len(Et)))
+    pixel_shifter = np.exp(1j * np.fft.fftfreq(len(Et)))
     for _i in range(len(Et)):
-        new_sg[_i, :] = blank_roll(new_sg[_i, :], _i - int(Et.shape[0] / 2))
-
+        # new_sg[_i, :] = blank_roll(new_sg[_i, :], _i - int(Et.shape[0] / 2))
+        new_sg[_i,:] *= shifter
+        shifter *= pixel_shifter
     # Principle component based pulse extraction
     # u, s, v = np.linalg.svd(new_sg)
     # field = u[:, 0].squeeze()
     # gate = v[0, :].squeeze()
 
     # Simpler extraction
-    field = np.mean(new_sg, axis=0)
-    gate = np.mean(new_sg, axis=1)
+    field =(np.mean(new_sg, axis=0))
+    gate = np.fft.ifft(np.mean(new_sg, axis=1))
     return field, gate
 
 
