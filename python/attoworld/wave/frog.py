@@ -120,13 +120,13 @@ def apply_iteration(Et, Gt, meas_sqrt):
         new_sg[_i, :] = blank_roll(new_sg[_i, :], _i - int(Et.shape[0] / 2))
 
     # Principle component based pulse extraction
-    u, s, v = np.linalg.svd(new_sg)
-    field = u[:, 0].squeeze()
-    gate = v[0, :].squeeze()
+    # u, s, v = np.linalg.svd(new_sg)
+    # field = u[:, 0].squeeze()
+    # gate = v[0, :].squeeze()
 
-    # # Simpler extraction
-    # field = np.mean(new_sg, axis=0)
-    # gate = np.mean(new_sg, axis=1)
+    # Simpler extraction
+    field = np.mean(new_sg, axis=1)
+    gate = np.mean(new_sg, axis=0)
     return field, gate
 
 def calculate_g_error(measurement_normalized, pulse, gate=None):
