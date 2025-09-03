@@ -84,7 +84,7 @@ def _(aw, mo):
 
 @app.cell
 def _(mo):
-    mode_selector = mo.ui.dropdown(options=["SHG-FROG", "XFROG"], label="FROG type:", value="SHG-FROG")
+    mode_selector = mo.ui.dropdown(options=["SHG", "THG", "Kerr", "XFROG"], label="FROG type:", value="SHG")
     mode_selector
     return (mode_selector,)
 
@@ -162,8 +162,8 @@ def _(is_in_web_notebook, loaded_settings, mo):
     bin_dt = mo.ui.number(label="dt (fs)", value=loaded_settings.dt*1e15, step=0.1)
     bin_f0 = mo.ui.number(label="f0 (THz)", value=loaded_settings.f0*1e-12, step=0.1)
     bin_offset = mo.ui.number(label="dark noise level", value=loaded_settings.dc_offset, step=1e-5)
-    bin_fblock = mo.ui.number(label="freq block avg.", value=loaded_settings.freq_binning, step=1)
-    bin_tblock = mo.ui.number(label="time block avg.", value=loaded_settings.time_binning, step=1)
+    bin_fblock = mo.ui.number(label="freq block avg.", start=1, value=loaded_settings.freq_binning, step=1)
+    bin_tblock = mo.ui.number(label="time block avg.", start=1, value=loaded_settings.time_binning, step=1)
     bin_median = mo.ui.checkbox(label="median blocking", value=loaded_settings.median_binning)
     bin_spatial_chirp_correction = mo.ui.checkbox(label="correct spatial chirp", value=loaded_settings.spatial_chirp_correction)
     mo.output.append(bin_size)
@@ -294,7 +294,7 @@ def _(
     mo.stop(not reconstruct_button.value)
     if frog_data is not None:
         if (mode_selector.value == "XFROG"):
-            result = aw.wave.reconstruct_xfrog(
+            result, xfrog_gate = aw.wave.reconstruct_xfrog(
                 measurement=frog_data,
                 gate=xfrog_reference,
                 repeats=int(recon_trials.value),
@@ -302,16 +302,17 @@ def _(
                 polish_iterations=int(recon_followups.value),
             )
         else:
-            result = aw.wave.reconstruct_shg_frog(
+            result = aw.wave.reconstruct_frog(
                 measurement=frog_data,
                 repeats=int(recon_trials.value),
                 test_iterations=int(recon_trial_length.value),
                 polish_iterations=int(recon_followups.value),
+                nonlinearity=mode_selector.value
             )
 
     else:
         result = None
-    return (result,)
+    return result, xfrog_gate
 
 
 @app.cell
@@ -351,6 +352,17 @@ def _(
             )
             display_download_link_from_file(f"{file_base.value}.yml",output_name=f"{file_base.value}.yml",mime_type="text/yaml")
     return (plot,)
+
+
+@app.cell
+def _(aw, mode_selector, np, xfrog_gate):
+    import matplotlib.pyplot as plt
+    if (mode_selector.value == "XFROG"):
+        plt.plot(np.real(xfrog_gate))
+        plt.plot(np.imag(xfrog_gate))
+        plt.plot(np.abs(xfrog_gate))
+        aw.plot.showmo()
+    return
 
 
 @app.cell
