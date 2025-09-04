@@ -13,14 +13,7 @@ async def _():
     if is_in_web_notebook:
         import micropip
         import os
-
-        path_to_attoworld = (
-            mo.notebook_location()
-            / "public"
-            / "attoworld-2025.0.39-cp312-cp312-emscripten_3_1_58_wasm32.whl"
-        )
-        micropip.uninstall("attoworld")
-        await micropip.install(str(path_to_attoworld))
+        await micropip.install("https://nickkarpowicz.github.io/wheels/attoworld-2025.0.40-cp312-cp312-emscripten_3_1_58_wasm32.whl")
 
         import base64
         import zipfile
