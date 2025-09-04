@@ -155,6 +155,7 @@ def _(aw, bin_loaded_file):
             size=96,
             dt=3e-15,
             t0=0.0,
+            auto_t0=True,
             f0=740e12,
             dc_offset=0.0002,
             freq_binning=16,
@@ -169,8 +170,8 @@ def _(aw, bin_loaded_file):
 def _(is_in_web_notebook, loaded_settings, mo):
     bin_size = mo.ui.number(label="size", value=loaded_settings.size, step=2)
     bin_dt = mo.ui.number(label="dt (fs)", value=loaded_settings.dt*1e15, step=0.1)
-    bin_t0 = mo.ui.number(label="t0 (fs)", value=loaded_settings.t0*1e15, step=0.1)
-    bin_t0_auto = mo.ui.checkbox(label="Auto time centering", value=True)
+    bin_t0 = mo.ui.number(label="t0 (fs)", value=loaded_settings.t0 * 1e-15, step=0.1)
+    bin_t0_auto = mo.ui.checkbox(label="Auto time centering", value=loaded_settings.auto_t0)
     bin_f0 = mo.ui.number(label="f0 (THz)", value=loaded_settings.f0*1e-12, step=0.1)
     bin_offset = mo.ui.number(label="dark noise level", value=loaded_settings.dc_offset, step=1e-5)
     bin_fblock = mo.ui.number(label="freq block avg.", start=1, value=loaded_settings.freq_binning, step=1)
@@ -227,7 +228,8 @@ def _(
     bin_settings = aw.data.FrogBinSettings(
         size=int(bin_size.value),
         dt=bin_dt.value * 1e-15,
-        t0=_t0,
+        t0=bin_t0.value * 1e-15,
+        auto_t0=bin_t0_auto.value,
         f0=bin_f0.value * 1e12,
         dc_offset=bin_offset.value,
         time_binning=int(bin_tblock.value),

@@ -3,9 +3,9 @@
 from .frog import (
     bundle_frog_reconstruction,
     generate_spectrogram,
+    reconstruct_blindfrog,
     reconstruct_frog,
     reconstruct_xfrog,
-    reconstruct_blindfrog
 )
 from .wave import align_waves
 

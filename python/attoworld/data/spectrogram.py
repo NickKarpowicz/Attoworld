@@ -25,6 +25,7 @@ class FrogBinSettings:
     dt: float
     f0: float
     t0: float
+    auto_t0: bool
     dc_offset: float
     time_binning: int
     freq_binning: int
@@ -243,13 +244,17 @@ class Spectrogram:
         else:
             method = "mean"
 
+        t0 = settings.t0
+        if settings.auto_t0:
+            t0 = None
+
         def maybe_correct_chirp(instance, apply: bool):
             return instance.to_removed_spatial_chirp() if apply else instance
 
         return (
             maybe_correct_chirp(self, settings.spatial_chirp_correction)
             .to_block_binned(settings.freq_binning, settings.time_binning, method)
-            .to_binned(dim=settings.size, dt=settings.dt, f0=settings.f0, t0=settings.t0)
+            .to_binned(dim=settings.size, dt=settings.dt, f0=settings.f0, t0=t0)
             .to_per_frequency_dc_removed(extra_offset=settings.dc_offset)
         )
 
@@ -259,6 +264,7 @@ class Spectrogram:
         Args:
             ax: optionally plot onto a pre-existing matplotlib Axes
             take_sqrt (bool): plot the square root of the data
+
         """
         if ax is None:
             fig, ax = plt.subplots()

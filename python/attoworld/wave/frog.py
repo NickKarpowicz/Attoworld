@@ -44,9 +44,7 @@ def bundle_frog_reconstruction(
     f = np.fft.fftfreq(len(t), d=(t[1] - t[0]))
     sg_freq = np.fft.fftshift(f) + 2 * f0
     result_sg = Spectrogram(
-        data=np.fft.fftshift(
-            np.abs(generate_spectrogram(result, gate)) ** 2, axes=0
-        ),
+        data=np.fft.fftshift(np.abs(generate_spectrogram(result, gate)) ** 2, axes=0),
         time=t,
         freq=sg_freq,
     )
@@ -129,6 +127,7 @@ def apply_iteration(Et, Gt, meas_sqrt):
     gate = np.mean(new_sg, axis=0)
     return field, gate
 
+
 def calculate_g_error(measurement_normalized, pulse, gate=None):
     """Calculate G' error helper function."""
     if gate is None:
@@ -142,7 +141,8 @@ def calculate_g_error(measurement_normalized, pulse, gate=None):
     )
 
 
-def guess_from_pulse_and_gate(pulse, gate, nonlinearity: str="SHG"):
+def guess_from_pulse_and_gate(pulse, gate, nonlinearity: str = "SHG"):
+    """Use the retrieved gate and pulse to generate a new guess of the pulse."""
     match nonlinearity:
         case "SHG":
             return shift_to_zero_and_normalize(pulse + gate)
@@ -151,17 +151,23 @@ def guess_from_pulse_and_gate(pulse, gate, nonlinearity: str="SHG"):
         case "Kerr":
             return shift_to_zero_and_normalize(pulse)
 
+
 def gate_from_pulse(pulse, nonlinearity: str = "SHG"):
+    """Generate the gate using the current retrieved pulse."""
     match nonlinearity:
         case "SHG":
             return pulse
         case "THG":
-            return pulse*pulse
+            return pulse * pulse
         case "Kerr":
-            return np.conj(pulse)*pulse
+            return np.conj(pulse) * pulse
+
 
 def reconstruct_frog_core(
-    measurement_sg_sqrt, guess=None, max_iterations: int = 200, nonlinearity: str="SHG"
+    measurement_sg_sqrt,
+    guess=None,
+    max_iterations: int = 200,
+    nonlinearity: str = "SHG",
 ):
     """Run the core FROG loop.
 
@@ -178,9 +184,9 @@ def reconstruct_frog_core(
     measurement_norm = measurement_sg_sqrt**2
     measurement_norm = measurement_norm / np.linalg.norm(measurement_norm)
     if guess is None:
-        guess = np.random.randn(
+        guess = np.random.randn(measurement_sg_sqrt.shape[0]) + 1j * np.random.randn(
             measurement_sg_sqrt.shape[0]
-        ) + 1j * np.random.randn(measurement_sg_sqrt.shape[0])
+        )
 
     else:
         gate = guess
@@ -250,16 +256,16 @@ def reconstruct_xfrog_core(
     measurement_norm = measurement_sg_sqrt**2
     measurement_norm = measurement_norm / np.linalg.norm(measurement_norm)
     if guess is None:
-        guess = np.random.randn(
+        guess = np.random.randn(measurement_sg_sqrt.shape[0]) + 1j * np.random.randn(
             measurement_sg_sqrt.shape[0]
-        ) + 1j * np.random.randn(measurement_sg_sqrt.shape[0])
+        )
     guess = shift_to_zero_and_normalize(guess)
     best = np.array(guess)
     best_error = calculate_g_error(measurement_norm, best, gate)
     for _i in range(max_iterations):
         guess, _ = apply_iteration(guess, np.array(gate), measurement_sg_sqrt)
-        #guess = shift_to_zero_and_normalize(guess)
-        #guess = fix_aliasing(guess)
+        # guess = shift_to_zero_and_normalize(guess)
+        # guess = fix_aliasing(guess)
         current_error = calculate_g_error(measurement_norm, guess, gate)
         if current_error < best_error:
             best_error = current_error
@@ -285,13 +291,13 @@ def reconstruct_blindfrog_core(
     measurement_norm = measurement_sg_sqrt**2
     measurement_norm = measurement_norm / np.linalg.norm(measurement_norm)
     if guess is None:
-        guess = np.random.randn(
+        guess = np.random.randn(measurement_sg_sqrt.shape[0]) + 1j * np.random.randn(
             measurement_sg_sqrt.shape[0]
-        ) + 1j * np.random.randn(measurement_sg_sqrt.shape[0])
+        )
     if gate is None:
-        gate = np.random.randn(
+        gate = np.random.randn(measurement_sg_sqrt.shape[0]) + 1j * np.random.randn(
             measurement_sg_sqrt.shape[0]
-        ) + 1j * np.random.randn(measurement_sg_sqrt.shape[0])
+        )
     best_pulse = guess
     best_gate = gate
     best_error = calculate_g_error(measurement_norm, guess, gate)
@@ -324,7 +330,7 @@ def reconstruct_frog(
     test_iterations: int = 100,
     polish_iterations=5000,
     repeats: int = 256,
-    nonlinearity: str = "SHG"
+    nonlinearity: str = "SHG",
 ):
     """Run the core FROG loop several times and pick the best result.
 
@@ -354,7 +360,10 @@ def reconstruct_frog(
         errors[_i] = calculate_g_error(measurement_norm, results[:, _i])
     min_error_index = np.argmin(errors)
     result = reconstruct_frog_core(
-        sqrt_sg, guess=results[:, min_error_index], max_iterations=polish_iterations, nonlinearity=nonlinearity
+        sqrt_sg,
+        guess=results[:, min_error_index],
+        max_iterations=polish_iterations,
+        nonlinearity=nonlinearity,
     )
     nyquist_factor = int(
         np.ceil(2 * (measurement.time[1] - measurement.time[0]) * measurement.freq[-1])
@@ -450,7 +459,6 @@ def reconstruct_blindfrog(
     FrogData: the completed reconstruction
 
     """
-
     sqrt_sg = np.fft.fftshift(
         np.sqrt(measurement.data - np.min(measurement.data[:])), axes=0
     )
@@ -461,14 +469,14 @@ def reconstruct_blindfrog(
     gates = np.zeros((sqrt_sg.shape[0], repeats), dtype=np.complex128)
     errors = np.zeros(repeats, dtype=float)
     for _i in range(repeats):
-        results[:, _i],gates[:,_i] = reconstruct_blindfrog_core(
+        results[:, _i], gates[:, _i] = reconstruct_blindfrog_core(
             sqrt_sg, max_iterations=test_iterations
         )
-        errors[_i] = calculate_g_error(measurement_norm, results[:, _i], gates[:,_i])
+        errors[_i] = calculate_g_error(measurement_norm, results[:, _i], gates[:, _i])
     min_error_index = np.argmin(errors)
     result, gate = reconstruct_blindfrog_core(
         sqrt_sg,
-        gate = gates[:, min_error_index],
+        gate=gates[:, min_error_index],
         guess=results[:, min_error_index],
         max_iterations=polish_iterations,
     )
@@ -479,7 +487,7 @@ def reconstruct_blindfrog(
         t=measurement.time,
         result=result,
         measurement=sqrt_sg,
-        f0=float(np.mean(measurement.freq)/2),
+        f0=float(np.mean(measurement.freq) / 2),
         gate=gate,
         interpolation_factor=nyquist_factor,
     )
@@ -487,7 +495,7 @@ def reconstruct_blindfrog(
         t=measurement.time,
         result=gate,
         measurement=sqrt_sg,
-        f0=float(np.mean(measurement.freq)/2),
+        f0=float(np.mean(measurement.freq) / 2),
         gate=result,
         interpolation_factor=nyquist_factor,
     )
