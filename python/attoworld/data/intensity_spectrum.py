@@ -198,7 +198,7 @@ class IntensitySpectrum:
         ax.set_xlabel("Wavelength (nm)")
         ax.set_ylabel("Intensity (Arb. unit)")
         ax_phase = plt.twinx(ax)
-        group_delay = (1e15 / (2 * np.pi)) * derivative(phase, 1) / (freq[1] - freq[2])
+        group_delay = (-1e15 / (2 * np.pi)) * derivative(phase, 1) / (freq[1] - freq[2])
         assert isinstance(ax_phase, Axes)
         ax_phase.plot([], [])
         phase_line = ax_phase.plot(

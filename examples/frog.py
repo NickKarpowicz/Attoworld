@@ -151,7 +151,17 @@ def _(aw, bin_loaded_file):
     if _contents is not None:
         loaded_settings = aw.data.FrogBinSettings.load_yaml_bytestream(_contents)
     else:
-        loaded_settings = aw.data.FrogBinSettings(size=96,dt=3e-15,f0=740e12,dc_offset=0.0002,freq_binning=16,time_binning=2,median_binning=False,spatial_chirp_correction=False)
+        loaded_settings = aw.data.FrogBinSettings(
+            size=96,
+            dt=3e-15,
+            t0=0.0,
+            f0=740e12,
+            dc_offset=0.0002,
+            freq_binning=16,
+            time_binning=2,
+            median_binning=False,
+            spatial_chirp_correction=False,
+        )
     return (loaded_settings,)
 
 
@@ -159,6 +169,8 @@ def _(aw, bin_loaded_file):
 def _(is_in_web_notebook, loaded_settings, mo):
     bin_size = mo.ui.number(label="size", value=loaded_settings.size, step=2)
     bin_dt = mo.ui.number(label="dt (fs)", value=loaded_settings.dt*1e15, step=0.1)
+    bin_t0 = mo.ui.number(label="t0 (fs)", value=loaded_settings.t0*1e15, step=0.1)
+    bin_t0_auto = mo.ui.checkbox(label="Auto time centering", value=True)
     bin_f0 = mo.ui.number(label="f0 (THz)", value=loaded_settings.f0*1e-12, step=0.1)
     bin_offset = mo.ui.number(label="dark noise level", value=loaded_settings.dc_offset, step=1e-5)
     bin_fblock = mo.ui.number(label="freq block avg.", start=1, value=loaded_settings.freq_binning, step=1)
@@ -167,6 +179,8 @@ def _(is_in_web_notebook, loaded_settings, mo):
     bin_spatial_chirp_correction = mo.ui.checkbox(label="correct spatial chirp", value=loaded_settings.spatial_chirp_correction)
     mo.output.append(bin_size)
     mo.output.append(bin_dt)
+    mo.output.append(bin_t0)
+    mo.output.append(bin_t0_auto)
     mo.output.append(bin_f0)
     mo.output.append(bin_offset)
     mo.output.append(bin_fblock)
@@ -186,6 +200,8 @@ def _(is_in_web_notebook, loaded_settings, mo):
         bin_save_button,
         bin_size,
         bin_spatial_chirp_correction,
+        bin_t0,
+        bin_t0_auto,
         bin_tblock,
     )
 
@@ -200,11 +216,18 @@ def _(
     bin_offset,
     bin_size,
     bin_spatial_chirp_correction,
+    bin_t0,
+    bin_t0_auto,
     bin_tblock,
 ):
+    if bin_t0_auto.value:
+        _t0 = None
+    else:
+        _t0 = bin_t0.value * 1e-15
     bin_settings = aw.data.FrogBinSettings(
         size=int(bin_size.value),
         dt=bin_dt.value * 1e-15,
+        t0=_t0,
         f0=bin_f0.value * 1e12,
         dc_offset=bin_offset.value,
         time_binning=int(bin_tblock.value),
