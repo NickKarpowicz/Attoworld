@@ -65,9 +65,21 @@ def read_dwc(file_or_path, is_buffer: bool = False):
     raise Exception("Interpolation failure reading dwc file")
 
 
-def load_mean_spectrum_from_scarab(filename: str):
-    """Load data produced by Scarab (Nick's C++ interface for Ocean Optics spectrometers)."""
-    data = np.loadtxt(filename)
+def load_mean_spectrum_from_scarab(filename_or_data_string: str, is_data_string: bool = False, header_size: int = 0):
+    """Load data produced by Scarab (Nick's C++ interface for Ocean Optics spectrometers).
+
+    Args:
+        filename_or_data_string (str): path to the file, or a bytestream containing the file
+        is_data_string (bool): set to true if using a bytestream
+        header_size (int): lines to skip before getting to the real data
+
+    """
+    if is_data_string:
+        pd_input = pd.read_csv(io.StringIO(filename_or_data_string), sep="\t", skiprows = header_size)
+        data = np.array(pd_input.iloc[:,:])
+    else:
+        data = np.loadtxt(filename_or_data_string, skiprows=header_size)
+
     return IntensitySpectrum(
         spectrum=np.mean(data[:, 1::], axis=1),
         wavelength=1e-9 * data[:, 0],
@@ -78,25 +90,30 @@ def load_mean_spectrum_from_scarab(filename: str):
 
 
 def load_spectrum_from_text(
-    filename: str,
+    filename_or_data_string: str,
     wavelength_multiplier: float = 1e-9,
     wavelength_field: str = "wavelength (nm)",
     spectrum_field: str = "intensity (a.u.)",
     sep: str = "\t",
+    is_data_string: bool = False
 ):
     """Load a spectrum contained in a text file.
 
     Args:
-        filename (str): path to the file
+        filename_or_data_string (str): path to the file or a string containing the file
         wavelength_multiplier (float): multiplier to convert wavelength to m
         wavelength_field (str): name of the field in the data corresponding to wavelength
         spectrum_field (str): name of the field in the data corresponding to spectral intensity
         sep (str): column separator
+        is_data_string (bool): set to True if the first input is the full file, not the path
     Returns:
         IntensitySpectrum: the intensity spectrum
 
     """
-    data = pd.read_csv(filename, sep=sep)
+    if is_data_string:
+        data = pd.read_csv(io.StringIO(filename_or_data_string), sep=sep)
+    else:
+        data = pd.read_csv(filename_or_data_string, sep=sep)
     wavelength = wavelength_multiplier * np.array(data[wavelength_field])
     freq = constants.speed_of_light / wavelength
     spectrum = np.array(data[spectrum_field])

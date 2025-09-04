@@ -7,10 +7,8 @@ app = marimo.App(width="medium")
 @app.cell
 async def _():
     import marimo as mo
-
     # check if running in a browser, install attoworld from local copy
     import sys
-
     is_in_web_notebook = sys.platform == "emscripten"
     if is_in_web_notebook:
         import micropip
@@ -70,6 +68,19 @@ async def _():
 
 @app.cell
 def _(mo):
+    mo.md(
+        r"""
+    # FROG reconstruction
+
+    ---
+    #### Select your FROG file:
+    """
+    )
+    return
+
+
+@app.cell
+def _(mo):
     file_browser = mo.ui.file(filetypes=[".dwc"], label="Select .dwc file")
     file_browser
     return (file_browser,)
@@ -87,6 +98,86 @@ def _(mo):
     mode_selector = mo.ui.dropdown(options=["SHG", "THG", "Kerr", "XFROG", "BlindFROG"], label="FROG type:", value="SHG")
     mode_selector
     return (mode_selector,)
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+    ---
+    #### Optional spectral constraint:
+    """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    spectral_constraint_file = mo.ui.file(label="Spectral contstraint file")
+    spectral_constraint_file
+    return (spectral_constraint_file,)
+
+
+@app.cell
+def _(mo, spectral_constraint_file):
+    spectral_constraint_format = mo.ui.dropdown(options=["Columns", "Text with headers"], value="Text with headers")
+    spectral_constraint_data = spectral_constraint_file.contents()
+    if spectral_constraint_data is not None:
+        mo.output.append(spectral_constraint_format)
+    return spectral_constraint_data, spectral_constraint_format
+
+
+@app.cell
+def _(mo, spectral_constraint_data, spectral_constraint_format):
+    spectral_constraint_wavelength_header = mo.ui.text(label="Wavelength column key:", value="wavelength (nm)")
+    spectral_constraint_wavelength_multiplier = mo.ui.number(label="Wavelength multiplier:", value=1e9)
+    spectral_constraint_intensity_header = mo.ui.text(label="Intensity column key:", value="intensity (a.u.)")
+    spectral_constraint_skip_lines = mo.ui.number(value=0, label="Header lines:")
+    if spectral_constraint_data is not None:
+        if spectral_constraint_format.value == "Text with headers":
+            mo.output.append(spectral_constraint_wavelength_header)
+            mo.output.append(spectral_constraint_wavelength_multiplier)
+            mo.output.append(spectral_constraint_intensity_header)
+        if spectral_constraint_format.value == "Columns":
+            mo.output.append(spectral_constraint_skip_lines)
+    return (
+        spectral_constraint_intensity_header,
+        spectral_constraint_skip_lines,
+        spectral_constraint_wavelength_header,
+        spectral_constraint_wavelength_multiplier,
+    )
+
+
+@app.cell
+def _(
+    aw,
+    mo,
+    spectral_constraint_data,
+    spectral_constraint_format,
+    spectral_constraint_intensity_header,
+    spectral_constraint_skip_lines,
+    spectral_constraint_wavelength_header,
+    spectral_constraint_wavelength_multiplier,
+):
+    spectral_constraint = None
+    if spectral_constraint_data is not None:
+        match spectral_constraint_format.value:
+            case "Columns":
+                spectral_constraint = aw.data.load_mean_spectrum_from_scarab(
+                    spectral_constraint_data.decode("utf-8"), is_bytes=True, header_size=spectral_constraint_skip_lines.value
+                )
+            case "Text with headers":
+                spectral_constraint = aw.data.load_spectrum_from_text(
+                    filename=spectral_constraint_data,
+                    wavelength_multiplier=1.0
+                    / spectral_constraint_wavelength_multiplier.value,
+                    wavelength_field=spectral_constraint_wavelength_header.value,
+                    spectrum_field=spectral_constraint_intensity_header.value,
+                )
+        mo.output.append(mo.md("### Loaded spectral constraint:"))
+        spectral_constraint.plot_with_group_delay()
+        aw.plot.showmo()
+    return (spectral_constraint,)
 
 
 @app.cell
@@ -140,6 +231,17 @@ def _(aw, calibration_selector, file_browser):
 
 @app.cell
 def _(mo):
+    mo.md(
+        r"""
+    ---
+    #### Bin onto evenly-spaced space/time grid:
+    """
+    )
+    return
+
+
+@app.cell
+def _(mo):
     bin_loaded_file = mo.ui.file(filetypes=[".yml"], label="Load settings from .yml")
     bin_loaded_file
     return (bin_loaded_file,)
@@ -158,8 +260,8 @@ def _(aw, bin_loaded_file):
             auto_t0=True,
             f0=740e12,
             dc_offset=0.0002,
-            freq_binning=16,
-            time_binning=2,
+            freq_binning=1,
+            time_binning=1,
             median_binning=False,
             spatial_chirp_correction=False,
         )
@@ -269,6 +371,17 @@ def _(
 
 
 @app.cell
+def _(mo):
+    mo.md(
+        r"""
+    ---
+    #### Run the reconstruction routine:
+    """
+    )
+    return
+
+
+@app.cell
 def _(is_in_web_notebook, mo):
     recon_trials = mo.ui.number(value=8, label="Initial guesses")
     recon_trial_length = mo.ui.number(value=64, label="Trial iterations")
@@ -276,7 +389,6 @@ def _(is_in_web_notebook, mo):
     reconstruct_button = mo.ui.run_button(label="reconstruct")
     save_button = mo.ui.run_button(label="save")
     save_plot_button = mo.ui.run_button(label="save plot")
-
     mo.output.append(recon_trials)
     mo.output.append(recon_trial_length)
     mo.output.append(recon_followups)
@@ -313,11 +425,11 @@ def _(
     recon_trial_length,
     recon_trials,
     reconstruct_button,
+    spectral_constraint,
     xfrog_reference,
 ):
     mo.stop(not reconstruct_button.value)
     if frog_data is not None:
-
         match mode_selector.value:
             case "XFROG":
                 result, _ = aw.wave.reconstruct_xfrog(
@@ -340,7 +452,8 @@ def _(
                     repeats=int(recon_trials.value),
                     test_iterations=int(recon_trial_length.value),
                     polish_iterations=int(recon_followups.value),
-                    nonlinearity=mode_selector.value
+                    nonlinearity=mode_selector.value,
+                    spectrum=spectral_constraint,
                 )
 
 
