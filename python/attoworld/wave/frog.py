@@ -87,6 +87,29 @@ def generate_spectrogram(Et, Gt):
 
     return np.fft.fft(spectrogram_timetime, axis=0)
 
+def frog_iteration_rust_prototype(Et, Gt, sqrt_measurement):
+    field = np.zeros(Et.shape, dtype=np.complex128)
+    gate = np.zeros(Et.shape, dtype=np.complex128)
+    workspace = np.zeros(Et.shape, dtype=np.complex128)
+
+    N_half = Et.shape[0]//2
+    for j in range(Gt.shape[0]):
+        for i in range(Et.shape[0]):
+            g_index = j - N_half + i
+            if (g_index >= 0) and (g_index < Et.shape[0]):
+                workspace[i] = Et[i] * Gt[g_index]
+            else:
+                workspace[i] = 0.0
+        workspace = np.fft.fft(workspace)
+        workspace = sqrt_measurement[:,j] * np.exp(1j * np.angle(workspace))
+        workspace = np.fft.ifft(workspace)
+        field += workspace
+        for i in range(Gt.shape[0]):
+            g_index = j - N_half + i
+            if (g_index >= 0) and (g_index < Et.shape[0]):
+                gate[g_index] += workspace[i]
+
+    return field, gate
 
 def blank_roll(data: np.ndarray, step):
     """np.roll, but pulse entering from other side set to zero."""
@@ -114,6 +137,7 @@ def apply_iteration(Et, Gt, meas_sqrt):
     new_sg = meas_sqrt * np.exp(1j * np.angle(new_sg))
     new_sg = np.fft.ifft(new_sg, axis=0)
 
+    field = np.mean(new_sg, axis=1)
     for _i in range(len(Et)):
         new_sg[_i, :] = blank_roll(new_sg[_i, :], _i - int(Et.shape[0] / 2))
 
@@ -123,7 +147,7 @@ def apply_iteration(Et, Gt, meas_sqrt):
     # gate = v[0, :].squeeze()
 
     # Simpler extraction
-    field = np.mean(new_sg, axis=1)
+
     gate = np.mean(new_sg, axis=0)
 
     return field, gate
