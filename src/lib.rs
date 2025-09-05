@@ -2,13 +2,22 @@ use numpy::{IntoPyArray, PyArray1, PyReadonlyArrayDyn};
 use pyo3::prelude::*;
 use rayon::prelude::*;
 use rustfft::num_complex::Complex64;
-use rustfft::FftPlanner;
+use rustfft::{Fft, FftPlanner};
 use std::f64;
+use std::sync::Arc;
 
 /// Functions written in Rust for improved performance and correctness.
 #[pymodule]
 #[pyo3(name = "attoworld_rs")]
 fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()> {
+    #[pyclass]
+    enum FrogType {
+        Shg,
+        Thg,
+        Kerr,
+    }
+    m.add_class::<FrogType>()?;
+
     /// Find the location and value of the maximum of a smooth, uniformly sampled signal, interpolating to find the sub-pixel location
     ///
     /// Args:
@@ -592,6 +601,89 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
             )
     }
 
+    fn frog_guess_from_pulse_and_gate(
+        pulse: &[Complex64],
+        gate: &[Complex64],
+        nonlinearity: FrogType,
+    ) -> Vec<Complex64> {
+        match nonlinearity {
+            FrogType::Shg => pulse
+                .iter()
+                .zip(gate.iter())
+                .map(|(&a, &b)| a + b)
+                .collect(),
+            _ => pulse.to_vec(),
+        }
+    }
+
+    fn calculate_g_error(
+        measurement_normalized: &[f64],
+        pulse: &[Complex64],
+        gate: &[Complex64],
+        workspace: &mut [Complex64],
+        reconstructed_spectrogram: &mut [f64],
+        fft_forward: Arc<dyn Fft<f64>>,
+    ) -> f64 {
+        let mut sum_recon = 0.0;
+        let dim = pulse.len();
+        for j in 0..dim {
+            for i in 0..dim {
+                workspace[i] = pulse[i] * gate[j];
+            }
+            fft_forward.process(workspace);
+            for (a, b) in reconstructed_spectrogram
+                .iter_mut()
+                .skip(j * dim)
+                .take(dim)
+                .zip(workspace.iter())
+            {
+                *a = (b.conj() * *b).re;
+                sum_recon += *a * *a;
+            }
+        }
+        sum_recon = sum_recon.sqrt();
+
+        measurement_normalized
+            .iter()
+            .zip(reconstructed_spectrogram.iter())
+            .map(|(&a, &b)| (a - b / sum_recon).powi(2) / (a * a))
+            .sum::<f64>()
+            .sqrt()
+    }
+
+    fn gate_from_pulse(field: &[Complex64], gate: &mut [Complex64], nonlinearity: FrogType) {
+        match nonlinearity {
+            FrogType::Shg => {
+                for (a, b) in gate.iter_mut().zip(field.iter()) {
+                    *a = *b;
+                }
+            }
+            FrogType::Thg => {
+                for (a, b) in gate.iter_mut().zip(field.iter()) {
+                    *a = *b * *b;
+                }
+            }
+            FrogType::Kerr => {
+                for (a, b) in gate.iter_mut().zip(field.iter()) {
+                    *a = *b * b.conj();
+                }
+            }
+        }
+    }
+
+    fn frog_apply_spectral_constraint(
+        field: &mut [Complex64],
+        spectrum: &[f64],
+        fft_forward: Arc<dyn Fft<f64>>,
+        fft_backward: Arc<dyn Fft<f64>>,
+    ) {
+        fft_forward.process(field);
+        for (a, b) in field.iter_mut().zip(spectrum.iter()) {
+            *a = Complex64::from_polar(*b, a.arg());
+        }
+        fft_backward.process(field);
+    }
+
     #[pyfn(m)]
     #[pyo3(name = "frog_iteration")]
     #[pyo3(signature = (input_field, input_gate, meas_sqrt))]
@@ -604,12 +696,19 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         Bound<'py, PyArray1<Complex64>>,
         Bound<'py, PyArray1<Complex64>>,
     )> {
-        let mut workspace = vec![Complex64::new(0.0, 0.0); input_field.as_slice()?.len()];
+        let dim = input_field.as_slice()?.len();
+        let mut workspace = vec![Complex64::new(0.0, 0.0); dim];
+        let mut planner = FftPlanner::<f64>::new();
+        let fft_forward = planner.plan_fft_forward(dim);
+        let fft_backward = planner.plan_fft_inverse(dim);
+
         let (field, gate) = apply_frog_iteration(
             input_field.as_slice()?,
             input_gate.as_slice()?,
             &mut workspace,
             meas_sqrt.as_slice()?,
+            fft_forward,
+            fft_backward,
         );
         Ok((field.into_pyarray(py), gate.into_pyarray(py)))
     }
@@ -619,6 +718,8 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         input_gate: &[Complex64],
         workspace: &mut [Complex64],
         meas_sqrt: &[f64],
+        fft_forward: Arc<dyn Fft<f64>>,
+        fft_backward: Arc<dyn Fft<f64>>,
     ) -> (Vec<Complex64>, Vec<Complex64>) {
         let dim: usize = input_field.len();
         let dim_i: i64 = dim as i64;
@@ -626,9 +727,6 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         let mut field = vec![Complex64::ZERO; dim];
         let mut gate = vec![Complex64::ZERO; dim];
         workspace.fill(Complex64::ZERO);
-        let mut planner = FftPlanner::<f64>::new();
-        let fft_forward = planner.plan_fft_forward(dim);
-        let fft_backward = planner.plan_fft_inverse(dim);
 
         for j in 0..dim {
             for i in 0..dim {
