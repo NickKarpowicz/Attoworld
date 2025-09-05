@@ -1,8 +1,9 @@
 use numpy::{IntoPyArray, PyArray1, PyReadonlyArrayDyn};
 use pyo3::prelude::*;
-use std::f64;
 use rayon::prelude::*;
-
+use rustfft::num_complex::Complex64;
+use rustfft::FftPlanner;
+use std::f64;
 
 /// Functions written in Rust for improved performance and correctness.
 #[pymodule]
@@ -258,14 +259,13 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
             .zip(y_in.iter())
             .map(|(a, b)| (*a, *b))
             .collect();
-        
+
         if cfg!(target_arch = "wasm32") {
             pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Greater));
-        }
-        else{
+        } else {
             pairs.par_sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Greater));
         }
-        
+
         pairs.into_iter().unzip()
     }
 
@@ -338,14 +338,16 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         derivative_order: usize,
     ) -> Box<[f64]> {
         let core_stencil_size: usize = 2 * neighbors as usize;
-        
+
         //note that the only difference here is the use of .iter() or .par_iter() at the beginning of the chain.
         if cfg!(target_arch = "wasm32") {
             x_out
                 .iter()
                 .map(|x| {
                     let index: usize = x_in
-                        .binary_search_by(|a| a.partial_cmp(x).unwrap_or(std::cmp::Ordering::Greater))
+                        .binary_search_by(|a| {
+                            a.partial_cmp(x).unwrap_or(std::cmp::Ordering::Greater)
+                        })
                         .unwrap_or_else(|e| e);
                     if (index == 0 || index == x_in.len()) && !extrapolate {
                         0.0
@@ -378,7 +380,9 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
                 .par_iter()
                 .map(|x| {
                     let index: usize = x_in
-                        .binary_search_by(|a| a.partial_cmp(x).unwrap_or(std::cmp::Ordering::Greater))
+                        .binary_search_by(|a| {
+                            a.partial_cmp(x).unwrap_or(std::cmp::Ordering::Greater)
+                        })
                         .unwrap_or_else(|e| e);
                     if (index == 0 || index == x_in.len()) && !extrapolate {
                         0.0
@@ -407,7 +411,6 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
                 })
                 .collect()
         }
-        
     }
 
     /// Use a Fornberg stencil to take a derivative of arbitrary order and accuracy, handling the edge
@@ -587,6 +590,70 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
                 intercept_value,
                 neighbors,
             )
+    }
+
+    #[pyfn(m)]
+    #[pyo3(name = "frog_iteration")]
+    #[pyo3(signature = (input_field, input_gate, meas_sqrt))]
+    fn frog_iteration_wrapper<'py>(
+        py: Python<'py>,
+        input_field: PyReadonlyArrayDyn<'py, Complex64>,
+        input_gate: PyReadonlyArrayDyn<'py, Complex64>,
+        meas_sqrt: PyReadonlyArrayDyn<'py, f64>,
+    ) -> PyResult<(
+        Bound<'py, PyArray1<Complex64>>,
+        Bound<'py, PyArray1<Complex64>>,
+    )> {
+        let mut workspace = vec![Complex64::new(0.0, 0.0); input_field.as_slice()?.len()];
+        let (field, gate) = apply_frog_iteration(
+            input_field.as_slice()?,
+            input_gate.as_slice()?,
+            &mut workspace,
+            meas_sqrt.as_slice()?,
+        );
+        Ok((field.into_pyarray(py), gate.into_pyarray(py)))
+    }
+
+    fn apply_frog_iteration(
+        input_field: &[Complex64],
+        input_gate: &[Complex64],
+        workspace: &mut [Complex64],
+        meas_sqrt: &[f64],
+    ) -> (Vec<Complex64>, Vec<Complex64>) {
+        let dim: usize = input_field.len();
+        let dim_i: i64 = dim as i64;
+        let half: i64 = dim_i / 2;
+        let mut field = vec![Complex64::ZERO; dim];
+        let mut gate = vec![Complex64::ZERO; dim];
+        workspace.fill(Complex64::ZERO);
+        let mut planner = FftPlanner::<f64>::new();
+        let fft_forward = planner.plan_fft_forward(dim);
+        let fft_backward = planner.plan_fft_inverse(dim);
+
+        for j in 0..dim {
+            for i in 0..dim {
+                let g_index: i64 = j as i64 - half + i as i64;
+                if (g_index >= 0) && (g_index < dim_i) {
+                    workspace[i] = input_field[i] * input_gate[g_index as usize];
+                } else {
+                    workspace[i] = Complex64::ZERO;
+                }
+            }
+            fft_forward.process(workspace);
+            for i in 0..dim {
+                workspace[i] =
+                    Complex64::from_polar(meas_sqrt[i * dim + j], workspace[i].clone().arg());
+            }
+            fft_backward.process(workspace);
+            for i in 0..dim {
+                field[i] += workspace[i];
+                let g_index: i64 = j as i64 - half + i as i64;
+                if (g_index >= 0) && (g_index < dim_i) {
+                    gate[g_index as usize] += workspace[i]
+                }
+            }
+        }
+        (field, gate)
     }
     Ok(())
 }

@@ -12,4 +12,5 @@ crate-type = ["cdylib"]
 numpy = "0.25.0"
 pyo3 = "0.25.1"
 rayon = "1.11.0"
+rustfft = { version = "6.4.0", features = ["wasm_simd"] }
 

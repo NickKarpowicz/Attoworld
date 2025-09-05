@@ -4,7 +4,7 @@ import numpy as np
 
 from ..data import ComplexEnvelope, FrogData, IntensitySpectrum, Spectrogram
 from ..numeric import find_maximum_location, interpolate
-
+from ..attoworld_rs import frog_iteration
 
 # Helper functions
 def shift_to_zero_and_normalize(Et):
@@ -226,7 +226,7 @@ def reconstruct_frog_core(
     best = guess
     best_error = calculate_g_error(measurement_norm, best)
     for _i in range(max_iterations):
-        guess, gate = apply_iteration(guess, gate, measurement_sg_sqrt)
+        guess, gate = frog_iteration(np.array(guess), np.array(gate), np.array(measurement_sg_sqrt))
         guess = guess_from_pulse_and_gate(guess, gate, nonlinearity, spectrum)
         guess = fix_aliasing(guess)
         gate = gate_from_pulse(guess, nonlinearity)
