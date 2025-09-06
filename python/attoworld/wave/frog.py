@@ -4,7 +4,7 @@ import numpy as np
 
 from ..data import ComplexEnvelope, FrogData, IntensitySpectrum, Spectrogram
 from ..numeric import find_maximum_location, interpolate
-from ..attoworld_rs import frog_iteration
+from ..attoworld_rs import frog_iteration, rust_reconstruct_frog_core, FrogType
 
 # Helper functions
 def shift_to_zero_and_normalize(Et):
@@ -399,16 +399,16 @@ def reconstruct_frog(
     results = np.zeros((sqrt_sg.shape[0], repeats), dtype=np.complex128)
     errors = np.zeros(repeats, dtype=float)
     for _i in range(repeats):
-        results[:, _i] = reconstruct_frog_core(
-            sqrt_sg, max_iterations=test_iterations, nonlinearity=nonlinearity, spectrum=spectrum
+        results[:, _i] = rust_reconstruct_frog_core(
+            np.array(sqrt_sg), iterations=test_iterations, nonlinearity=FrogType.Shg, spectrum=spectrum
         )
         errors[_i] = calculate_g_error(measurement_norm, results[:, _i])
     min_error_index = np.argmin(errors)
-    result = reconstruct_frog_core(
-        sqrt_sg,
-        guess=results[:, min_error_index],
-        max_iterations=polish_iterations,
-        nonlinearity=nonlinearity,
+    result = rust_reconstruct_frog_core(
+        np.array(sqrt_sg),
+        guess=np.array(results[:, min_error_index]),
+        iterations=polish_iterations,
+        nonlinearity=FrogType.Shg,
         spectrum=spectrum
     )
     nyquist_factor = int(
