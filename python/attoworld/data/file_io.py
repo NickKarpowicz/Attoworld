@@ -65,7 +65,9 @@ def read_dwc(file_or_path, is_buffer: bool = False):
     raise Exception("Interpolation failure reading dwc file")
 
 
-def load_mean_spectrum_from_scarab(filename_or_data_string: str, is_data_string: bool = False, header_size: int = 0):
+def load_mean_spectrum_from_scarab(
+    filename_or_data_string: str, is_data_string: bool = False, header_size: int = 0
+):
     """Load data produced by Scarab (Nick's C++ interface for Ocean Optics spectrometers).
 
     Args:
@@ -75,8 +77,10 @@ def load_mean_spectrum_from_scarab(filename_or_data_string: str, is_data_string:
 
     """
     if is_data_string:
-        pd_input = pd.read_csv(io.StringIO(filename_or_data_string), sep="\t", skiprows = header_size)
-        data = np.array(pd_input.iloc[:,:])
+        pd_input = pd.read_csv(
+            io.StringIO(filename_or_data_string), sep="\t", skiprows=header_size
+        )
+        data = np.array(pd_input.iloc[:, :])
     else:
         data = np.loadtxt(filename_or_data_string, skiprows=header_size)
 
@@ -95,7 +99,7 @@ def load_spectrum_from_text(
     wavelength_field: str = "wavelength (nm)",
     spectrum_field: str = "intensity (a.u.)",
     sep: str = "\t",
-    is_data_string: bool = False
+    is_data_string: bool = False,
 ):
     """Load a spectrum contained in a text file.
 

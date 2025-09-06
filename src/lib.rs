@@ -1,4 +1,4 @@
-use numpy::{IntoPyArray, PyArray1, PyReadonlyArrayDyn};
+use numpy::{IntoPyArray, PyArray1, PyReadonlyArrayDyn, ToPyArray};
 use pyo3::prelude::*;
 use rand::prelude::*;
 use rayon::prelude::*;
@@ -17,6 +17,8 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         Shg,
         Thg,
         Kerr,
+        Xfrog,
+        Blindfrog,
     }
     m.add_class::<FrogType>()?;
 
@@ -664,7 +666,12 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         return (variance / area).sqrt();
     }
 
-    fn gate_from_pulse(field: &[Complex64], gate: &mut [Complex64], nonlinearity: &FrogType) {
+    fn gate_from_pulse(
+        field: &[Complex64],
+        gate: &mut [Complex64],
+        nonlinearity: &FrogType,
+        measured_gate: Option<&[Complex64]>,
+    ) {
         match nonlinearity {
             FrogType::Shg => {
                 for (a, b) in gate.iter_mut().zip(field.iter()) {
@@ -681,6 +688,12 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
                     *a = *b * b.conj();
                 }
             }
+            FrogType::Xfrog => {
+                for (a, b) in gate.iter_mut().zip(measured_gate.unwrap().iter()) {
+                    *a = *b;
+                }
+            }
+            FrogType::Blindfrog => {}
         }
     }
 
@@ -716,16 +729,23 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
     }
 
     #[pyfn(m)]
-    #[pyo3(name = "rust_reconstruct_frog_core")]
-    #[pyo3(signature = (measurement_sg_sqrt, guess=None, iterations=100, nonlinearity=FrogType::Shg, spectrum=None))]
-    fn frog_core_wrapper<'py>(
+    #[pyo3(name = "rust_frog")]
+    #[pyo3(signature = (measurement_sg_sqrt, guess=None, trial_pulses=64, iterations=128, finishing_iterations=512, frog_type=FrogType::Shg, spectrum=None, measured_gate=None))]
+    fn frog_wrapper<'py>(
         py: Python<'py>,
         measurement_sg_sqrt: PyReadonlyArrayDyn<'py, f64>,
         guess: Option<PyReadonlyArrayDyn<'py, Complex64>>,
+        trial_pulses: usize,
         iterations: usize,
-        nonlinearity: FrogType,
+        finishing_iterations: usize,
+        frog_type: FrogType,
         spectrum: Option<PyReadonlyArrayDyn<'py, f64>>,
-    ) -> PyResult<Bound<'py, PyArray1<Complex64>>> {
+        measured_gate: Option<PyReadonlyArrayDyn<'py, Complex64>>,
+    ) -> PyResult<(
+        Bound<'py, PyArray1<Complex64>>,
+        Bound<'py, PyArray1<Complex64>>,
+        f64,
+    )> {
         let guess_option: Option<Vec<Complex64>> = match guess {
             Some(g) => Some(g.as_slice()?.to_vec()),
             None => None,
@@ -734,23 +754,33 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
             Some(s) => Some(s.as_slice()?.to_vec()),
             None => None,
         };
-        Ok(reconstruct_frog_core(
+        let measured_gate_option: Option<Vec<Complex64>> = match measured_gate {
+            Some(s) => Some(s.as_slice()?.to_vec()),
+            None => None,
+        };
+        let (pulse, gate, g_error) = reconstruct_frog(
             measurement_sg_sqrt.as_slice()?,
             guess_option.as_ref().map(|vec| vec.as_slice()),
+            trial_pulses,
             iterations,
-            nonlinearity,
+            finishing_iterations,
+            frog_type,
             spectrum_option.as_ref().map(|vec| vec.as_slice()),
-        )
-        .into_pyarray(py))
+            measured_gate_option.as_ref().map(|vec| vec.as_slice()),
+        );
+        Ok((pulse.to_pyarray(py), gate.to_pyarray(py), g_error))
     }
 
-    fn reconstruct_frog_core(
+    fn reconstruct_frog(
         measurement_sg_sqrt: &[f64],
         guess: Option<&[Complex64]>,
+        trial_pulses: usize,
         iterations: usize,
-        nonlinearity: FrogType,
+        finishing_iterations: usize,
+        frog_type: FrogType,
         spectrum: Option<&[f64]>,
-    ) -> Vec<Complex64> {
+        measured_gate: Option<&[Complex64]>,
+    ) -> (Vec<Complex64>, Vec<Complex64>, f64) {
         let dim: usize = ((measurement_sg_sqrt.len() as f64).sqrt()).round() as usize;
         let mut workspace = vec![Complex64::new(0.0, 0.0); dim];
         let mut reconstructed_spectrogram = vec![0.0f64; dim * dim];
@@ -759,19 +789,101 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         let fft_backward = planner.plan_fft_inverse(dim);
         let measurement_normalized = get_norm_meas(measurement_sg_sqrt);
 
+        let (mut best_pulse, mut best_gate, mut best_error) = reconstruct_frog_core(
+            measurement_sg_sqrt,
+            &measurement_normalized,
+            guess,
+            None,
+            dim,
+            iterations,
+            frog_type.clone(),
+            spectrum,
+            measured_gate,
+            fft_forward.clone(),
+            fft_backward.clone(),
+            &mut workspace,
+            &mut reconstructed_spectrogram,
+        );
+
+        if trial_pulses > 1 {
+            for _ in 0..(trial_pulses - 1) {
+                let (new_pulse, new_gate, new_error) = reconstruct_frog_core(
+                    measurement_sg_sqrt,
+                    &measurement_normalized,
+                    guess,
+                    None,
+                    dim,
+                    iterations,
+                    frog_type.clone(),
+                    spectrum,
+                    measured_gate,
+                    fft_forward.clone(),
+                    fft_backward.clone(),
+                    &mut workspace,
+                    &mut reconstructed_spectrogram,
+                );
+                if new_error < best_error {
+                    best_pulse = new_pulse;
+                    best_gate = new_gate;
+                    best_error = new_error;
+                }
+            }
+        }
+
+        reconstruct_frog_core(
+            measurement_sg_sqrt,
+            &measurement_normalized,
+            Some(&best_pulse),
+            Some(&best_gate),
+            dim,
+            finishing_iterations,
+            frog_type.clone(),
+            spectrum,
+            measured_gate,
+            fft_forward.clone(),
+            fft_backward.clone(),
+            &mut workspace,
+            &mut reconstructed_spectrogram,
+        )
+    }
+
+    fn reconstruct_frog_core(
+        measurement_sg_sqrt: &[f64],
+        measurement_normalized: &[f64],
+        guess: Option<&[Complex64]>,
+        gate_guess: Option<&[Complex64]>,
+        dim: usize,
+        iterations: usize,
+        frog_type: FrogType,
+        spectrum: Option<&[f64]>,
+        measured_gate: Option<&[Complex64]>,
+        fft_forward: Arc<dyn Fft<f64>>,
+        fft_backward: Arc<dyn Fft<f64>>,
+        workspace: &mut [Complex64],
+        reconstructed_spectrogram: &mut [f64],
+    ) -> (Vec<Complex64>, Vec<Complex64>, f64) {
         let mut pulse = match guess {
             Some(field) => field.to_vec(),
             None => generate_random_pulse(dim),
         };
+
+        let mut gate: Vec<Complex64> = match gate_guess {
+            Some(g) => g.to_vec(),
+            None => {
+                let mut g = pulse.clone();
+                gate_from_pulse(&pulse, &mut g, &frog_type, measured_gate);
+                g
+            }
+        };
+
         let mut best = pulse.clone();
-        let mut gate = pulse.clone();
-        gate_from_pulse(&pulse, &mut gate, &nonlinearity);
+        let mut best_gate = gate.clone();
         let mut best_error: f64 = calculate_g_error(
             &measurement_normalized,
             &pulse,
             &gate,
-            &mut workspace,
-            &mut reconstructed_spectrogram,
+            workspace,
+            reconstructed_spectrogram,
             fft_forward.clone(),
         );
 
@@ -779,7 +891,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
             (pulse, gate) = apply_frog_iteration(
                 &pulse,
                 &gate,
-                &mut workspace,
+                workspace,
                 measurement_sg_sqrt,
                 fft_forward.clone(),
                 fft_backward.clone(),
@@ -791,23 +903,24 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
                 fft_forward.clone(),
                 fft_backward.clone(),
             );
-            gate_from_pulse(&pulse, &mut gate, &nonlinearity);
+            gate_from_pulse(&pulse, &mut gate, &frog_type, measured_gate);
             let g_error = calculate_g_error(
                 &measurement_normalized,
                 &pulse,
                 &gate,
-                &mut workspace,
-                &mut reconstructed_spectrogram,
+                workspace,
+                reconstructed_spectrogram,
                 fft_forward.clone(),
             );
 
             if g_error < best_error {
                 best_error = g_error;
+                best_gate = gate.clone();
                 best = pulse.clone();
             }
         }
 
-        return best;
+        return (best, best_gate, best_error);
     }
 
     #[pyfn(m)]

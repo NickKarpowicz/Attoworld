@@ -204,7 +204,7 @@ def _(
                 xfrog_reference.spectrum.spectrum = np.conj(xfrog_reference.spectrum.spectrum)
             xfrog_reference.plot_all(figsize=(9,6))
             aw.plot.showmo()
-    return (xfrog_reference,)
+    return
 
 
 @app.cell
@@ -419,40 +419,48 @@ def _(
     recon_trials,
     reconstruct_button,
     spectral_constraint,
-    xfrog_reference,
 ):
     mo.stop(not reconstruct_button.value)
     if frog_data is not None:
         match mode_selector.value:
+            case "SHG":
+                frog_type = aw.attoworld_rs.FrogType.Shg
+            case "THG":
+                frog_type = aw.attoworld_rs.FrogType.Thg
+            case "Kerr":
+                frog_type = aw.attoworld_rs.FrogType.Kerr
             case "XFROG":
-                result, _ = aw.wave.reconstruct_xfrog(
-                    measurement=frog_data,
-                    gate=xfrog_reference,
-                    repeats=int(recon_trials.value),
-                    test_iterations=int(recon_trial_length.value),
-                    polish_iterations=int(recon_followups.value),
-                )
+                frog_type = aw.attoworld_rs.FrogType.Xfrog
             case "BlindFROG":
-                result, result_gate = aw.wave.reconstruct_blindfrog(
-                    measurement=frog_data,
-                    repeats=int(recon_trials.value),
-                    test_iterations=int(recon_trial_length.value),
-                    polish_iterations=int(recon_followups.value),
-                )
-            case _:
-                result = aw.wave.reconstruct_frog(
-                    measurement=frog_data,
-                    repeats=int(recon_trials.value),
-                    test_iterations=int(recon_trial_length.value),
-                    polish_iterations=int(recon_followups.value),
-                    nonlinearity=mode_selector.value,
-                    spectrum=spectral_constraint,
-                )
+                frog_type = aw.attoworld_rs.FrogType.Blindfrog
+            # case "XFROG":
+            #     result, _ = aw.wave.reconstruct_xfrog(
+            #         measurement=frog_data,
+            #         gate=xfrog_reference,
+            #         repeats=int(recon_trials.value),
+            #         test_iterations=int(recon_trial_length.value),
+            #         polish_iterations=int(recon_followups.value),
+            #     )
+            # case "BlindFROG":
+            #     result, result_gate = aw.wave.reconstruct_blindfrog(
+            #         measurement=frog_data,
+            #         repeats=int(recon_trials.value),
+            #         test_iterations=int(recon_trial_length.value),
+            #         polish_iterations=int(recon_followups.value),
+            #     
+        result, gate_result = aw.wave.reconstruct_frog(
+            measurement=frog_data,
+            repeats=int(recon_trials.value),
+            test_iterations=int(recon_trial_length.value),
+            polish_iterations=int(recon_followups.value),
+            frog_type=frog_type,
+            spectrum=spectral_constraint,
+        )
 
 
     else:
         result = None
-    return result, result_gate
+    return (result,)
 
 
 @app.cell
