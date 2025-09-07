@@ -781,97 +781,101 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         spectrum: Option<&[f64]>,
         measured_gate: Option<&[Complex64]>,
     ) -> (Vec<Complex64>, Vec<Complex64>, f64) {
-        let dim: usize = ((measurement_sg_sqrt.len() as f64).sqrt()).round() as usize;
-        let mut workspace = vec![Complex64::new(0.0, 0.0); dim];
-        let mut reconstructed_spectrogram = vec![0.0f64; dim * dim];
-        let mut planner = FftPlanner::<f64>::new();
-        let fft_forward = planner.plan_fft_forward(dim);
-        let fft_backward = planner.plan_fft_inverse(dim);
-        let measurement_normalized = get_norm_meas(measurement_sg_sqrt);
-
-        let (mut best_pulse, mut best_gate, mut best_error) = reconstruct_frog_core(
+        let mut alloc = FrogAllocation::new(
             measurement_sg_sqrt,
-            &measurement_normalized,
-            guess,
+            guess.map(|x| x.to_vec()),
             None,
-            dim,
-            iterations,
             frog_type.clone(),
-            spectrum,
-            measured_gate,
-            fft_forward.clone(),
-            fft_backward.clone(),
-            &mut workspace,
-            &mut reconstructed_spectrogram,
+            spectrum.map(|x| x.to_vec()),
+            measured_gate.map(|x| x.to_vec()),
         );
+        let (mut best_pulse, mut best_gate, mut best_error) =
+            reconstruct_frog_core(alloc.clone(), iterations);
 
-        if trial_pulses > 1 {
-            for _ in 0..(trial_pulses - 1) {
-                let (new_pulse, new_gate, new_error) = reconstruct_frog_core(
-                    measurement_sg_sqrt,
-                    &measurement_normalized,
-                    guess,
-                    None,
-                    dim,
-                    iterations,
-                    frog_type.clone(),
-                    spectrum,
-                    measured_gate,
-                    fft_forward.clone(),
-                    fft_backward.clone(),
-                    &mut workspace,
-                    &mut reconstructed_spectrogram,
-                );
-                if new_error < best_error {
-                    best_pulse = new_pulse;
-                    best_gate = new_gate;
-                    best_error = new_error;
-                }
+        for _ in 0..trial_pulses {
+            let (new_pulse, new_gate, new_error) = reconstruct_frog_core(alloc.clone(), iterations);
+            if new_error < best_error {
+                best_pulse = new_pulse;
+                best_gate = new_gate;
+                best_error = new_error;
             }
         }
 
-        reconstruct_frog_core(
-            measurement_sg_sqrt,
-            &measurement_normalized,
-            Some(&best_pulse),
-            Some(&best_gate),
-            dim,
-            finishing_iterations,
-            frog_type.clone(),
-            spectrum,
-            measured_gate,
-            fft_forward.clone(),
-            fft_backward.clone(),
-            &mut workspace,
-            &mut reconstructed_spectrogram,
-        )
+        alloc.guess = Some(best_pulse);
+        alloc.gate_guess = Some(best_gate);
+        reconstruct_frog_core(alloc, finishing_iterations)
+    }
+
+    #[derive(Clone)]
+    struct FrogAllocation {
+        measurement: Vec<f64>,
+        measurement_sg_sqrt: Vec<f64>,
+        measurement_normalized: Vec<f64>,
+        guess: Option<Vec<Complex64>>,
+        gate_guess: Option<Vec<Complex64>>,
+        dim: usize,
+        frog_type: FrogType,
+        spectrum: Option<Vec<f64>>,
+        measured_gate: Option<Vec<Complex64>>,
+        fft_forward: Arc<dyn Fft<f64>>,
+        fft_backward: Arc<dyn Fft<f64>>,
+        workspace: Vec<Complex64>,
+        reconstructed_spectrogram: Vec<f64>,
+    }
+    impl FrogAllocation {
+        fn new(
+            original_measurement: &[f64],
+            guess: Option<Vec<Complex64>>,
+            gate_guess: Option<Vec<Complex64>>,
+            frog_type: FrogType,
+            spectrum: Option<Vec<f64>>,
+            measured_gate: Option<Vec<Complex64>>,
+        ) -> Self {
+            let dim: usize = ((original_measurement.len() as f64).sqrt()).round() as usize;
+            let measurement_sg_sqrt = original_measurement.to_vec();
+            let workspace = vec![Complex64::new(0.0, 0.0); dim];
+            let reconstructed_spectrogram = vec![0.0f64; dim * dim];
+            let mut planner = FftPlanner::<f64>::new();
+            let fft_forward = planner.plan_fft_forward(dim);
+            let fft_backward = planner.plan_fft_inverse(dim);
+            let measurement_normalized = get_norm_meas(&measurement_sg_sqrt);
+            FrogAllocation {
+                measurement: original_measurement.to_vec(),
+                measurement_sg_sqrt,
+                measurement_normalized,
+                guess,
+                gate_guess,
+                dim,
+                frog_type,
+                spectrum,
+                measured_gate,
+                fft_forward,
+                fft_backward,
+                workspace,
+                reconstructed_spectrogram,
+            }
+        }
     }
 
     fn reconstruct_frog_core(
-        measurement_sg_sqrt: &[f64],
-        measurement_normalized: &[f64],
-        guess: Option<&[Complex64]>,
-        gate_guess: Option<&[Complex64]>,
-        dim: usize,
+        mut alloc: FrogAllocation,
         iterations: usize,
-        frog_type: FrogType,
-        spectrum: Option<&[f64]>,
-        measured_gate: Option<&[Complex64]>,
-        fft_forward: Arc<dyn Fft<f64>>,
-        fft_backward: Arc<dyn Fft<f64>>,
-        workspace: &mut [Complex64],
-        reconstructed_spectrogram: &mut [f64],
     ) -> (Vec<Complex64>, Vec<Complex64>, f64) {
-        let mut pulse = match guess {
-            Some(field) => field.to_vec(),
-            None => generate_random_pulse(dim),
+        let mut pulse = match alloc.guess {
+            Some(field) => field,
+            None => generate_random_pulse(alloc.dim),
         };
 
-        let mut gate: Vec<Complex64> = match gate_guess {
-            Some(g) => g.to_vec(),
+        let mut gate: Vec<Complex64> = match alloc.gate_guess {
+            Some(g) => g,
             None => {
                 let mut g = pulse.clone();
-                gate_from_pulse(&pulse, &mut g, &frog_type, measured_gate);
+                gate_from_pulse(
+                    &pulse,
+                    &mut g,
+                    &alloc.frog_type,
+                    alloc.measured_gate.as_deref(),
+                );
                 g
             }
         };
@@ -879,38 +883,43 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         let mut best = pulse.clone();
         let mut best_gate = gate.clone();
         let mut best_error: f64 = calculate_g_error(
-            &measurement_normalized,
+            &alloc.measurement_normalized,
             &pulse,
             &gate,
-            workspace,
-            reconstructed_spectrogram,
-            fft_forward.clone(),
+            &mut alloc.workspace,
+            &mut alloc.reconstructed_spectrogram,
+            alloc.fft_forward.clone(),
         );
 
         for _ in 0..iterations {
             (pulse, gate) = apply_frog_iteration(
                 &pulse,
                 &gate,
-                workspace,
-                measurement_sg_sqrt,
-                fft_forward.clone(),
-                fft_backward.clone(),
+                &mut alloc.workspace,
+                alloc.measurement_sg_sqrt.as_slice(),
+                alloc.fft_forward.clone(),
+                alloc.fft_backward.clone(),
             );
             pulse = frog_guess_from_pulse_and_gate(&pulse, &gate, FrogType::Shg);
             frog_apply_spectral_constraint(
                 &mut pulse,
-                spectrum,
-                fft_forward.clone(),
-                fft_backward.clone(),
+                alloc.spectrum.as_deref(),
+                alloc.fft_forward.clone(),
+                alloc.fft_backward.clone(),
             );
-            gate_from_pulse(&pulse, &mut gate, &frog_type, measured_gate);
+            gate_from_pulse(
+                &pulse,
+                &mut gate,
+                &alloc.frog_type,
+                alloc.measured_gate.as_deref(),
+            );
             let g_error = calculate_g_error(
-                &measurement_normalized,
+                alloc.measurement_normalized.as_slice(),
                 &pulse,
                 &gate,
-                workspace,
-                reconstructed_spectrogram,
-                fft_forward.clone(),
+                &mut alloc.workspace,
+                &mut alloc.reconstructed_spectrogram,
+                alloc.fft_forward.clone(),
             );
 
             if g_error < best_error {
