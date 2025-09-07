@@ -412,6 +412,8 @@ def reconstruct_frog(
         np.ceil(2 * (measurement.time[1] - measurement.time[0]) * measurement.freq[-1])
     )
 
+    pulse_out = shift_to_zero_and_normalize(pulse_out)
+    gate_out = shift_to_zero_and_normalize(gate_out)
 
     result = bundle_frog_reconstruction(
         t=measurement.time,
