@@ -361,6 +361,7 @@ def reconstruct_frog(
         repeats (int): number of different initial guesses to try
         frog_type (FrogType): type of nonlinear effect. Options: SHG, THG, and Kerr
         spectrum (IntensitySpectrum): optional spectrum to use to constrain the spectrum of the retrieved pulse
+        xfrog_gate (FrogData): gate to use for xfrog
     Returns:
     FrogData: the completed reconstruction
 
