@@ -178,6 +178,8 @@ def _(mo, mode_selector):
     xfrog_reference_file = mo.ui.file(filetypes=[".yml",".dat"], label="Select reference file")
     xfrog_time_reverse_checkbox = mo.ui.checkbox(label="Reverse time")
     if(mode_selector.value == "XFROG"):
+        mo.output.append(mo.md("---"))
+        mo.output.append(mo.md("#### XFROG Reference:"))
         mo.output.append(xfrog_reference_file)
         mo.output.append(xfrog_time_reverse_checkbox)
     return xfrog_reference_file, xfrog_time_reverse_checkbox
@@ -204,7 +206,9 @@ def _(
                 xfrog_reference.spectrum.spectrum = np.conj(xfrog_reference.spectrum.spectrum)
             xfrog_reference.plot_all(figsize=(9,6))
             aw.plot.showmo()
-    return
+    else:
+        xfrog_reference=None
+    return (xfrog_reference,)
 
 
 @app.cell
@@ -419,6 +423,7 @@ def _(
     recon_trials,
     reconstruct_button,
     spectral_constraint,
+    xfrog_reference,
 ):
     mo.stop(not reconstruct_button.value)
     if frog_data is not None:
@@ -433,21 +438,6 @@ def _(
                 frog_type = aw.attoworld_rs.FrogType.Xfrog
             case "BlindFROG":
                 frog_type = aw.attoworld_rs.FrogType.Blindfrog
-            # case "XFROG":
-            #     result, _ = aw.wave.reconstruct_xfrog(
-            #         measurement=frog_data,
-            #         gate=xfrog_reference,
-            #         repeats=int(recon_trials.value),
-            #         test_iterations=int(recon_trial_length.value),
-            #         polish_iterations=int(recon_followups.value),
-            #     )
-            # case "BlindFROG":
-            #     result, result_gate = aw.wave.reconstruct_blindfrog(
-            #         measurement=frog_data,
-            #         repeats=int(recon_trials.value),
-            #         test_iterations=int(recon_trial_length.value),
-            #         polish_iterations=int(recon_followups.value),
-            #     
         result, gate_result = aw.wave.reconstruct_frog(
             measurement=frog_data,
             repeats=int(recon_trials.value),
@@ -455,9 +445,8 @@ def _(
             polish_iterations=int(recon_followups.value),
             frog_type=frog_type,
             spectrum=spectral_constraint,
+            xfrog_gate = xfrog_reference
         )
-
-
     else:
         result = None
     return (result,)

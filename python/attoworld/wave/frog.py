@@ -372,7 +372,7 @@ def reconstruct_frog(
     sqrt_sg /= np.max(sqrt_sg)
     measurement_norm = sqrt_sg**2
     measurement_norm = measurement_norm / np.linalg.norm(measurement_norm)
-
+    measured_gate = None
     match frog_type:
         case FrogType.Shg:
             f0 = float(np.mean(measurement.freq) / 2.0)
@@ -381,6 +381,7 @@ def reconstruct_frog(
         case FrogType.Xfrog:
             if xfrog_gate is not None:
                 f0 = float(np.mean(measurement.freq) - xfrog_gate.f0)
+                measured_gate = generate_gate_from_frog(xfrog_gate, measurement)
             else:
                 raise ValueError("Must provide a measured gate pulse for XFROG, using the xfrog_gate input parameter.")
         case FrogType.Kerr | _:
@@ -405,7 +406,7 @@ def reconstruct_frog(
         finishing_iterations=polish_iterations,
         frog_type=frog_type,
         spectrum=spectrum,
-        measured_gate=None,
+        measured_gate=measured_gate,
     )
     nyquist_factor = int(
         np.ceil(2 * (measurement.time[1] - measurement.time[0]) * measurement.freq[-1])
