@@ -4,8 +4,8 @@ use rand::prelude::*;
 use rayon::prelude::*;
 use rustfft::num_complex::Complex64;
 use rustfft::{Fft, FftPlanner};
-use std::f64;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::{f64, thread};
 
 /// Functions written in Rust for improved performance and correctness.
 #[pymodule]
@@ -771,6 +771,20 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         Ok((pulse.to_pyarray(py), gate.to_pyarray(py), g_error))
     }
 
+    #[derive(Clone)]
+    struct FrogResult {
+        pulse: Vec<Complex64>,
+        gate: Vec<Complex64>,
+        error: f64,
+    }
+    impl FrogResult {
+        fn swap_if_better(&mut self, other: FrogResult) {
+            if other.error < self.error {
+                *self = other;
+            }
+        }
+    }
+
     fn reconstruct_frog(
         measurement_sg_sqrt: &[f64],
         guess: Option<&[Complex64]>,
@@ -789,26 +803,36 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
             spectrum.map(|x| x.to_vec()),
             measured_gate.map(|x| x.to_vec()),
         );
-        let (mut best_pulse, mut best_gate, mut best_error) =
-            reconstruct_frog_core(alloc.clone(), iterations);
-
-        for _ in 0..trial_pulses {
-            let (new_pulse, new_gate, new_error) = reconstruct_frog_core(alloc.clone(), iterations);
-            if new_error < best_error {
-                best_pulse = new_pulse;
-                best_gate = new_gate;
-                best_error = new_error;
-            }
+        let best_result = Arc::new(Mutex::new(reconstruct_frog_core(alloc.clone(), iterations)));
+        let threads: usize = thread::available_parallelism()
+            .unwrap_or(core::num::NonZeroUsize::MIN)
+            .get();
+        let thread_pulses = (trial_pulses + threads - 1) / threads;
+        let mut handles = Vec::with_capacity(threads);
+        for _ in 0..threads {
+            let best_result_clone = Arc::clone(&best_result);
+            let local_alloc = alloc.clone();
+            handles.push(thread::spawn(move || {
+                for _ in 0..thread_pulses {
+                    let new_result = reconstruct_frog_core(local_alloc.clone(), iterations);
+                    let mut best_result_lock = best_result_clone.lock().unwrap();
+                    best_result_lock.swap_if_better(new_result);
+                }
+            }));
         }
 
-        alloc.guess = Some(best_pulse);
-        alloc.gate_guess = Some(best_gate);
-        reconstruct_frog_core(alloc, finishing_iterations)
+        for handle in handles {
+            handle.join().unwrap();
+        }
+        let result = best_result.lock().unwrap();
+        alloc.guess = Some(result.pulse.clone());
+        alloc.gate_guess = Some(result.gate.clone());
+        let last = reconstruct_frog_core(alloc, finishing_iterations);
+        (last.pulse, last.gate, last.error)
     }
 
     #[derive(Clone)]
     struct FrogAllocation {
-        measurement: Vec<f64>,
         measurement_sg_sqrt: Vec<f64>,
         measurement_normalized: Vec<f64>,
         guess: Option<Vec<Complex64>>,
@@ -824,15 +848,15 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
     }
     impl FrogAllocation {
         fn new(
-            original_measurement: &[f64],
+            measurement_sg_sqrt: &[f64],
             guess: Option<Vec<Complex64>>,
             gate_guess: Option<Vec<Complex64>>,
             frog_type: FrogType,
             spectrum: Option<Vec<f64>>,
             measured_gate: Option<Vec<Complex64>>,
         ) -> Self {
-            let dim: usize = ((original_measurement.len() as f64).sqrt()).round() as usize;
-            let measurement_sg_sqrt = original_measurement.to_vec();
+            let dim: usize = ((measurement_sg_sqrt.len() as f64).sqrt()).round() as usize;
+            let measurement_sg_sqrt = measurement_sg_sqrt.to_vec();
             let workspace = vec![Complex64::new(0.0, 0.0); dim];
             let reconstructed_spectrogram = vec![0.0f64; dim * dim];
             let mut planner = FftPlanner::<f64>::new();
@@ -840,7 +864,6 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
             let fft_backward = planner.plan_fft_inverse(dim);
             let measurement_normalized = get_norm_meas(&measurement_sg_sqrt);
             FrogAllocation {
-                measurement: original_measurement.to_vec(),
                 measurement_sg_sqrt,
                 measurement_normalized,
                 guess,
@@ -857,10 +880,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         }
     }
 
-    fn reconstruct_frog_core(
-        mut alloc: FrogAllocation,
-        iterations: usize,
-    ) -> (Vec<Complex64>, Vec<Complex64>, f64) {
+    fn reconstruct_frog_core(mut alloc: FrogAllocation, iterations: usize) -> FrogResult {
         let mut pulse = match alloc.guess {
             Some(field) => field,
             None => generate_random_pulse(alloc.dim),
@@ -929,7 +949,11 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
             }
         }
 
-        return (best, best_gate, best_error);
+        return FrogResult {
+            pulse: best,
+            gate: best_gate,
+            error: best_error,
+        };
     }
 
     #[pyfn(m)]
