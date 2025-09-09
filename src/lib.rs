@@ -728,6 +728,27 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
             .collect()
     }
 
+    fn generate_random_pulse_with_amplitude_spectrum(
+        dim: usize,
+        spectrum: &[f64],
+        fft_backward: Arc<dyn Fft<f64>>,
+    ) -> Vec<Complex64> {
+        let range = rand::distr::Uniform::new(-1.0f64, 1.0f64).unwrap();
+        let mut rng = rand::rng();
+        let mut complex_spectrum: Vec<Complex64> = (0..dim)
+            .zip(spectrum.iter())
+            .map(|(_, &s)| Complex64::from_polar(s, range.sample(&mut rng)))
+            .collect();
+        fft_backward.process(&mut complex_spectrum);
+        complex_spectrum
+    }
+
+    fn get_frequency_marginal(dim: usize, sqrt_sg: &[f64]) -> Vec<f64> {
+        (0..dim)
+            .map(|col| sqrt_sg.iter().step_by(dim).skip(col).map(|&x| x * x).sum())
+            .collect()
+    }
+
     #[pyfn(m)]
     #[pyo3(name = "rust_frog")]
     #[pyo3(signature = (measurement_sg_sqrt, guess=None, trial_pulses=64, iterations=128, finishing_iterations=512, frog_type=FrogType::Shg, spectrum=None, measured_gate=None))]
@@ -850,6 +871,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         frog_type: FrogType,
         spectrum: Option<Vec<f64>>,
         measured_gate: Option<Vec<Complex64>>,
+        frequency_marginal: Vec<f64>,
         fft_forward: Arc<dyn Fft<f64>>,
         fft_backward: Arc<dyn Fft<f64>>,
         workspace: Vec<Complex64>,
@@ -872,6 +894,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
             let fft_forward = planner.plan_fft_forward(dim);
             let fft_backward = planner.plan_fft_inverse(dim);
             let measurement_normalized = get_norm_meas(&measurement_sg_sqrt);
+            let frequency_marginal = get_frequency_marginal(dim, &measurement_sg_sqrt);
             FrogAllocation {
                 measurement_sg_sqrt,
                 measurement_normalized,
@@ -881,6 +904,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
                 frog_type,
                 spectrum,
                 measured_gate,
+                frequency_marginal,
                 fft_forward,
                 fft_backward,
                 workspace,
@@ -892,7 +916,12 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
     fn reconstruct_frog_core(mut alloc: FrogAllocation, iterations: usize) -> FrogResult {
         let mut pulse = match alloc.guess {
             Some(field) => field,
-            None => generate_random_pulse(alloc.dim),
+            //None => generate_random_pulse(alloc.dim),
+            None => generate_random_pulse_with_amplitude_spectrum(
+                alloc.dim,
+                &alloc.frequency_marginal,
+                alloc.fft_backward.clone(),
+            ),
         };
 
         let mut gate: Vec<Complex64> = match alloc.gate_guess {
