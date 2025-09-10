@@ -83,7 +83,7 @@ def _(aw, mo):
 
 @app.cell
 def _(mo):
-    mode_selector = mo.ui.dropdown(options=["SHG", "THG", "Kerr", "XFROG", "BlindFROG"], label="FROG type:", value="SHG")
+    mode_selector = mo.ui.dropdown(options=["SHG", "SHG ptychographic", "THG", "Kerr", "XFROG", "BlindFROG"], label="FROG type:", value="SHG")
     mode_selector
     return (mode_selector,)
 
@@ -279,6 +279,24 @@ def _(
 
 
 @app.cell
+def _(mo, mode_selector):
+    ptycho_roi_lower = mo.ui.number(value = 300.0, step=0.1, label="ROI lower frequency (THz)")
+    ptycho_roi_upper = mo.ui.number(value = 900.0, step=0.1, label="ROI upper frequency (THz)")
+    ptycho_exclude_lower = mo.ui.number(value = 1000.0, step=0.1, label="Excluded region lower frequency (THz)")
+    ptycho_exclude_upper = mo.ui.number(value = 1200.0, step=0.1, label="Excluded region upper frequency (THz)")
+    ptycho_threshhold = mo.ui.number(value = 1.0, step=0.1, label="Ptychographic noise filter threshhold")
+    if mode_selector.value == "SHG ptychographic":
+        mo.output.append(mo.md("---"))
+        mo.output.append(mo.md("#### Ptychographic FROG options:"))
+        mo.output.append(ptycho_roi_lower)
+        mo.output.append(ptycho_roi_upper)
+        mo.output.append(ptycho_exclude_lower)
+        mo.output.append(ptycho_exclude_upper)
+        mo.output.append(ptycho_threshhold)
+    return ptycho_roi_lower, ptycho_roi_upper, ptycho_threshhold
+
+
+@app.cell
 def _(mo):
     mo.output.append(mo.md("---"))
     mo.output.append(mo.md("#### Optional spectral constraint:"))
@@ -397,6 +415,9 @@ def _(
     frog_data,
     mo,
     mode_selector,
+    ptycho_roi_lower,
+    ptycho_roi_upper,
+    ptycho_threshhold,
     recon_followups,
     recon_trial_length,
     recon_trials,
@@ -406,6 +427,8 @@ def _(
 ):
     mo.stop(not reconstruct_button.value)
     if frog_data is not None:
+        roi = None
+        ptycho_threshhold_float = None
         match mode_selector.value:
             case "SHG":
                 frog_type = aw.attoworld_rs.FrogType.Shg
@@ -417,6 +440,10 @@ def _(
                 frog_type = aw.attoworld_rs.FrogType.Xfrog
             case "BlindFROG":
                 frog_type = aw.attoworld_rs.FrogType.Blindfrog
+            case "SHG ptychographic":
+                frog_type = aw.attoworld_rs.FrogType.PtychographicShg
+                roi = (frog_data.freq > ptycho_roi_lower.value*1e12) * (frog_data.freq < ptycho_roi_upper.value * 1e12)
+                ptycho_threshhold_float = ptycho_threshhold.value
         result, result_gate = aw.wave.reconstruct_frog(
             measurement=frog_data,
             repeats=int(recon_trials.value),
@@ -424,7 +451,9 @@ def _(
             polish_iterations=int(recon_followups.value),
             frog_type=frog_type,
             spectrum=spectral_constraint,
-            xfrog_gate = xfrog_reference
+            xfrog_gate = xfrog_reference,
+            roi=roi,
+            ptycho_threshhold=ptycho_threshhold_float
         )
     else:
         result = None

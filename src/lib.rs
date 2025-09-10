@@ -15,6 +15,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
     #[derive(Clone)]
     enum FrogType {
         Shg,
+        PtychographicShg,
         Thg,
         Kerr,
         Xfrog,
@@ -608,7 +609,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
     fn frog_guess_from_pulse_and_gate(
         pulse: &[Complex64],
         gate: &[Complex64],
-        nonlinearity: FrogType,
+        nonlinearity: &FrogType,
     ) -> Vec<Complex64> {
         match nonlinearity {
             FrogType::Shg => pulse
@@ -678,6 +679,11 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
                     *a = *b;
                 }
             }
+            FrogType::PtychographicShg => {
+                for (a, b) in gate.iter_mut().zip(field.iter()) {
+                    *a = *b;
+                }
+            }
             FrogType::Thg => {
                 for (a, b) in gate.iter_mut().zip(field.iter()) {
                     *a = *b * *b;
@@ -734,15 +740,20 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         complex_spectrum
     }
 
-    fn get_frequency_marginal(dim: usize, sqrt_sg: &[f64]) -> Vec<f64> {
-        (0..dim)
-            .map(|col| sqrt_sg.iter().skip(col).step_by(dim).sum())
+    fn get_frequency_marginal(dim: usize, spectrogram: &[f64]) -> Vec<f64> {
+        // let marg: Vec<f64> = (0..dim)
+        //     .map(|col| sqrt_sg.iter().skip(col).step_by(dim).sum())
+        //     .collect();
+        // even_vec_fftshift(&marg)
+        spectrogram
+            .chunks(dim)
+            .map(|row| row.iter().sum::<f64>())
             .collect()
     }
 
     #[pyfn(m)]
     #[pyo3(name = "rust_frog")]
-    #[pyo3(signature = (measurement_sg_sqrt, guess=None, trial_pulses=64, iterations=128, finishing_iterations=512, frog_type=FrogType::Shg, spectrum=None, measured_gate=None))]
+    #[pyo3(signature = (measurement_sg_sqrt, guess=None, trial_pulses=64, iterations=128, finishing_iterations=512, frog_type=FrogType::Shg, spectrum=None, measured_gate=None, roi=None, ptycho_threshhold=None))]
     fn frog_wrapper<'py>(
         py: Python<'py>,
         measurement_sg_sqrt: PyReadonlyArrayDyn<'py, f64>,
@@ -753,6 +764,8 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         frog_type: FrogType,
         spectrum: Option<PyReadonlyArrayDyn<'py, f64>>,
         measured_gate: Option<PyReadonlyArrayDyn<'py, Complex64>>,
+        roi: Option<PyReadonlyArrayDyn<'py, bool>>,
+        ptycho_threshhold: Option<f64>,
     ) -> PyResult<(
         Bound<'py, PyArray1<Complex64>>,
         Bound<'py, PyArray1<Complex64>>,
@@ -770,6 +783,10 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
             Some(s) => Some(s.as_slice()?.to_vec()),
             None => None,
         };
+        let roi_option: Option<Vec<bool>> = match roi {
+            Some(s) => Some(s.as_slice()?.to_vec()),
+            None => None,
+        };
         let (pulse, gate, g_error) = reconstruct_frog(
             measurement_sg_sqrt.as_slice()?,
             guess_option.as_ref().map(|vec| vec.as_slice()),
@@ -779,6 +796,8 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
             frog_type,
             spectrum_option.as_ref().map(|vec| vec.as_slice()),
             measured_gate_option.as_ref().map(|vec| vec.as_slice()),
+            roi_option.as_ref().map(|vec| vec.as_slice()),
+            ptycho_threshhold,
         );
         Ok((pulse.to_pyarray(py), gate.to_pyarray(py), g_error))
     }
@@ -806,6 +825,8 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         frog_type: FrogType,
         spectrum: Option<&[f64]>,
         measured_gate: Option<&[Complex64]>,
+        roi: Option<&[bool]>,
+        ptycho_threshhold: Option<f64>,
     ) -> (Vec<Complex64>, Vec<Complex64>, f64) {
         let mut alloc = FrogAllocation::new(
             measurement_sg_sqrt,
@@ -814,6 +835,8 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
             frog_type.clone(),
             spectrum.map(|x| x.to_vec()),
             measured_gate.map(|x| x.to_vec()),
+            roi.map(|x| x.to_vec()),
+            ptycho_threshhold,
         );
         let best_result = Arc::new(Mutex::new(reconstruct_frog_core(alloc.clone(), iterations)));
         let threads: usize = thread::available_parallelism()
@@ -866,6 +889,8 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         fft_backward: Arc<dyn Fft<f64>>,
         workspace: Vec<Complex64>,
         reconstructed_spectrogram: Vec<f64>,
+        roi: Vec<bool>,
+        ptycho_threshhold: f64,
     }
     impl FrogAllocation {
         fn new(
@@ -875,6 +900,8 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
             frog_type: FrogType,
             spectrum: Option<Vec<f64>>,
             measured_gate: Option<Vec<Complex64>>,
+            roi: Option<Vec<bool>>,
+            ptycho_threshhold: Option<f64>,
         ) -> Self {
             let dim: usize = ((measurement_sg_sqrt.len() as f64).sqrt()).round() as usize;
             let measurement_sg_sqrt = measurement_sg_sqrt.to_vec();
@@ -885,6 +912,15 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
             let fft_backward = planner.plan_fft_inverse(dim);
             let measurement_normalized = get_norm_meas(&measurement_sg_sqrt);
             let frequency_marginal = get_frequency_marginal(dim, &measurement_normalized);
+            let roi = match roi {
+                Some(r) => r,
+                None => vec![true; dim],
+            };
+            let ptycho_threshhold = match ptycho_threshhold {
+                Some(t) => t,
+                None => 0.0,
+            };
+
             FrogAllocation {
                 measurement_sg_sqrt,
                 measurement_normalized,
@@ -898,6 +934,8 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
                 fft_backward,
                 workspace,
                 reconstructed_spectrogram,
+                roi,
+                ptycho_threshhold,
             }
         }
     }
@@ -937,15 +975,26 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         );
 
         for _ in 0..iterations {
-            (pulse, gate) = apply_frog_iteration(
-                &pulse,
-                &gate,
-                &mut alloc.workspace,
-                alloc.measurement_sg_sqrt.as_slice(),
-                alloc.fft_forward.clone(),
-                alloc.fft_backward.clone(),
-            );
-            pulse = frog_guess_from_pulse_and_gate(&pulse, &gate, FrogType::Shg);
+            (pulse, gate) = match alloc.frog_type {
+                FrogType::PtychographicShg => apply_ptychographic_frog_iteration(
+                    &pulse,
+                    alloc.measurement_sg_sqrt.as_slice(),
+                    &mut alloc.workspace,
+                    alloc.fft_forward.clone(),
+                    alloc.fft_backward.clone(),
+                    &alloc.roi,
+                    alloc.ptycho_threshhold,
+                ),
+                _ => apply_frog_iteration(
+                    &pulse,
+                    &gate,
+                    &mut alloc.workspace,
+                    alloc.measurement_sg_sqrt.as_slice(),
+                    alloc.fft_forward.clone(),
+                    alloc.fft_backward.clone(),
+                ),
+            };
+            pulse = frog_guess_from_pulse_and_gate(&pulse, &gate, &alloc.frog_type);
             frog_apply_spectral_constraint(
                 &mut pulse,
                 alloc.spectrum.as_deref(),
@@ -981,33 +1030,102 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         };
     }
 
-    #[pyfn(m)]
-    #[pyo3(name = "frog_iteration")]
-    #[pyo3(signature = (input_field, input_gate, meas_sqrt))]
-    fn frog_iteration_wrapper<'py>(
-        py: Python<'py>,
-        input_field: PyReadonlyArrayDyn<'py, Complex64>,
-        input_gate: PyReadonlyArrayDyn<'py, Complex64>,
-        meas_sqrt: PyReadonlyArrayDyn<'py, f64>,
-    ) -> PyResult<(
-        Bound<'py, PyArray1<Complex64>>,
-        Bound<'py, PyArray1<Complex64>>,
-    )> {
-        let dim = input_field.as_slice()?.len();
-        let mut workspace = vec![Complex64::new(0.0, 0.0); dim];
-        let mut planner = FftPlanner::<f64>::new();
-        let fft_forward = planner.plan_fft_forward(dim);
-        let fft_backward = planner.plan_fft_inverse(dim);
-        let (field, gate) = apply_frog_iteration(
-            input_field.as_slice()?,
-            input_gate.as_slice()?,
-            &mut workspace,
-            meas_sqrt.as_slice()?,
-            fft_forward.clone(),
-            fft_backward,
-        );
+    fn apply_ptychographic_frog_iteration(
+        input_field: &[Complex64],
+        meas_sqrt: &[f64],
+        workspace: &mut [Complex64],
+        fft_forward: Arc<dyn Fft<f64>>,
+        fft_backward: Arc<dyn Fft<f64>>,
+        roi: &[bool],
+        threshhold_gamma: f64,
+    ) -> (Vec<Complex64>, Vec<Complex64>) {
+        let dim: usize = input_field.len();
+        let dim_i: i64 = dim as i64;
+        let half = dim_i / 2;
+        let mut field = input_field.to_vec();
+        let mut rng = rand::rng();
+        let alpha_range = rand::distr::Uniform::new(0.1f64, 0.5f64).unwrap();
+        let mut indices: Vec<usize> = (0usize..dim).collect::<Vec<usize>>();
+        indices.shuffle(&mut rng);
+        fn threshhold(x: Complex64, gamma: f64) -> Complex64 {
+            let real: f64 = if x.re.abs() < gamma {
+                0.0
+            } else {
+                x.re - x.re.signum() * gamma
+            };
 
-        Ok((field.into_pyarray(py), gate.into_pyarray(py)))
+            let imag: f64 = if x.im.abs() < gamma {
+                0.0
+            } else {
+                x.im - x.im.signum() * gamma
+            };
+            Complex64::new(real, imag)
+        }
+
+        for j in indices {
+            let alpha = alpha_range.sample(&mut rng);
+            let field_max: f64 = field
+                .iter()
+                .map(|&x| x.re * x.re + x.im * x.im)
+                .reduce(f64::max)
+                .unwrap_or(f64::MAX);
+
+            let mut rolled_field: Vec<Complex64> = vec![Complex64::ZERO; dim];
+            for i in 0..dim {
+                let g_index: i64 = j as i64 - half + i as i64;
+                if (g_index >= 0) && (g_index < dim_i) {
+                    workspace[i] = field[i] * field[g_index as usize];
+                    rolled_field[i] = field[g_index as usize];
+                } else {
+                    workspace[i] = Complex64::ZERO;
+                }
+            }
+            let mut nonlinear_product: Vec<Complex64> = workspace.iter().cloned().collect();
+
+            fft_forward.process(&mut nonlinear_product);
+            let amplitudes: Vec<f64> = meas_sqrt.iter().skip(j).step_by(dim).cloned().collect();
+            //amplitudes = even_vec_fftshift(&amplitudes);
+            let mut psi_prime: Vec<Complex64> = nonlinear_product
+                .iter()
+                .zip(roi.iter())
+                .zip(amplitudes.iter())
+                .map(|((&psi_val, &is_in_roi), &sg_val)| {
+                    if is_in_roi {
+                        Complex64::from_polar(sg_val, psi_val.arg())
+                    } else {
+                        threshhold(psi_val, threshhold_gamma)
+                    }
+                })
+                .collect();
+            fft_backward.process(&mut psi_prime);
+
+            let new_component: Vec<Complex64> = psi_prime
+                .iter()
+                .zip(rolled_field.iter())
+                .zip(field.iter())
+                .map(|((&psi_val, &r), &field_val)| {
+                    r.conj() * (psi_val - r * field_val) / field_max
+                })
+                .collect();
+
+            for (field_val, &new_component_val) in field.iter_mut().zip(new_component.iter()) {
+                *field_val += alpha * new_component_val;
+            }
+        }
+        return (field.clone(), field);
+    }
+    fn even_vec_fftshift<T>(vec: &[T]) -> Vec<T>
+    where
+        T: Clone,
+    {
+        let mid = vec.len() / 2usize;
+        let (first, second) = vec.split_at(mid);
+        second
+            .iter()
+            .rev()
+            .chain(first.iter().rev())
+            .map(|x| x.clone())
+            .collect()
     }
 
     fn apply_frog_iteration(
@@ -1036,8 +1154,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
             }
             fft_forward.process(workspace);
             for i in 0..dim {
-                workspace[i] =
-                    Complex64::from_polar(meas_sqrt[i * dim + j], workspace[i].clone().arg());
+                workspace[i] = Complex64::from_polar(meas_sqrt[i * dim + j], workspace[i].arg());
             }
             fft_backward.process(workspace);
             for i in 0..dim {

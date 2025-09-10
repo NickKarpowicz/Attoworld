@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from ..attoworld_rs import FrogType, frog_iteration, rust_frog
+from ..attoworld_rs import FrogType, rust_frog
 from ..data import ComplexEnvelope, FrogData, IntensitySpectrum, Spectrogram
 from ..numeric import find_maximum_location, interpolate
 
@@ -349,7 +349,9 @@ def reconstruct_frog(
     repeats: int = 256,
     frog_type: FrogType = FrogType.Shg,
     spectrum: IntensitySpectrum | None = None,
-    xfrog_gate: FrogData | None = None
+    xfrog_gate: FrogData | None = None,
+    roi = None,
+    ptycho_threshhold: float | None = None
 ):
     """Run the core FROG loop several times and pick the best result.
 
@@ -375,6 +377,8 @@ def reconstruct_frog(
     match frog_type:
         case FrogType.Shg:
             f0 = float(np.mean(measurement.freq) / 2.0)
+        case FrogType.PtychographicShg:
+            f0 = float(np.mean(measurement.freq) / 2.0)
         case FrogType.Thg:
             f0 = float(np.mean(measurement.freq) / 3.0)
         case FrogType.Xfrog:
@@ -399,7 +403,7 @@ def reconstruct_frog(
         spectral_constraint = np.array(np.fft.fftshift(spectral_constraint))
 
         #Correct marginal for SHG-FROG if a spectral constraint is applied
-        if frog_type == FrogType.Shg:
+        if frog_type == FrogType.Shg or frog_type == FrogType.PtychographicShg:
             spectrogram_marginal = np.sum(sqrt_sg**2, axis=1)
             spectrum_autocorrelation = np.abs(np.fft.ifft(np.fft.fft(spectral_constraint)**2))
             wiener_factor = (1.0/spectrogram_marginal) * (1.0 / (1.0 + 1.0/(spectrogram_marginal**2 * 1000.0)))
@@ -418,6 +422,8 @@ def reconstruct_frog(
         frog_type=frog_type,
         spectrum=spectral_constraint,
         measured_gate=measured_gate,
+        roi=roi,
+        ptycho_threshhold = ptycho_threshhold
     )
     nyquist_factor = int(
         np.ceil(2 * (measurement.time[1] - measurement.time[0]) * measurement.freq[-1])
