@@ -741,10 +741,6 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
     }
 
     fn get_frequency_marginal(dim: usize, spectrogram: &[f64]) -> Vec<f64> {
-        // let marg: Vec<f64> = (0..dim)
-        //     .map(|col| sqrt_sg.iter().skip(col).step_by(dim).sum())
-        //     .collect();
-        // even_vec_fftshift(&marg)
         spectrogram
             .chunks(dim)
             .map(|row| row.iter().sum::<f64>())
@@ -1030,6 +1026,21 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         };
     }
 
+    fn ptychographic_threshold(x: Complex64, gamma: f64) -> Complex64 {
+        let real: f64 = if x.re.abs() < gamma {
+            0.0
+        } else {
+            x.re - x.re.signum() * gamma
+        };
+
+        let imag: f64 = if x.im.abs() < gamma {
+            0.0
+        } else {
+            x.im - x.im.signum() * gamma
+        };
+        Complex64::new(real, imag)
+    }
+
     fn apply_ptychographic_frog_iteration(
         input_field: &[Complex64],
         meas_sqrt: &[f64],
@@ -1045,55 +1056,39 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         let mut field = input_field.to_vec();
         let mut rng = rand::rng();
         let alpha_range = rand::distr::Uniform::new(0.1f64, 0.5f64).unwrap();
-        let mut indices: Vec<usize> = (0usize..dim).collect::<Vec<usize>>();
-        indices.shuffle(&mut rng);
-        fn threshhold(x: Complex64, gamma: f64) -> Complex64 {
-            let real: f64 = if x.re.abs() < gamma {
-                0.0
-            } else {
-                x.re - x.re.signum() * gamma
-            };
-
-            let imag: f64 = if x.im.abs() < gamma {
-                0.0
-            } else {
-                x.im - x.im.signum() * gamma
-            };
-            Complex64::new(real, imag)
-        }
-
-        for j in indices {
+        let mut randomized_indices: Vec<usize> = (0usize..dim).collect::<Vec<usize>>();
+        randomized_indices.shuffle(&mut rng);
+        for j in randomized_indices {
             let alpha = alpha_range.sample(&mut rng);
-            let field_max: f64 = field
+            let field_max_squared: f64 = field
                 .iter()
                 .map(|&x| x.re * x.re + x.im * x.im)
                 .reduce(f64::max)
                 .unwrap_or(f64::MAX);
 
-            let mut rolled_field: Vec<Complex64> = vec![Complex64::ZERO; dim];
             for i in 0..dim {
                 let g_index: i64 = j as i64 - half + i as i64;
                 if (g_index >= 0) && (g_index < dim_i) {
-                    workspace[i] = field[i] * field[g_index as usize];
-                    rolled_field[i] = field[g_index as usize];
+                    workspace[i] = field[g_index as usize];
                 } else {
                     workspace[i] = Complex64::ZERO;
                 }
             }
-            let mut nonlinear_product: Vec<Complex64> = workspace.iter().cloned().collect();
-
+            let mut nonlinear_product: Vec<Complex64> = field
+                .iter()
+                .zip(workspace.iter())
+                .map(|(&a, &b)| a * b)
+                .collect();
             fft_forward.process(&mut nonlinear_product);
-            let amplitudes: Vec<f64> = meas_sqrt.iter().skip(j).step_by(dim).cloned().collect();
-            //amplitudes = even_vec_fftshift(&amplitudes);
             let mut psi_prime: Vec<Complex64> = nonlinear_product
                 .iter()
                 .zip(roi.iter())
-                .zip(amplitudes.iter())
+                .zip(meas_sqrt.iter().skip(j).step_by(dim))
                 .map(|((&psi_val, &is_in_roi), &sg_val)| {
                     if is_in_roi {
                         Complex64::from_polar(sg_val, psi_val.arg())
                     } else {
-                        threshhold(psi_val, threshhold_gamma)
+                        ptychographic_threshold(psi_val, threshhold_gamma)
                     }
                 })
                 .collect();
@@ -1101,10 +1096,10 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
 
             let new_component: Vec<Complex64> = psi_prime
                 .iter()
-                .zip(rolled_field.iter())
+                .zip(workspace.iter())
                 .zip(field.iter())
                 .map(|((&psi_val, &r), &field_val)| {
-                    r.conj() * (psi_val - r * field_val) / field_max
+                    r.conj() * (psi_val - r * field_val) / field_max_squared
                 })
                 .collect();
 
@@ -1113,19 +1108,6 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
             }
         }
         return (field.clone(), field);
-    }
-    fn even_vec_fftshift<T>(vec: &[T]) -> Vec<T>
-    where
-        T: Clone,
-    {
-        let mid = vec.len() / 2usize;
-        let (first, second) = vec.split_at(mid);
-        second
-            .iter()
-            .rev()
-            .chain(first.iter().rev())
-            .map(|x| x.clone())
-            .collect()
     }
 
     fn apply_frog_iteration(

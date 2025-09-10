@@ -83,7 +83,7 @@ def _(aw, mo):
 
 @app.cell
 def _(mo):
-    mode_selector = mo.ui.dropdown(options=["SHG", "SHG ptychographic", "THG", "Kerr", "XFROG", "BlindFROG"], label="FROG type:", value="SHG")
+    mode_selector = mo.ui.dropdown(options=["SHG", "SHG ptychographic", "THG", "Kerr", "XFROG", "BlindFROG"], label="FROG type:", value="SHG ptychographic")
     mode_selector
     return (mode_selector,)
 
@@ -284,7 +284,7 @@ def _(mo, mode_selector):
     ptycho_roi_upper = mo.ui.number(value = 900.0, step=0.1, label="ROI upper frequency (THz)")
     ptycho_exclude_lower = mo.ui.number(value = 1000.0, step=0.1, label="Excluded region lower frequency (THz)")
     ptycho_exclude_upper = mo.ui.number(value = 1200.0, step=0.1, label="Excluded region upper frequency (THz)")
-    ptycho_threshhold = mo.ui.number(value = 1.0, step=0.1, label="Ptychographic noise filter threshhold")
+    ptycho_threshhold = mo.ui.number(value = 1000.0, step=0.1, label="Ptychographic noise filter threshhold")
     if mode_selector.value == "SHG ptychographic":
         mo.output.append(mo.md("---"))
         mo.output.append(mo.md("#### Ptychographic FROG options:"))
@@ -293,7 +293,13 @@ def _(mo, mode_selector):
         mo.output.append(ptycho_exclude_lower)
         mo.output.append(ptycho_exclude_upper)
         mo.output.append(ptycho_threshhold)
-    return ptycho_roi_lower, ptycho_roi_upper, ptycho_threshhold
+    return (
+        ptycho_exclude_lower,
+        ptycho_exclude_upper,
+        ptycho_roi_lower,
+        ptycho_roi_upper,
+        ptycho_threshhold,
+    )
 
 
 @app.cell
@@ -377,9 +383,9 @@ def _(mo):
 
 @app.cell
 def _(is_in_web_notebook, mo):
-    recon_trials = mo.ui.number(value=8, label="Initial guesses")
-    recon_trial_length = mo.ui.number(value=64, label="Trial iterations")
-    recon_followups = mo.ui.number(value=512, label="Finishing iterations")
+    recon_trials = mo.ui.number(value=16, label="Initial guesses")
+    recon_trial_length = mo.ui.number(value=128, label="Trial iterations")
+    recon_followups = mo.ui.number(value=1024, label="Finishing iterations")
     reconstruct_button = mo.ui.run_button(label="reconstruct")
     save_button = mo.ui.run_button(label="save")
     save_plot_button = mo.ui.run_button(label="save plot")
@@ -410,11 +416,32 @@ def _(is_in_web_notebook, mo):
 
 
 @app.cell
+def _(np):
+    def resolve_frequency_roi(
+        freq,
+        start_roi: float,
+        stop_roi: float,
+        start_excluded_band: float,
+        stop_excluded_band: float,
+    ):
+        roi = (freq >= start_roi) * (freq <= stop_roi)
+        for i in range(len(freq)):
+            if (freq[i] >= start_excluded_band) and (
+                freq[i] <= stop_excluded_band
+            ):
+                roi[i] = False
+        return np.fft.fftshift(roi)
+    return (resolve_frequency_roi,)
+
+
+@app.cell
 def _(
     aw,
     frog_data,
     mo,
     mode_selector,
+    ptycho_exclude_lower,
+    ptycho_exclude_upper,
     ptycho_roi_lower,
     ptycho_roi_upper,
     ptycho_threshhold,
@@ -422,6 +449,7 @@ def _(
     recon_trial_length,
     recon_trials,
     reconstruct_button,
+    resolve_frequency_roi,
     spectral_constraint,
     xfrog_reference,
 ):
@@ -442,7 +470,13 @@ def _(
                 frog_type = aw.attoworld_rs.FrogType.Blindfrog
             case "SHG ptychographic":
                 frog_type = aw.attoworld_rs.FrogType.PtychographicShg
-                roi = (frog_data.freq > ptycho_roi_lower.value*1e12) * (frog_data.freq < ptycho_roi_upper.value * 1e12)
+                roi = resolve_frequency_roi(
+                    frog_data.freq,
+                    ptycho_roi_lower.value * 1e12,
+                    ptycho_roi_upper.value * 1e12,
+                    ptycho_exclude_lower.value * 1e12,
+                    ptycho_exclude_upper.value * 1e12,
+                )
                 ptycho_threshhold_float = ptycho_threshhold.value
         result, result_gate = aw.wave.reconstruct_frog(
             measurement=frog_data,
@@ -451,9 +485,9 @@ def _(
             polish_iterations=int(recon_followups.value),
             frog_type=frog_type,
             spectrum=spectral_constraint,
-            xfrog_gate = xfrog_reference,
+            xfrog_gate=xfrog_reference,
             roi=roi,
-            ptycho_threshhold=ptycho_threshhold_float
+            ptychographic_threshhold=ptycho_threshhold_float,
         )
     else:
         result = None
