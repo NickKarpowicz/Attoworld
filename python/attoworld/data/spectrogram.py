@@ -239,7 +239,7 @@ class Spectrogram:
 
         """
         if settings.median_binning:
-            method = "media"
+            method = "median"
         else:
             method = "mean"
 
