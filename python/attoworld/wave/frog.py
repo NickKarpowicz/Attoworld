@@ -88,6 +88,7 @@ def generate_spectrogram(Et, Gt):
 
     return np.fft.fft(spectrogram_timetime, axis=0)
 
+
 def blank_roll(data: np.ndarray, step):
     """np.roll, but pulse entering from other side set to zero."""
     rolled = np.roll(data, step)
@@ -109,6 +110,7 @@ def calculate_g_error(measurement_normalized, pulse, gate=None):
         np.sum((measurement_normalized[:] - recon_normalized[:]) ** 2)
         / np.sum(measurement_normalized[:] ** 2)
     )
+
 
 def generate_gate_from_frog(
     reconstructed_gate: FrogData, target_spectrogram: Spectrogram
@@ -142,6 +144,7 @@ def generate_gate_from_frog(
     )
     return interpolated_real + 1j * interpolated_imag
 
+
 def fix_aliasing(result):
     """Check if the reconstruction is aliased.
 
@@ -155,6 +158,7 @@ def fix_aliasing(result):
         return np.fft.ifft(np.fft.fftshift(np.fft.fft(result)))
     return result
 
+
 def reconstruct_frog(
     measurement: Spectrogram,
     test_iterations: int = 100,
@@ -163,8 +167,8 @@ def reconstruct_frog(
     frog_type: FrogType = FrogType.Shg,
     spectrum: IntensitySpectrum | None = None,
     xfrog_gate: FrogData | None = None,
-    roi = None,
-    ptychographic_threshhold: float | None = None
+    roi=None,
+    ptychographic_threshhold: float | None = None,
 ):
     """Run the core FROG loop several times and pick the best result.
 
@@ -201,7 +205,9 @@ def reconstruct_frog(
                 f0 = float(np.mean(measurement.freq) - xfrog_gate.f0)
                 measured_gate = generate_gate_from_frog(xfrog_gate, measurement)
             else:
-                raise ValueError("Must provide a measured gate pulse for XFROG, using the xfrog_gate input parameter.")
+                raise ValueError(
+                    "Must provide a measured gate pulse for XFROG, using the xfrog_gate input parameter."
+                )
         case FrogType.Kerr | _:
             f0 = float(np.mean(measurement.freq))
 
@@ -217,13 +223,23 @@ def reconstruct_frog(
         )
         spectral_constraint = np.array(np.fft.fftshift(spectral_constraint))
 
-        #Correct marginal for SHG-FROG if a spectral constraint is applied
+        # Correct marginal for SHG-FROG if a spectral constraint is applied
         if frog_type == FrogType.Shg or frog_type == FrogType.PtychographicShg:
             spectrogram_marginal = np.sum(sqrt_sg**2, axis=1)
-            spectrum_autocorrelation = np.abs(np.fft.ifft(np.fft.fft(spectral_constraint)**2))
-            wiener_factor = (1.0/spectrogram_marginal) * (1.0 / (1.0 + 1.0/(spectrogram_marginal**2 * 1000.0)))
-            amp_factor = np.where(spectrogram_marginal > 0.0, wiener_factor * spectrum_autocorrelation, 0.0)
-            sqrt_sg = np.array(np.sqrt(amp_factor[:, np.newaxis] * sqrt_sg**2), dtype=float)
+            spectrum_autocorrelation = np.abs(
+                np.fft.ifft(np.fft.fft(spectral_constraint) ** 2)
+            )
+            wiener_factor = (1.0 / spectrogram_marginal) * (
+                1.0 / (1.0 + 1.0 / (spectrogram_marginal**2 * 1000.0))
+            )
+            amp_factor = np.where(
+                spectrogram_marginal > 0.0,
+                wiener_factor * spectrum_autocorrelation,
+                0.0,
+            )
+            sqrt_sg = np.array(
+                np.sqrt(amp_factor[:, np.newaxis] * sqrt_sg**2), dtype=float
+            )
 
     else:
         spectral_constraint = None
@@ -238,7 +254,7 @@ def reconstruct_frog(
         spectrum=spectral_constraint,
         measured_gate=measured_gate,
         roi=roi,
-        ptycho_threshhold = ptychographic_threshhold
+        ptycho_threshhold=ptychographic_threshhold,
     )
     nyquist_factor = int(
         np.ceil(2 * (measurement.time[1] - measurement.time[0]) * measurement.freq[-1])
@@ -254,7 +270,7 @@ def reconstruct_frog(
         measurement=sqrt_sg,
         f0=f0,
         interpolation_factor=nyquist_factor,
-        gate = gate_out
+        gate=gate_out,
     )
 
     gate_result = bundle_frog_reconstruction(
@@ -263,7 +279,7 @@ def reconstruct_frog(
         measurement=sqrt_sg,
         f0=f0,
         interpolation_factor=nyquist_factor,
-        gate = gate_out
+        gate=gate_out,
     )
 
     return result, gate_result
