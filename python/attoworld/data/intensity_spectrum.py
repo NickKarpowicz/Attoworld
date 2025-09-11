@@ -160,7 +160,13 @@ class IntensitySpectrum:
         new_spectrum = self.spectrum * np.exp(
             -((self.freq - frequency) ** order) / (2 * sigma**order)
         )
-        return IntensitySpectrum(spectrum=new_spectrum, freq=np.array(self.freq), phase=self.phase, wavelength=self.wavelength, is_frequency_scaled=self.is_frequency_scaled)
+        return IntensitySpectrum(
+            spectrum=new_spectrum,
+            freq=np.array(self.freq),
+            phase=self.phase,
+            wavelength=self.wavelength,
+            is_frequency_scaled=self.is_frequency_scaled,
+        )
 
     def to_corrected_wavelength(self, new_wavelengths: np.ndarray):
         """Correct the wavelength axis by replacing it with new wavelengths."""

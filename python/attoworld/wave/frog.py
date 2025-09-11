@@ -232,8 +232,9 @@ def reconstruct_frog(
             )
             wiener_factor = np.where(
                 spectrogram_marginal > 0.0,
-                (1.0 / spectrogram_marginal) * (1.0 / (1.0 + 1.0 / (spectrogram_marginal**2 * 1000.0))),
-                0.0
+                (1.0 / spectrogram_marginal)
+                * (1.0 / (1.0 + 1.0 / (spectrogram_marginal**2 * 1000.0))),
+                0.0,
             )
             amp_factor = np.where(
                 spectrogram_marginal > 0.0,

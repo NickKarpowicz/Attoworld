@@ -247,12 +247,15 @@ class Spectrogram:
         if settings.auto_t0:
             t0 = None
 
-        binned = self.to_block_binned(settings.freq_binning, settings.time_binning, method).to_binned(dim=settings.size, dt=settings.dt, f0=settings.f0, t0=t0).to_per_frequency_dc_removed(extra_offset=settings.dc_offset)
+        binned = (
+            self.to_block_binned(settings.freq_binning, settings.time_binning, method)
+            .to_binned(dim=settings.size, dt=settings.dt, f0=settings.f0, t0=t0)
+            .to_per_frequency_dc_removed(extra_offset=settings.dc_offset)
+        )
         if settings.spatial_chirp_correction:
             binned = binned.to_removed_spatial_chirp().to_per_frequency_dc_removed()
 
         return binned
-
 
     def plot(self, ax: Optional[Axes] = None, take_sqrt: bool = True):
         """Plot the spectrogram.
