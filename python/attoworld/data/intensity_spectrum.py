@@ -146,6 +146,22 @@ class IntensitySpectrum:
             is_frequency_scaled=self.is_frequency_scaled,
         )
 
+    def to_bandpassed(self, frequency: float, sigma: float, order: int = 4):
+        r"""Return the complex spectrum after applying a supergaussian bandpass filter to the spectrum, of the form
+        $e^{\frac{(f-f_0)^r}{2\sigma^r}}$
+        where $f_0$ is the frequency argument, $\sigma$ is the sigma argument, and r is the order argument.
+
+        Args:
+            frequency: the central frequency (Hz) of the bandpass
+            sigma: the width of the bandpass (Hz)
+            order: the order of the supergaussian
+
+        """
+        new_spectrum = self.spectrum * np.exp(
+            -((self.freq - frequency) ** order) / (2 * sigma**order)
+        )
+        return IntensitySpectrum(spectrum=new_spectrum, freq=np.array(self.freq), phase=self.phase, wavelength=self.wavelength, is_frequency_scaled=self.is_frequency_scaled)
+
     def to_corrected_wavelength(self, new_wavelengths: np.ndarray):
         """Correct the wavelength axis by replacing it with new wavelengths."""
         assert len(new_wavelengths) == len(self.wavelength)
