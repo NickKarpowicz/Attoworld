@@ -606,6 +606,9 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
             )
     }
 
+    /// Generate a new guess pulse based on the return pulse and gate from a simulation.
+    /// This is really only relevant for SHG frog, where they contain (in principle) identical
+    /// information, so the reconstruction can be improved by averaging them
     fn frog_guess_from_pulse_and_gate(
         pulse: &[Complex64],
         gate: &[Complex64],
@@ -621,6 +624,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         }
     }
 
+    /// Calculate the error of a FROG reconstruction
     fn calculate_g_error(
         measurement_normalized: &[f64],
         pulse: &[Complex64],
@@ -667,6 +671,8 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         return (variance / area).sqrt();
     }
 
+    /// Resolve the relevant nonlinear process to provide the gate function associated with
+    /// a given pulse, or use the provided pulse to make a gate (xfrog)
     fn gate_from_pulse(
         field: &[Complex64],
         gate: &mut [Complex64],
@@ -703,6 +709,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         }
     }
 
+    /// Force the reconstruction to have a given intensity spectrum
     fn frog_apply_spectral_constraint(
         field: &mut [Complex64],
         spectrum: Option<&[f64]>,
@@ -721,11 +728,15 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         }
     }
 
+    /// get the norm of the measurement matrix
     fn get_norm_meas(meas_sqrt: &[f64]) -> Vec<f64> {
         let norm: f64 = meas_sqrt.iter().map(|&a| a.powi(4)).sum::<f64>().sqrt();
         meas_sqrt.iter().map(|&a| a * a / norm).collect()
     }
 
+    /// Generate a pulse whose spectrum is random (both intensity and phase), but with a
+    /// spectral amplitude probability given by the spectrum slice. In the current reconstruction
+    /// algorithm this spectrum is calculated from the frequency marginal of the measured spectrogram.
     fn generate_random_pulse_with_amplitude_spectrum(
         spectrum: &[f64],
         fft_backward: Arc<dyn Fft<f64>>,
@@ -740,13 +751,30 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         complex_spectrum
     }
 
+    /// Get the frequency marginal of a spectrogram
     fn get_frequency_marginal(dim: usize, spectrogram: &[f64]) -> Vec<f64> {
         spectrogram
             .chunks(dim)
             .map(|row| row.iter().sum::<f64>())
             .collect()
     }
-
+    /// Reconstruct a measured frog trace.
+    /// Args:
+    ///     measurement_sg_sqrt: take the measurement, take its square root, and then fftshift along the frequency axis.
+    ///     guess: provide a starting guess for the pulse
+    ///     trial pulses: Number of different starting points to try (these will run in parallel)
+    ///     iterations: Number of iterations to give each trial pulse before evaluating it against the others (only the best G' error is kept)
+    ///     finishing_iteration: Number of additional iterations to apply to the result of the trial pulses which has the best G' error
+    ///     frog_type (FrogType): The type of the frog as described in the FrogType enum
+    ///     spectrum: optional spectral constraint. Should be interpolated onto the same grid as the spectrogram, and have fftshift applied.
+    ///     measured_gate: optional gate pulse to use for xfrog
+    ///     roi: region of interest array of booleans. true if in the region of interest. same size as the spectrgram frequency axis
+    ///     ptycho_threshhold: value gamma of the threshholding operation suggested in the original ptychographic frog paper
+    ///
+    /// Returns:
+    ///     pulse: the reconstructed pulse
+    ///     gate: the reconstructed gate
+    ///     error: the G' error of the reconstruction
     #[pyfn(m)]
     #[pyo3(name = "rust_frog")]
     #[pyo3(signature = (measurement_sg_sqrt, guess=None, trial_pulses=64, iterations=128, finishing_iterations=512, frog_type=FrogType::Shg, spectrum=None, measured_gate=None, roi=None, ptycho_threshhold=None))]
@@ -812,6 +840,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         }
     }
 
+    /// Core loop called by the wrapper above; see the comment there for a description of the inputs and outputs.
     fn reconstruct_frog(
         measurement_sg_sqrt: &[f64],
         guess: Option<&[Complex64]>,
