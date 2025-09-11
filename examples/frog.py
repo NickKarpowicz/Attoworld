@@ -63,7 +63,7 @@ async def _():
 def _(mo):
     mo.output.append(mo.md("# FROG Reconstruction:"))
     mo.output.append(mo.md("---"))
-    mo.output.append(mo.md("#### Select your FROG file:"))
+    mo.output.append(mo.md("### Select your FROG file:"))
     return
 
 
@@ -83,7 +83,7 @@ def _(aw, mo):
 
 @app.cell
 def _(mo):
-    mode_selector = mo.ui.dropdown(options=["SHG", "SHG ptychographic", "THG", "Kerr", "XFROG", "BlindFROG"], label="FROG type:", value="SHG ptychographic")
+    mode_selector = mo.ui.dropdown(options=["SHG GP", "SHG ptychographic", "THG", "Kerr", "XFROG", "BlindFROG"], label="FROG type:", value="SHG ptychographic")
     mode_selector
     return (mode_selector,)
 
@@ -94,7 +94,7 @@ def _(mo, mode_selector):
     xfrog_time_reverse_checkbox = mo.ui.checkbox(label="Reverse time")
     if(mode_selector.value == "XFROG"):
         mo.output.append(mo.md("---"))
-        mo.output.append(mo.md("#### XFROG Reference:"))
+        mo.output.append(mo.md("### XFROG Reference:"))
         mo.output.append(xfrog_reference_file)
         mo.output.append(xfrog_time_reverse_checkbox)
     return xfrog_reference_file, xfrog_time_reverse_checkbox
@@ -144,7 +144,7 @@ def _(aw, calibration_selector, file_browser):
 @app.cell
 def _(mo):
     mo.output.append(mo.md("---"))
-    mo.output.append(mo.md("#### Bin data onto evenly spaced grid:"))
+    mo.output.append(mo.md("### Bin data onto evenly spaced grid:"))
     return
 
 
@@ -284,10 +284,10 @@ def _(mo, mode_selector):
     ptycho_roi_upper = mo.ui.number(value = 900.0, step=0.1, label="ROI upper frequency (THz)")
     ptycho_exclude_lower = mo.ui.number(value = 1000.0, step=0.1, label="Excluded region lower frequency (THz)")
     ptycho_exclude_upper = mo.ui.number(value = 1200.0, step=0.1, label="Excluded region upper frequency (THz)")
-    ptycho_threshhold = mo.ui.number(value = 1000.0, step=0.1, label="Ptychographic noise filter threshhold")
+    ptycho_threshhold = mo.ui.number(value = 10000.0, step=0.1, label="Ptychographic noise filter threshhold")
     if mode_selector.value == "SHG ptychographic":
         mo.output.append(mo.md("---"))
-        mo.output.append(mo.md("#### Ptychographic FROG options:"))
+        mo.output.append(mo.md("### Ptychographic FROG options:"))
         mo.output.append(ptycho_roi_lower)
         mo.output.append(ptycho_roi_upper)
         mo.output.append(ptycho_exclude_lower)
@@ -305,7 +305,7 @@ def _(mo, mode_selector):
 @app.cell
 def _(mo):
     mo.output.append(mo.md("---"))
-    mo.output.append(mo.md("#### Optional spectral constraint:"))
+    mo.output.append(mo.md("### Optional spectral constraint:"))
     spectral_constraint_file = mo.ui.file(label="Spectral contstraint file")
     mo.output.append(spectral_constraint_file)
     return (spectral_constraint_file,)
@@ -377,7 +377,7 @@ def _(
 @app.cell
 def _(mo):
     mo.output.append(mo.md("---"))
-    mo.output.append(mo.md("#### Run the reconstruction:"))
+    mo.output.append(mo.md("### Run the reconstruction:"))
     return
 
 
@@ -458,7 +458,7 @@ def _(
         roi = None
         ptycho_threshhold_float = None
         match mode_selector.value:
-            case "SHG":
+            case "SHG GP":
                 frog_type = aw.attoworld_rs.FrogType.Shg
             case "THG":
                 frog_type = aw.attoworld_rs.FrogType.Thg
