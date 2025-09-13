@@ -5,7 +5,7 @@
 
 import marimo
 
-__generated_with = "0.15.2"
+__generated_with = "0.15.3"
 app = marimo.App(width="medium")
 
 
@@ -518,12 +518,12 @@ def _(
     result_gate,
 ):
     if result is not None:
-        plot = result.plot_all(figsize=(9, 6), wavelength_autoscale=1e-3)
+        plot = result.plot_all(figsize=(9.6, 6), wavelength_autoscale=1e-3)
         aw.plot.showmo()
         if mode_selector.value == "BlindFROG":
             mo.output.append(mo.md("### Gate"))
             plot_gate = result_gate.plot_all(
-                figsize=(9, 6), wavelength_autoscale=1e-3
+                figsize=(9.6, 6), wavelength_autoscale=1e-3
             )
             aw.plot.showmo()
 
