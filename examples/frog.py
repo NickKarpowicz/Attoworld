@@ -20,7 +20,7 @@ async def _():
         import micropip
         import zipfile
         await micropip.install(
-            "https://nickkarpowicz.github.io/wheels/attoworld-2025.0.44-cp312-cp312-emscripten_3_1_58_wasm32.whl"
+            "https://nickkarpowicz.github.io/wheels/attoworld-2025.0.45-cp312-cp312-emscripten_3_1_58_wasm32.whl"
         )
         def display_download_link_from_file(
             path, output_name, mime_type="text/plain"
@@ -44,6 +44,7 @@ async def _():
     import attoworld as aw
     import numpy as np
     import pathlib
+    import time
 
     aw.plot.set_style("nick_dark")
     return (
@@ -54,6 +55,7 @@ async def _():
         mo,
         np,
         pathlib,
+        time,
         zipfile,
     )
 
@@ -126,7 +128,7 @@ def _(
 
 
 @app.cell
-def _(aw, calibration_selector, file_browser):
+def _(aw, calibration_selector, file_browser, mo, np):
     _path = file_browser.contents()
     if _path is not None:
         input_data = aw.data.read_dwc(file_or_path=_path, is_buffer=True)
@@ -135,6 +137,10 @@ def _(aw, calibration_selector, file_browser):
                 aw.spectrum.get_calibration_path() / calibration_selector.value
             )
             input_data = calibration.apply_to_spectrogram(input_data)
+        mo.output.append(mo.md("Loaded spectrogram parameters:"))
+        mo.output.append(mo.md(f"    time step: {np.mean(np.diff(input_data.time)) * 1e15:.1g} fs"))
+        mo.output.append(mo.md(f"    frequency step: {np.mean(np.diff(input_data.freq)) * 1e-12:.1g} THz"))
+        mo.output.append(mo.md(f"    central frequency: {np.mean(input_data.freq) * 1e-12:.1f} THz"))
     else:
         input_data = None
     return (input_data,)
@@ -463,6 +469,7 @@ def _(
     reconstruct_button,
     resolve_frequency_roi,
     spectral_constraint,
+    time,
     xfrog_reference,
 ):
     mo.stop(not reconstruct_button.value)
@@ -490,6 +497,7 @@ def _(
                     ptycho_exclude_upper.value * 1e12,
                 )
                 ptycho_threshhold_float = ptycho_threshhold.value
+        _start_time = time.time()
         result, result_gate = aw.wave.reconstruct_frog(
             measurement=frog_data,
             repeats=int(recon_trials.value),
@@ -501,6 +509,9 @@ def _(
             roi=roi,
             ptychographic_threshhold=ptycho_threshhold_float,
         )
+        _stop_time = time.time()
+        reconstruction_time = _stop_time - _start_time
+        mo.output.append(mo.md(f"Reconstruction time: {reconstruction_time: .1f} s"))
     else:
         result = None
     return result, result_gate

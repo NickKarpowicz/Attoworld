@@ -868,30 +868,23 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         let threads: usize = thread::available_parallelism()
             .unwrap_or(core::num::NonZeroUsize::MIN)
             .get();
+        println!("I have {} threads!", threads);
         let thread_pulses = (trial_pulses + threads - 1) / threads;
         let mut handles = Vec::with_capacity(threads);
-        if cfg!(target_arch = "wasm32") {
-            for _ in 0..trial_pulses {
-                let new_result = reconstruct_frog_core(alloc.clone(), iterations);
-                let mut best_result_lock = best_result.lock().unwrap();
-                best_result_lock.swap_if_better(new_result);
-            }
-        } else {
-            for _ in 0..threads {
-                let best_result_clone = Arc::clone(&best_result);
-                let local_alloc = alloc.clone();
-                handles.push(thread::spawn(move || {
-                    for _ in 0..thread_pulses {
-                        let new_result = reconstruct_frog_core(local_alloc.clone(), iterations);
-                        let mut best_result_lock = best_result_clone.lock().unwrap();
-                        best_result_lock.swap_if_better(new_result);
-                    }
-                }));
-            }
+        for _ in 0..threads {
+            let best_result_clone = Arc::clone(&best_result);
+            let local_alloc = alloc.clone();
+            handles.push(thread::spawn(move || {
+                for _ in 0..thread_pulses {
+                    let new_result = reconstruct_frog_core(local_alloc.clone(), iterations);
+                    let mut best_result_lock = best_result_clone.lock().unwrap();
+                    best_result_lock.swap_if_better(new_result);
+                }
+            }));
+        }
 
-            for handle in handles {
-                handle.join().unwrap();
-            }
+        for handle in handles {
+            handle.join().unwrap();
         }
 
         let result = best_result.lock().unwrap();
