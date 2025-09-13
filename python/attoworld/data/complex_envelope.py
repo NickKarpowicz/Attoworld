@@ -91,6 +91,6 @@ class ComplexEnvelope:
         if xlim is not None:
             ax.set_xlim(xlim)
             ax_phase.set_xlim(xlim)
-        lines = lines = intensity_line + phase_line
+        lines = intensity_line + phase_line
         ax.legend(lines, [str(line.get_label()) for line in lines])
         return fig

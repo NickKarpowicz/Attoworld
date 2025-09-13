@@ -4,8 +4,9 @@ use rand::prelude::*;
 use rayon::prelude::*;
 use rustfft::num_complex::Complex64;
 use rustfft::{Fft, FftPlanner};
+use std::f64;
 use std::sync::{Arc, Mutex};
-use std::{f64, thread};
+use wasm_thread as thread;
 
 /// Functions written in Rust for improved performance and correctness.
 #[pymodule]
