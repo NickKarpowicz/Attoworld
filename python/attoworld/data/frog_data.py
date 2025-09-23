@@ -59,7 +59,7 @@ class FrogData:
         t = 1e15 * self.dt * np.array(range(len(self.raw_reconstruction)))
         t -= np.mean(t)
         f = np.fft.fftshift(np.fft.fftfreq(len(t), d=self.dt)) + self.f0
-        lam = constants.speed_of_light / f
+        lam_nm = 1e9 * constants.speed_of_light / f
         raw_spec = np.fft.fftshift(np.fft.fft(self.raw_reconstruction))
 
         with open(base_filename + ".Ek.dat", "w") as time_file:
@@ -71,7 +71,7 @@ class FrogData:
         with open(base_filename + ".Speck.dat", "w") as spec_file:
             for _i in range(len(self.raw_reconstruction)):
                 spec_file.write(
-                    f"{lam[_i]:.15g}\t{np.abs(raw_spec[_i]) ** 2:.15g}\t{np.angle(raw_spec[_i]):.15g}\t{np.real(raw_spec[_i]):.15g}\t{np.imag(raw_spec[_i]):.15g}\n"
+                    f"{lam_nm[_i]:.15g}\t{np.abs(raw_spec[_i]) ** 2:.15g}\t{np.angle(raw_spec[_i]):.15g}\t{np.real(raw_spec[_i]):.15g}\t{np.imag(raw_spec[_i]):.15g}\n"
                 )
 
     def plot_measured_spectrogram(self, ax: Optional[Axes] = None, log: bool = False):
