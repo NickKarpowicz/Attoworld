@@ -9,7 +9,7 @@ class defining atomic unit constants.
 
 import numpy as np
 import scipy
-import scipy.linalg  # Explicitly import submodule used
+import scipy.linalg # Explicitly import submodule used
 from typing import Tuple, Optional, Union, List, Any
 
 # Type alias for 1D or 2D NumPy arrays primarily holding float data.
@@ -97,7 +97,6 @@ def soft_window(x_grid: ArrayLike, x_begin: float, x_end: float) -> ArrayLike:
             )
         # Values before x_begin (which is x_max_transition) remain 0 (initialized)
     return window
-
 
 def Fourier_filter(
     data: ArrayLike,
@@ -776,7 +775,7 @@ def integrate_oscillating_function(
         raise ValueError("phase_values must be real-valued.")
     if func_values.ndim > 1 and func_values.shape != phase_values.shape:
         raise ValueError(
-            "If func_values is 2D, phase_values must have the " "exact same shape."
+            "If func_values is 2D, phase_values must have the exact same shape."
         )
 
     delta_x = x_values[1:] - x_values[:-1]

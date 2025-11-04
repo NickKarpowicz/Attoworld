@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "attoworld"
-version = "2025.0.14.3"
+version = "2025.0.34"
 authors = [{ name = "Nick Karpowicz", email = "nicholas.karpowicz@mpq.mpg.de" }]
 dependencies = [
     "numpy",
@@ -14,6 +14,7 @@ dependencies = [
     "marimo",
     "h5py",
     "pandas",
+    "pyyaml",
 ]
 description = "Tools from the Attosecond science group at the Max Planck Institute of Quantum Optics"
 readme = "README.md"
@@ -29,6 +30,7 @@ license = { file = "LICENSE" }
 features = ["pyo3/extension-module"]
 python-source = "python"
 module-name = "attoworld.attoworld_rs"
+include = ["python/attoworld/spectrum/calibration_data/*"]
 
 [project.urls]
 Homepage = "https://github.com/NickKarpowicz/Attoworld"
