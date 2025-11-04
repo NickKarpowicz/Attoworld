@@ -1,13 +1,12 @@
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 from scipy.ndimage import gaussian_filter1d
-import pandas
 
 
 def box_smooth(y, box_pts):
     box = np.ones(box_pts) / box_pts
-    y_smooth = np.convolve(y, box, mode="same")
-    return y_smooth
+    return np.convolve(y, box, mode="same")
 
 
 def eliminate_outliers(y, threshold: float = 3, window_points: int = 20):
@@ -17,6 +16,7 @@ def eliminate_outliers(y, threshold: float = 3, window_points: int = 20):
         y (np.ndarray): Input data array.
         threshold (float): Threshold in units of sigma for outlier detection. Default is 3.
         window_points (int): Number of points to consider for the mean and sigma calculation. Default is 20.
+
     """
     if not isinstance(y, np.ndarray):
         raise TypeError("Input of eliminate_outliers must be a numpy array.")
@@ -53,8 +53,9 @@ def read_spectrum_maya(
         nm_smearing (float): sigma in nm of the gaussian filter applied to smooth the spectrum.
         eliminate_outliers_spectrum (bool): = If True, eliminate single pixel outliers in the spectral data and replace them with average of surrounding values.
             default is False.
+
     """
-    data = pandas.read_table(filename, sep=" ", keep_default_na=True, skiprows=0)
+    data = pd.read_table(filename, sep=" ", keep_default_na=True, skiprows=0)
     spectrum = []
     offsets = [0.0] * len(data.columns)
     fig, ax = plt.subplots()
@@ -92,8 +93,9 @@ def read_spectrum_ocean_optics(filename):
     """Reads a spectrum file from the Ocean Optics spectrometer and returns the wavelength and spectrum arrays.
     The file is expected to have one column of wavelength data and one column of spectrum data.
     wavelengths are in nm.
-    14 lines of header are skipped."""
-    data = pandas.read_table(filename, sep="\t", keep_default_na=True, skiprows=14)
+    14 lines of header are skipped.
+    """
+    data = pd.read_table(filename, sep="\t", keep_default_na=True, skiprows=14)
     wvl = np.array(data.iloc[:, 0])
     spectrum = np.array(data.iloc[:, 1])
     return wvl, spectrum
@@ -158,7 +160,7 @@ def asymmetric_tukey_window(
 
 
 class SpectrumHandler:
-    """Class to perform standard operations on spectra (calibration, plotting, division, multiplication, etc.)"""
+    """Class to perform standard operations on spectra (calibration, plotting, division, multiplication, etc.)."""
 
     def __init__(
         self,
@@ -228,7 +230,7 @@ class SpectrumHandler:
     def save_to_file(self, filename):
         if self.wvl is None or self.spectrum is None:
             raise ValueError("Spectrum not loaded.")
-        data = pandas.DataFrame({"Wavelength": self.wvl, "Spectrum": self.spectrum})
+        data = pd.DataFrame({"Wavelength": self.wvl, "Spectrum": self.spectrum})
         data.to_csv(filename, index=False, sep="\t")
 
     def save_calibration_factor_to_file(self, filename):
@@ -237,11 +239,10 @@ class SpectrumHandler:
         The file can be either a .txt, .csv or .npz file.
         The file will contain the wavelength, calibration factor, calibration lamp true spectrum and measured lamp spectrum.
         """
-
         if self.calibration_factor is None:
             raise ValueError("Calibration factor not computed.")
         if ".txt" in filename or ".csv" in filename:
-            data = pandas.DataFrame(
+            data = pd.DataFrame(
                 {
                     "Wavelength": self.wvl,
                     "Calibration Factor": self.calibration_factor,
@@ -262,7 +263,7 @@ class SpectrumHandler:
             raise ValueError("File type not supported. Use .txt, .csv or .npz.")
 
     def load_calibration_factor_from_file(self, filename):
-        data = pandas.read_table(filename, sep="\t", keep_default_na=True, skiprows=0)
+        data = pd.read_table(filename, sep="\t", keep_default_na=True, skiprows=0)
         self.calibration_factor = np.interp(
             self.wvl, np.array(data.iloc[:, 0]), np.array(data.iloc[:, 1])
         )
@@ -293,7 +294,7 @@ class SpectrumHandler:
     def load_calibration_lamp_data(
         self, filename="./calibration_data/7315273LS-Deuterium-Halogen_CC-VISNIR.lmp"
     ):
-        Data = pandas.read_table(filename)
+        Data = pd.read_table(filename)
         self.calibration_lamp_wvl, self.calibration_lamp_spectrum = (
             np.array(Data.iloc[:, 0]),
             np.array(Data.iloc[:, 1]),
@@ -323,6 +324,7 @@ class SpectrumHandler:
             low_lim_y, up_lim_y (float): Intensity limits for the y-axis.
             wavelength_ROI (list): [wvl1, wvl2] = Wavelength range for the normalization of the calibration factor (for display purposes).
                 Default is [420, 800] nm.
+
         """
         if low_lim is None or up_lim is None:
             low_lim = np.min(self.wvl)
@@ -371,6 +373,7 @@ class SpectrumHandler:
         Args:
             intercept: float,
             slope: float
+
         """
         if self.wvl is None or self.spectrum is None:
             raise ValueError("Spectrum not loaded.")
@@ -392,8 +395,8 @@ class SpectrumHandler:
         Args:
             edge1, edge2 (float): Wavelength limits for the Tukey window (edge2-edge1 = FWHM, in nm)
             edge1_width, edge2_width (float): Width of the cosine-shaped edge of the tukey window (in nm).
-        """
 
+        """
         window = asymmetric_tukey_window(
             self.wvl, edge1, edge2, edge1_width, edge2_width
         )
@@ -410,12 +413,13 @@ class SpectrumHandler:
             self.calibration_lamp_spectrum = self.calibration_lamp_spectrum * window
 
     def divide_by(self, spectrumObject, nm_smearing=0.0):
-        """normalizes the current spectrum with another spectrum, and stores the result in the present object.
+        """Normalizes the current spectrum with another spectrum, and stores the result in the present object.
 
         Args:
             spectrumObject (either 'c'/'calib'/'calibration'/'lamp' or SpectrumHandler object):
                 the current spectrum is divided at each wavelength by the loaded calibration lamp data or by the spectrum passed as SpectrumHandler object.
             nm_smearing (float): sigma in nm for the gaussian smoothing
+
         """
         if (
             spectrumObject == "c"
@@ -452,10 +456,11 @@ class SpectrumHandler:
         self.spectrum = interpolated_original / interpolated_spd
 
     def add(self, spectrumObject):
-        """adds two spectra and stores the result in the present object
+        """Adds two spectra and stores the result in the present object.
 
         Args:
             spectrumObject (SpectrumHandler): spectrum to be added
+
         """
         if not isinstance(spectrumObject, SpectrumHandler):
             raise TypeError("Input of add must be a SpectrumHandler object.")
@@ -469,10 +474,11 @@ class SpectrumHandler:
         self.spectrum = interpolated_original + interpolated_spd
 
     def multiply(self, spectrumObject):
-        """multiplies the current spectrum by a second one at each wavelength.
+        """Multiplies the current spectrum by a second one at each wavelength.
 
         Args:
             spectrumObject (SpectrumHandler)
+
         """
         if not isinstance(spectrumObject, SpectrumHandler):
             raise TypeError("Input of multiply must be a SpectrumHandler object.")
@@ -486,18 +492,20 @@ class SpectrumHandler:
         self.spectrum = interpolated_original * interpolated_spd
 
     def multiply_scalar(self, scalar):
-        """multiplies the current spectrum by a constant.
+        """Multiplies the current spectrum by a constant.
 
         Args:
             scalar (float)
+
         """
         self.spectrum = self.spectrum * scalar
 
     def add_scalar(self, scalar):
-        """adds a constant offset.
+        """Adds a constant offset.
 
         Args:
             scalar (float)
+
         """
         self.spectrum = self.spectrum + scalar
 
@@ -523,7 +531,9 @@ class SpectrumHandler:
            extend_calibration (bool): If True, the calibration factor is extended to the full wavelength range of the spectrometer (the first and last values of the calibration curve are used for the extension).
                This is a quick and dirty solution to deal with the fact that the calibration lamp spectrum is not available for the full wavelength range of the spectrometer.
            wavelength_ROI (list): [wvl1, wvl2] Wavelength range for the normalization of the calibration factor (for display purposes).
-               Default is [420, 800] nm."""
+               Default is [420, 800] nm.
+
+        """
         if self.calibration_lamp_wvl is None or self.calibration_lamp_spectrum is None:
             raise ValueError("Calibration lamp data not loaded.")
         wvl_stored, spectrum_stored = self.wvl, self.spectrum
@@ -627,7 +637,7 @@ class SpectrumHandler:
 
 
 class MultiSpectrumHandler:
-    """Stores and plots multiple spectra"""
+    """Stores and plots multiple spectra."""
 
     def __init__(
         self,
@@ -650,7 +660,9 @@ class MultiSpectrumHandler:
                 (filename is expected to have one column of wavelength data and arbitrarily many columns of equivalent spectra [to be averaged]).
             nm_smearing: float = Smearing in nm to be applied to the spectrum.
             eliminate_outliers_spectrum: bool = If True, eliminate single pixel outliers in the spectral data and replace them with average of surrounding values.
-            filetype: str = Type of the file to be read. Options are 'MayaScarab' (default) or 'OceanOptics'."""
+            filetype: str = Type of the file to be read. Options are 'MayaScarab' (default) or 'OceanOptics'.
+
+        """
         self.spectrumHandlers = []
         if filenameList is not None:
             for filename in filenameList:

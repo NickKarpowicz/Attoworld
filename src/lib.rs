@@ -1,12 +1,28 @@
-use numpy::{IntoPyArray, PyArray1, PyReadonlyArrayDyn};
+use numpy::{IntoPyArray, PyArray1, PyReadonlyArrayDyn, ToPyArray};
 use pyo3::prelude::*;
+use rand::prelude::*;
 use rayon::prelude::*;
-use std::f64;
+use rustfft::num_complex::Complex64;
+use rustfft::{Fft, FftPlanner};
+use std::sync::{Arc, Mutex};
+use std::{f64, thread};
 
 /// Functions written in Rust for improved performance and correctness.
 #[pymodule]
 #[pyo3(name = "attoworld_rs")]
 fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()> {
+    #[pyclass]
+    #[derive(Clone)]
+    enum FrogType {
+        Shg,
+        PtychographicShg,
+        Thg,
+        Kerr,
+        Xfrog,
+        Blindfrog,
+    }
+    m.add_class::<FrogType>()?;
+
     /// Find the location and value of the maximum of a smooth, uniformly sampled signal, interpolating to find the sub-pixel location
     ///
     /// Args:
@@ -250,13 +266,20 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
     }
 
     /// Sort x,y values in two slices such that x values are in ascending order
+
     fn sort_paired_xy(x_in: &[f64], y_in: &[f64]) -> (Vec<f64>, Vec<f64>) {
         let mut pairs: Vec<(f64, f64)> = x_in
             .iter()
             .zip(y_in.iter())
             .map(|(a, b)| (*a, *b))
             .collect();
-        pairs.par_sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Greater));
+
+        if cfg!(target_arch = "wasm32") {
+            pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Greater));
+        } else {
+            pairs.par_sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Greater));
+        }
+
         pairs.into_iter().unzip()
     }
 
@@ -320,7 +343,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
     ///
     /// Returns:
     ///     the interpolated y_out
-    fn interpolate_sorted_1d_slice(
+    pub fn interpolate_sorted_1d_slice(
         x_out: &[f64],
         x_in: &[f64],
         y_in: &[f64],
@@ -329,38 +352,79 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         derivative_order: usize,
     ) -> Box<[f64]> {
         let core_stencil_size: usize = 2 * neighbors as usize;
-        x_out
-            .par_iter()
-            .map(|x| {
-                let index: usize = x_in
-                    .binary_search_by(|a| a.partial_cmp(x).unwrap_or(std::cmp::Ordering::Greater))
-                    .unwrap_or_else(|e| e);
-                if (index == 0 || index == x_in.len()) && !extrapolate {
-                    0.0
-                } else {
-                    let clamped_index: usize = index
-                        .clamp(neighbors as usize, (x_in.len() as i64 - neighbors) as usize)
-                        - neighbors as usize;
-                    let stencil_size: usize = if clamped_index == 0
-                        || clamped_index == x_in.len() - (core_stencil_size - 1)
-                    {
-                        core_stencil_size + 1
+
+        //note that the only difference here is the use of .iter() or .par_iter() at the beginning of the chain.
+        if cfg!(target_arch = "wasm32") {
+            x_out
+                .iter()
+                .map(|x| {
+                    let index: usize = x_in
+                        .binary_search_by(|a| {
+                            a.partial_cmp(x).unwrap_or(std::cmp::Ordering::Greater)
+                        })
+                        .unwrap_or_else(|e| e);
+                    if (index == 0 || index == x_in.len()) && !extrapolate {
+                        0.0
                     } else {
-                        core_stencil_size
-                    };
-                    //finite difference stencil with order 0 is interpolation
-                    fornberg_stencil(
-                        derivative_order,
-                        &x_in[clamped_index..(clamped_index + stencil_size)],
-                        *x,
-                    )
-                    .iter()
-                    .zip(y_in.iter().skip(clamped_index))
-                    .map(|(a, b)| a * b)
-                    .sum()
-                }
-            })
-            .collect()
+                        let clamped_index: usize = index
+                            .clamp(neighbors as usize, (x_in.len() as i64 - neighbors) as usize)
+                            - neighbors as usize;
+                        let stencil_size: usize = if clamped_index == 0
+                            || clamped_index == x_in.len() - (core_stencil_size - 1)
+                        {
+                            core_stencil_size + 1
+                        } else {
+                            core_stencil_size
+                        };
+                        //finite difference stencil with order 0 is interpolation
+                        fornberg_stencil(
+                            derivative_order,
+                            &x_in[clamped_index..(clamped_index + stencil_size)],
+                            *x,
+                        )
+                        .iter()
+                        .zip(y_in.iter().skip(clamped_index))
+                        .map(|(a, b)| a * b)
+                        .sum()
+                    }
+                })
+                .collect()
+        } else {
+            x_out
+                .par_iter()
+                .map(|x| {
+                    let index: usize = x_in
+                        .binary_search_by(|a| {
+                            a.partial_cmp(x).unwrap_or(std::cmp::Ordering::Greater)
+                        })
+                        .unwrap_or_else(|e| e);
+                    if (index == 0 || index == x_in.len()) && !extrapolate {
+                        0.0
+                    } else {
+                        let clamped_index: usize = index
+                            .clamp(neighbors as usize, (x_in.len() as i64 - neighbors) as usize)
+                            - neighbors as usize;
+                        let stencil_size: usize = if clamped_index == 0
+                            || clamped_index == x_in.len() - (core_stencil_size - 1)
+                        {
+                            core_stencil_size + 1
+                        } else {
+                            core_stencil_size
+                        };
+                        //finite difference stencil with order 0 is interpolation
+                        fornberg_stencil(
+                            derivative_order,
+                            &x_in[clamped_index..(clamped_index + stencil_size)],
+                            *x,
+                        )
+                        .iter()
+                        .zip(y_in.iter().skip(clamped_index))
+                        .map(|(a, b)| a * b)
+                        .sum()
+                    }
+                })
+                .collect()
+        }
     }
 
     /// Use a Fornberg stencil to take a derivative of arbitrary order and accuracy, handling the edge
@@ -540,6 +604,579 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
                 intercept_value,
                 neighbors,
             )
+    }
+
+    /// Generate a new guess pulse based on the return pulse and gate from a simulation.
+    /// This is really only relevant for SHG frog, where they contain (in principle) identical
+    /// information, so the reconstruction can be improved by averaging them
+    fn frog_guess_from_pulse_and_gate(
+        pulse: &[Complex64],
+        gate: &[Complex64],
+        nonlinearity: &FrogType,
+    ) -> Vec<Complex64> {
+        match nonlinearity {
+            FrogType::Shg => pulse
+                .iter()
+                .zip(gate.iter())
+                .map(|(&a, &b)| a + b)
+                .collect(),
+            _ => pulse.to_vec(),
+        }
+    }
+
+    /// Calculate the error of a FROG reconstruction
+    fn calculate_g_error(
+        measurement_normalized: &[f64],
+        pulse: &[Complex64],
+        gate: &[Complex64],
+        workspace: &mut [Complex64],
+        reconstructed_spectrogram: &mut [f64],
+        fft_forward: Arc<dyn Fft<f64>>,
+    ) -> f64 {
+        let mut norm_recon = 0.0;
+        let dim = pulse.len();
+        let dim_i: i64 = dim as i64;
+        let half: i64 = dim as i64 / 2;
+        for j in 0..dim {
+            for i in 0..dim {
+                let g_index: i64 = j as i64 - half + i as i64;
+                if (g_index >= 0) && (g_index < dim_i) {
+                    workspace[i] = pulse[i] * gate[g_index as usize];
+                } else {
+                    workspace[i] = Complex64::ZERO;
+                }
+            }
+            fft_forward.process(workspace);
+            for (a, b) in reconstructed_spectrogram
+                .iter_mut()
+                .skip(j * dim)
+                .take(dim)
+                .zip(workspace.iter())
+            {
+                *a = (b.conj() * *b).re;
+                norm_recon += a.powi(2);
+            }
+        }
+        norm_recon = norm_recon.sqrt();
+
+        let mut variance = 0.0;
+        for j in 0..dim {
+            for i in 0..dim {
+                variance += (measurement_normalized[i * dim + j]
+                    - reconstructed_spectrogram[j * dim + i] / norm_recon)
+                    .powi(2);
+            }
+        }
+        let area = measurement_normalized.iter().map(|&a| a * a).sum::<f64>();
+        return (variance / area).sqrt();
+    }
+
+    /// Resolve the relevant nonlinear process to provide the gate function associated with
+    /// a given pulse, or use the provided pulse to make a gate (xfrog)
+    fn gate_from_pulse(
+        field: &[Complex64],
+        gate: &mut [Complex64],
+        nonlinearity: &FrogType,
+        measured_gate: Option<&[Complex64]>,
+    ) {
+        match nonlinearity {
+            FrogType::Shg => {
+                for (a, b) in gate.iter_mut().zip(field.iter()) {
+                    *a = *b;
+                }
+            }
+            FrogType::PtychographicShg => {
+                for (a, b) in gate.iter_mut().zip(field.iter()) {
+                    *a = *b;
+                }
+            }
+            FrogType::Thg => {
+                for (a, b) in gate.iter_mut().zip(field.iter()) {
+                    *a = *b * *b;
+                }
+            }
+            FrogType::Kerr => {
+                for (a, b) in gate.iter_mut().zip(field.iter()) {
+                    *a = *b * b.conj();
+                }
+            }
+            FrogType::Xfrog => {
+                for (a, b) in gate.iter_mut().zip(measured_gate.unwrap().iter()) {
+                    *a = *b;
+                }
+            }
+            FrogType::Blindfrog => {}
+        }
+    }
+
+    /// Force the reconstruction to have a given intensity spectrum
+    fn frog_apply_spectral_constraint(
+        field: &mut [Complex64],
+        spectrum: Option<&[f64]>,
+        fft_forward: Arc<dyn Fft<f64>>,
+        fft_backward: Arc<dyn Fft<f64>>,
+    ) {
+        match spectrum {
+            Some(spec) => {
+                fft_forward.process(field);
+                for (a, b) in field.iter_mut().zip(spec.iter()) {
+                    *a = Complex64::from_polar(*b, a.arg());
+                }
+                fft_backward.process(field);
+            }
+            None => return,
+        }
+    }
+
+    /// get the norm of the measurement matrix
+    fn get_norm_meas(meas_sqrt: &[f64]) -> Vec<f64> {
+        let norm: f64 = meas_sqrt.iter().map(|&a| a.powi(4)).sum::<f64>().sqrt();
+        meas_sqrt.iter().map(|&a| a * a / norm).collect()
+    }
+
+    /// Generate a pulse whose spectrum is random (both intensity and phase), but with a
+    /// spectral amplitude probability given by the spectrum slice. In the current reconstruction
+    /// algorithm this spectrum is calculated from the frequency marginal of the measured spectrogram.
+    fn generate_random_pulse_with_amplitude_spectrum(
+        spectrum: &[f64],
+        fft_backward: Arc<dyn Fft<f64>>,
+    ) -> Vec<Complex64> {
+        let range = rand::distr::Uniform::new(0.0f64, f64::consts::TAU).unwrap();
+        let mut rng = rand::rng();
+        let mut complex_spectrum: Vec<Complex64> = spectrum
+            .iter()
+            .map(|&s| Complex64::from_polar(s * range.sample(&mut rng), range.sample(&mut rng)))
+            .collect();
+        fft_backward.process(&mut complex_spectrum);
+        complex_spectrum
+    }
+
+    /// Get the frequency marginal of a spectrogram
+    fn get_frequency_marginal(dim: usize, spectrogram: &[f64]) -> Vec<f64> {
+        spectrogram
+            .chunks(dim)
+            .map(|row| row.iter().sum::<f64>())
+            .collect()
+    }
+    /// Reconstruct a measured frog trace.
+    /// Args:
+    ///     measurement_sg_sqrt: take the measurement, take its square root, and then fftshift along the frequency axis.
+    ///     guess: provide a starting guess for the pulse
+    ///     trial pulses: Number of different starting points to try (these will run in parallel)
+    ///     iterations: Number of iterations to give each trial pulse before evaluating it against the others (only the best G' error is kept)
+    ///     finishing_iteration: Number of additional iterations to apply to the result of the trial pulses which has the best G' error
+    ///     frog_type (FrogType): The type of the frog as described in the FrogType enum
+    ///     spectrum: optional spectral constraint. Should be interpolated onto the same grid as the spectrogram, and have fftshift applied.
+    ///     measured_gate: optional gate pulse to use for xfrog
+    ///     roi: region of interest array of booleans. true if in the region of interest. same size as the spectrgram frequency axis
+    ///     ptycho_threshhold: value gamma of the threshholding operation suggested in the original ptychographic frog paper
+    ///
+    /// Returns:
+    ///     pulse: the reconstructed pulse
+    ///     gate: the reconstructed gate
+    ///     error: the G' error of the reconstruction
+    #[pyfn(m)]
+    #[pyo3(name = "rust_frog")]
+    #[pyo3(signature = (measurement_sg_sqrt, guess=None, trial_pulses=64, iterations=128, finishing_iterations=512, frog_type=FrogType::Shg, spectrum=None, measured_gate=None, roi=None, ptycho_threshhold=None))]
+    fn frog_wrapper<'py>(
+        py: Python<'py>,
+        measurement_sg_sqrt: PyReadonlyArrayDyn<'py, f64>,
+        guess: Option<PyReadonlyArrayDyn<'py, Complex64>>,
+        trial_pulses: usize,
+        iterations: usize,
+        finishing_iterations: usize,
+        frog_type: FrogType,
+        spectrum: Option<PyReadonlyArrayDyn<'py, f64>>,
+        measured_gate: Option<PyReadonlyArrayDyn<'py, Complex64>>,
+        roi: Option<PyReadonlyArrayDyn<'py, bool>>,
+        ptycho_threshhold: Option<f64>,
+    ) -> PyResult<(
+        Bound<'py, PyArray1<Complex64>>,
+        Bound<'py, PyArray1<Complex64>>,
+        f64,
+    )> {
+        let guess_option: Option<Vec<Complex64>> = match guess {
+            Some(g) => Some(g.as_slice()?.to_vec()),
+            None => None,
+        };
+        let spectrum_option: Option<Vec<f64>> = match spectrum {
+            Some(s) => Some(s.as_slice()?.to_vec()),
+            None => None,
+        };
+        let measured_gate_option: Option<Vec<Complex64>> = match measured_gate {
+            Some(s) => Some(s.as_slice()?.to_vec()),
+            None => None,
+        };
+        let roi_option: Option<Vec<bool>> = match roi {
+            Some(s) => Some(s.as_slice()?.to_vec()),
+            None => None,
+        };
+        let (pulse, gate, g_error) = reconstruct_frog(
+            measurement_sg_sqrt.as_slice()?,
+            guess_option.as_ref().map(|vec| vec.as_slice()),
+            trial_pulses,
+            iterations,
+            finishing_iterations,
+            frog_type,
+            spectrum_option.as_ref().map(|vec| vec.as_slice()),
+            measured_gate_option.as_ref().map(|vec| vec.as_slice()),
+            roi_option.as_ref().map(|vec| vec.as_slice()),
+            ptycho_threshhold,
+        );
+        Ok((pulse.to_pyarray(py), gate.to_pyarray(py), g_error))
+    }
+
+    #[derive(Clone)]
+    struct FrogResult {
+        pulse: Vec<Complex64>,
+        gate: Vec<Complex64>,
+        error: f64,
+    }
+    impl FrogResult {
+        fn swap_if_better(&mut self, other: FrogResult) {
+            if other.error < self.error {
+                *self = other;
+            }
+        }
+    }
+
+    /// Core loop called by the wrapper above; see the comment there for a description of the inputs and outputs.
+    fn reconstruct_frog(
+        measurement_sg_sqrt: &[f64],
+        guess: Option<&[Complex64]>,
+        trial_pulses: usize,
+        iterations: usize,
+        finishing_iterations: usize,
+        frog_type: FrogType,
+        spectrum: Option<&[f64]>,
+        measured_gate: Option<&[Complex64]>,
+        roi: Option<&[bool]>,
+        ptycho_threshhold: Option<f64>,
+    ) -> (Vec<Complex64>, Vec<Complex64>, f64) {
+        let mut alloc = FrogAllocation::new(
+            measurement_sg_sqrt,
+            guess.map(|x| x.to_vec()),
+            measured_gate.map(|x| x.to_vec()),
+            frog_type.clone(),
+            spectrum.map(|x| x.to_vec()),
+            measured_gate.map(|x| x.to_vec()),
+            roi.map(|x| x.to_vec()),
+            ptycho_threshhold,
+        );
+        let best_result = Arc::new(Mutex::new(reconstruct_frog_core(alloc.clone(), iterations)));
+        let threads: usize = thread::available_parallelism()
+            .unwrap_or(core::num::NonZeroUsize::MIN)
+            .get();
+        let thread_pulses = (trial_pulses + threads - 1) / threads;
+        let mut handles = Vec::with_capacity(threads);
+        if cfg!(target_arch = "wasm32") {
+            for _ in 0..trial_pulses {
+                let new_result = reconstruct_frog_core(alloc.clone(), iterations);
+                let mut best_result_lock = best_result.lock().unwrap();
+                best_result_lock.swap_if_better(new_result);
+            }
+        } else {
+            for _ in 0..threads {
+                let best_result_clone = Arc::clone(&best_result);
+                let local_alloc = alloc.clone();
+                handles.push(thread::spawn(move || {
+                    for _ in 0..thread_pulses {
+                        let new_result = reconstruct_frog_core(local_alloc.clone(), iterations);
+                        let mut best_result_lock = best_result_clone.lock().unwrap();
+                        best_result_lock.swap_if_better(new_result);
+                    }
+                }));
+            }
+
+            for handle in handles {
+                handle.join().unwrap();
+            }
+        }
+
+        let result = best_result.lock().unwrap();
+        alloc.guess = Some(result.pulse.clone());
+        alloc.gate_guess = Some(result.gate.clone());
+        let last = reconstruct_frog_core(alloc, finishing_iterations);
+        (last.pulse, last.gate, last.error)
+    }
+
+    #[derive(Clone)]
+    struct FrogAllocation {
+        measurement_sg_sqrt: Vec<f64>,
+        measurement_normalized: Vec<f64>,
+        guess: Option<Vec<Complex64>>,
+        gate_guess: Option<Vec<Complex64>>,
+        frog_type: FrogType,
+        spectrum: Option<Vec<f64>>,
+        measured_gate: Option<Vec<Complex64>>,
+        frequency_marginal: Vec<f64>,
+        fft_forward: Arc<dyn Fft<f64>>,
+        fft_backward: Arc<dyn Fft<f64>>,
+        workspace: Vec<Complex64>,
+        reconstructed_spectrogram: Vec<f64>,
+        roi: Vec<bool>,
+        ptycho_threshhold: f64,
+    }
+    impl FrogAllocation {
+        fn new(
+            measurement_sg_sqrt: &[f64],
+            guess: Option<Vec<Complex64>>,
+            gate_guess: Option<Vec<Complex64>>,
+            frog_type: FrogType,
+            spectrum: Option<Vec<f64>>,
+            measured_gate: Option<Vec<Complex64>>,
+            roi: Option<Vec<bool>>,
+            ptycho_threshhold: Option<f64>,
+        ) -> Self {
+            let dim: usize = ((measurement_sg_sqrt.len() as f64).sqrt()).round() as usize;
+            let measurement_sg_sqrt = measurement_sg_sqrt.to_vec();
+            let workspace = vec![Complex64::new(0.0, 0.0); dim];
+            let reconstructed_spectrogram = vec![0.0f64; dim * dim];
+            let mut planner = FftPlanner::<f64>::new();
+            let fft_forward = planner.plan_fft_forward(dim);
+            let fft_backward = planner.plan_fft_inverse(dim);
+            let measurement_normalized = get_norm_meas(&measurement_sg_sqrt);
+            let frequency_marginal = get_frequency_marginal(dim, &measurement_normalized);
+            let roi = match roi {
+                Some(r) => r,
+                None => vec![true; dim],
+            };
+            let ptycho_threshhold = match ptycho_threshhold {
+                Some(t) => t,
+                None => 0.0,
+            };
+
+            FrogAllocation {
+                measurement_sg_sqrt,
+                measurement_normalized,
+                guess,
+                gate_guess,
+                frog_type,
+                spectrum,
+                measured_gate,
+                frequency_marginal,
+                fft_forward,
+                fft_backward,
+                workspace,
+                reconstructed_spectrogram,
+                roi,
+                ptycho_threshhold,
+            }
+        }
+    }
+
+    fn reconstruct_frog_core(mut alloc: FrogAllocation, iterations: usize) -> FrogResult {
+        let mut pulse = match alloc.guess {
+            Some(field) => field,
+            None => generate_random_pulse_with_amplitude_spectrum(
+                &alloc.frequency_marginal,
+                alloc.fft_backward.clone(),
+            ),
+        };
+
+        let mut gate: Vec<Complex64> = match alloc.gate_guess {
+            Some(g) => g,
+            None => {
+                let mut g = pulse.clone();
+                gate_from_pulse(
+                    &pulse,
+                    &mut g,
+                    &alloc.frog_type,
+                    alloc.measured_gate.as_deref(),
+                );
+                g
+            }
+        };
+
+        let mut best = pulse.clone();
+        let mut best_gate = gate.clone();
+        let mut best_error: f64 = calculate_g_error(
+            &alloc.measurement_normalized,
+            &pulse,
+            &gate,
+            &mut alloc.workspace,
+            &mut alloc.reconstructed_spectrogram,
+            alloc.fft_forward.clone(),
+        );
+
+        for _ in 0..iterations {
+            (pulse, gate) = match alloc.frog_type {
+                FrogType::PtychographicShg => apply_ptychographic_frog_iteration(
+                    &pulse,
+                    alloc.measurement_sg_sqrt.as_slice(),
+                    &mut alloc.workspace,
+                    alloc.fft_forward.clone(),
+                    alloc.fft_backward.clone(),
+                    &alloc.roi,
+                    alloc.ptycho_threshhold,
+                ),
+                _ => apply_frog_iteration(
+                    &pulse,
+                    &gate,
+                    &mut alloc.workspace,
+                    alloc.measurement_sg_sqrt.as_slice(),
+                    alloc.fft_forward.clone(),
+                    alloc.fft_backward.clone(),
+                ),
+            };
+            pulse = frog_guess_from_pulse_and_gate(&pulse, &gate, &alloc.frog_type);
+            frog_apply_spectral_constraint(
+                &mut pulse,
+                alloc.spectrum.as_deref(),
+                alloc.fft_forward.clone(),
+                alloc.fft_backward.clone(),
+            );
+            gate_from_pulse(
+                &pulse,
+                &mut gate,
+                &alloc.frog_type,
+                alloc.measured_gate.as_deref(),
+            );
+            let g_error = calculate_g_error(
+                alloc.measurement_normalized.as_slice(),
+                &pulse,
+                &gate,
+                &mut alloc.workspace,
+                &mut alloc.reconstructed_spectrogram,
+                alloc.fft_forward.clone(),
+            );
+
+            if g_error < best_error {
+                best_error = g_error;
+                best_gate = gate.clone();
+                best = pulse.clone();
+            }
+        }
+
+        return FrogResult {
+            pulse: best,
+            gate: best_gate,
+            error: best_error,
+        };
+    }
+
+    fn ptychographic_threshold(x: Complex64, gamma: f64) -> Complex64 {
+        let real: f64 = if x.re.abs() < gamma {
+            0.0
+        } else {
+            x.re - x.re.signum() * gamma
+        };
+
+        let imag: f64 = if x.im.abs() < gamma {
+            0.0
+        } else {
+            x.im - x.im.signum() * gamma
+        };
+        Complex64::new(real, imag)
+    }
+
+    fn apply_ptychographic_frog_iteration(
+        input_field: &[Complex64],
+        meas_sqrt: &[f64],
+        workspace: &mut [Complex64],
+        fft_forward: Arc<dyn Fft<f64>>,
+        fft_backward: Arc<dyn Fft<f64>>,
+        roi: &[bool],
+        threshhold_gamma: f64,
+    ) -> (Vec<Complex64>, Vec<Complex64>) {
+        let dim: usize = input_field.len();
+        let dim_i: i64 = dim as i64;
+        let half = dim_i / 2;
+        let mut field = input_field.to_vec();
+        let mut rng = rand::rng();
+        let alpha_range = rand::distr::Uniform::new(0.1f64, 0.5f64).unwrap();
+        let mut randomized_indices: Vec<usize> = (0usize..dim).collect::<Vec<usize>>();
+        randomized_indices.shuffle(&mut rng);
+        for j in randomized_indices {
+            let alpha = alpha_range.sample(&mut rng);
+            let field_max_squared: f64 = field
+                .iter()
+                .map(|&x| x.re * x.re + x.im * x.im)
+                .reduce(f64::max)
+                .unwrap_or(f64::MAX);
+
+            for i in 0..dim {
+                let g_index: i64 = j as i64 - half + i as i64;
+                if (g_index >= 0) && (g_index < dim_i) {
+                    workspace[i] = field[g_index as usize];
+                } else {
+                    workspace[i] = Complex64::ZERO;
+                }
+            }
+            let mut nonlinear_product: Vec<Complex64> = field
+                .iter()
+                .zip(workspace.iter())
+                .map(|(&a, &b)| a * b)
+                .collect();
+            fft_forward.process(&mut nonlinear_product);
+            let mut psi_prime: Vec<Complex64> = nonlinear_product
+                .iter()
+                .zip(roi.iter())
+                .zip(meas_sqrt.iter().skip(j).step_by(dim))
+                .map(|((&psi_val, &is_in_roi), &sg_val)| {
+                    if is_in_roi {
+                        Complex64::from_polar(sg_val, psi_val.arg())
+                    } else {
+                        ptychographic_threshold(psi_val, threshhold_gamma)
+                    }
+                })
+                .collect();
+            fft_backward.process(&mut psi_prime);
+
+            let new_component: Vec<Complex64> = psi_prime
+                .iter()
+                .zip(workspace.iter())
+                .zip(field.iter())
+                .map(|((&psi_val, &r), &field_val)| {
+                    r.conj() * (psi_val - r * field_val) / field_max_squared
+                })
+                .collect();
+
+            for (field_val, &new_component_val) in field.iter_mut().zip(new_component.iter()) {
+                *field_val += alpha * new_component_val;
+            }
+        }
+        return (field.clone(), field);
+    }
+
+    fn apply_frog_iteration(
+        input_field: &[Complex64],
+        input_gate: &[Complex64],
+        workspace: &mut [Complex64],
+        meas_sqrt: &[f64],
+        fft_forward: Arc<dyn Fft<f64>>,
+        fft_backward: Arc<dyn Fft<f64>>,
+    ) -> (Vec<Complex64>, Vec<Complex64>) {
+        let dim: usize = input_field.len();
+        let dim_i: i64 = dim as i64;
+        let half: i64 = dim_i / 2;
+        let mut field = vec![Complex64::ZERO; dim];
+        let mut gate = vec![Complex64::ZERO; dim];
+        workspace.fill(Complex64::ZERO);
+
+        for j in 0..dim {
+            for i in 0..dim {
+                let g_index: i64 = j as i64 - half + i as i64;
+                if (g_index >= 0) && (g_index < dim_i) {
+                    workspace[i] = input_field[i] * input_gate[g_index as usize];
+                } else {
+                    workspace[i] = Complex64::ZERO;
+                }
+            }
+            fft_forward.process(workspace);
+            for i in 0..dim {
+                workspace[i] = Complex64::from_polar(meas_sqrt[i * dim + j], workspace[i].arg());
+            }
+            fft_backward.process(workspace);
+            for i in 0..dim {
+                field[i] += workspace[i];
+                let g_index: i64 = j as i64 - half + i as i64;
+                if (g_index >= 0) && (g_index < dim_i) {
+                    gate[g_index as usize] += workspace[i]
+                }
+            }
+        }
+        (field, gate)
     }
     Ok(())
 }

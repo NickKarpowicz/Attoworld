@@ -1,19 +1,20 @@
+"""For processing Amelie's data."""
+
 import numpy as np
-import scipy.signal as sig
 import scipy.optimize as opt
+import scipy.signal as sig
 
 
 def mean_offset_tukey(signal):
-    """
-    Apply DC offset removal and a Tukey window to a waveform
+    """Apply DC offset removal and a Tukey window to a waveform.
 
     Args:
         signal: the array describing the measured waveform
 
     Returns:
         np.ndarray: the modified signal
-    """
 
+    """
     mean_signal = np.mean(signal, axis=0)
     mean_signal -= np.mean(mean_signal)
     mean_signal *= sig.windows.tukey(mean_signal.shape[0])
@@ -28,8 +29,7 @@ def filtered_impulse_response(
     filter_sigma: float,
     filter_order: int,
 ):
-    """
-    Calculate the filtered impulse response given by a signal and reference pair, with applied bandpass filter.
+    """Calculate the filtered impulse response given by a signal and reference pair, with applied bandpass filter.
 
     This function takes two waveforms, E_signal and E_reference, and a bandpass filter, and returns the
     impulse response function of whatever caused the waveform to change
@@ -44,23 +44,21 @@ def filtered_impulse_response(
 
     Returns:
         np.ndarray: the impuse response
-    """
 
+    """
     E_signal_f = np.fft.fft(E_signal)
     E_reference_f = np.fft.fft(E_reference)
     f = np.fft.fftfreq(E_signal.shape[0], dt)
     bandpass = np.exp(
         -((f - filter_f0) ** filter_order) / (2 * filter_sigma**filter_order)
     )
-    impulse = np.fft.ifft(bandpass * np.nan_to_num(E_signal_f / E_reference_f))
-    return impulse
+    return np.fft.ifft(bandpass * np.nan_to_num(E_signal_f / E_reference_f))
 
 
 def shift_phase_amplitude(
     Et, dt: float, time_shift: float, phase_shift: float, amplitude_factor: float
 ):
-    """
-    Apply a time shift, phase shift, and amplitude factor to a field
+    """Apply a time shift, phase shift, and amplitude factor to a field.
 
     Args:
         Et: the waveform to be modified
@@ -71,6 +69,7 @@ def shift_phase_amplitude(
 
     Returns:
         np.ndarray: the modified waveform
+
     """
     Et_f = np.fft.fft(Et)
     f = np.fft.fftfreq(Et.shape[0], dt)
@@ -82,8 +81,7 @@ def shift_phase_amplitude(
 
 
 def minimize_response_difference(response, reference):
-    """
-    Shift the delay, phase, and amplitude of the reference field to minimize the squared-intensity-envelope
+    """Shift the delay, phase, and amplitude of the reference field to minimize the squared-intensity-envelope
     after subtracting them.
 
     Args:
@@ -92,8 +90,8 @@ def minimize_response_difference(response, reference):
 
     Returns:
         np.ndarray: The modified reference field
-    """
 
+    """
     # construct initial guess of the time, phase, and amplitude offsets
     peak_location_response = np.argmax(np.abs(response))
     peak_location_reference = np.argmax(np.abs(reference))
@@ -126,8 +124,7 @@ def get_effective_response(
     filter_sigma: float,
     filter_order: int,
 ):
-    """
-    Calculate the effective impulse response with the reactive response removed
+    """Calculate the effective impulse response with the reactive response removed.
 
     Args:
         E_signal: the signal waveform array
@@ -139,8 +136,8 @@ def get_effective_response(
 
     Returns:
         np.ndarray: the impuse response
-    """
 
+    """
     analytic_signal = sig.hilbert(np.real(E_signal))
     analytic_reference = sig.hilbert(np.real(E_reference))
 

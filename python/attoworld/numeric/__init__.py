@@ -1,19 +1,17 @@
-"""
-This module will contain numerical tools.
-"""
+"""A collection of numerical tools."""
 
-from .atomic_units import AtomicUnits
-from .numeric import block_binning_1d, block_binning_2d
 from ..attoworld_rs import (
-    fornberg_stencil,
-    interpolate,
-    fwhm,
+    derivative,
+    derivative_periodic,
     find_first_intercept,
     find_last_intercept,
     find_maximum_location,
-    derivative,
-    derivative_periodic,
+    fornberg_stencil,
+    fwhm,
+    interpolate,
 )
+from .atomic_units import AtomicUnits
+from .numeric import block_binning_1d, block_binning_2d
 
 __all__ = [
     "fornberg_stencil",

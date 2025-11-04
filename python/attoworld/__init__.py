@@ -1,5 +1,4 @@
-"""
-Tools from the Attosecond science group at the Max Planck Institute of Quantum Optics, a.k.a. [Attoworld](https://www.attoworld.de)
+"""Tools from the Attosecond science group at the Max Planck Institute of Quantum Optics, a.k.a. [Attoworld](https://www.attoworld.de).
 
 The module has several submodules to keep it organized:
 - **[data](attoworld/data.html)**: classes and for handling the various data formats used across the labs
@@ -11,12 +10,6 @@ The module has several submodules to keep it organized:
 - **[attoworld_rs](attoworld/attoworld_rs.html)**: A place to put Rust code with a Python interface for cases where it's particularly important that the program be fast and correct.
 """
 
-from . import data
-from . import numeric
-from . import personal
-from . import plot
-from . import spectrum
-from . import wave
-from . import attoworld_rs
+from . import attoworld_rs, data, numeric, personal, plot, spectrum, wave
 
 __all__ = ["data", "numeric", "personal", "plot", "spectrum", "wave", "attoworld_rs"]

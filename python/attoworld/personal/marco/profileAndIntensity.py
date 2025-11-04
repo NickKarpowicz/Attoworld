@@ -1,9 +1,10 @@
 import numpy as np
-from matplotlib import pyplot as plt
-import pandas
+import pandas as pd
+import scipy.constants as constants
 import scipy.optimize as opt
 import scipy.signal
-import scipy.constants as constants
+from matplotlib import pyplot as plt
+
 from ...numeric import fwhm
 
 
@@ -19,6 +20,7 @@ def get_fwhm(t, x, no_envelope: bool = False):
         fwhm: fwhm_val[0]
 
     if no_envelope == True it computes the FWHM without taking the square modulus and without computing envelope (assuming input is intensity envelope already)
+
     """
     if no_envelope and np.min(x) < 0:
         raise ValueError("tried to compute FWHM of an envelope with negative values")
@@ -27,7 +29,7 @@ def get_fwhm(t, x, no_envelope: bool = False):
 
 
 def gaussian(height, center_x, center_y, width_x, width_y, offset):
-    """Returns a gaussian function with the given parameters"""
+    """Returns a gaussian function with the given parameters."""
     width_x = float(width_x)
     width_y = float(width_y)
     return lambda x, y: offset + height * np.exp(
@@ -36,7 +38,7 @@ def gaussian(height, center_x, center_y, width_x, width_y, offset):
 
 
 def eliminate_broken_pixels(data):
-    """Eliminates the broken pixels of the camera rayCi I was using"""
+    """Eliminates the broken pixels of the camera rayCi I was using."""
     data[395:409, 950:1060] = 0
     return data
 
@@ -44,7 +46,8 @@ def eliminate_broken_pixels(data):
 def moments(data):
     """Returns (height, x, y, width_x, width_y)
     the gaussian parameters of a 2D distribution by calculating its
-    moments"""
+    moments.
+    """
     total = data.sum()
     X, Y = np.indices(data.shape)
     x = (X * data).sum() / total
@@ -60,7 +63,8 @@ def moments(data):
 def moments_peak(data):
     """Returns (height, x, y, width_x, width_y, np.min(data)), that is,
     the gaussian parameters of a 2D distribution by calculating its
-    peak and moments"""
+    peak and moments.
+    """
     X, Y = np.indices(data.shape)
     maxindex = np.unravel_index(np.argmax(data), data.shape)
     x, y = maxindex[0], maxindex[1]
@@ -74,7 +78,8 @@ def moments_peak(data):
 
 def fitgaussian(data):
     """Returns (height, x, y, width_x, width_y)
-    the gaussian parameters of a 2D distribution found by a fit"""
+    the gaussian parameters of a 2D distribution found by a fit.
+    """
     params = moments_peak(data)
 
     def errorfunction(p):
@@ -90,6 +95,7 @@ def plot_crosssect(data, fitfunct=None):
     Args:
         data: 2D array
         fitfunct: function (callable) object describing the image profile. Defaults to None
+
     """
     maxindex = np.unravel_index(np.argmax(data), data.shape)
     y, x = maxindex[0], maxindex[1]
@@ -163,7 +169,7 @@ def profile_analysis(
     trace_cutoff_radius=50.0,
     cutoff_gaus_fit_profile=25.0,
 ):
-    """if trace_file is None, this function only loads, fits and plots the beam profile; if trace_file is given, the function additionally calculates the peak intensity and field.
+    """If trace_file is None, this function only loads, fits and plots the beam profile; if trace_file is given, the function additionally calculates the peak intensity and field.
 
     Args:
         profile_file: name of the file containing the beam profile; the file (txt or csv) contains the 2D array of the beam profile
@@ -175,10 +181,11 @@ def profile_analysis(
         ROI_diam: 100; diameter of the region of interest in pixels; the center of the ROI is the maximum of the camera data (which is assumed to be not saturated)
         cutoff_gaus_fit_profile: 25. pixels; the 2d gaussian is fitted to the beam profile up to this distance from the peak
         forced_background: None; if not None, the subtracted background is set to this value; otherwise it's computed from the outer ring of the ROI (camera data)
-        trace_cutoff_radius: 50. fs; for intensity calculation, the integral of the trace is computed only in the range t[peak]-trace_cutoff_radius < t < t[peak]+trace_cutoff_radius"""
+        trace_cutoff_radius: 50. fs; for intensity calculation, the integral of the trace is computed only in the range t[peak]-trace_cutoff_radius < t < t[peak]+trace_cutoff_radius
 
+    """
     pixelsize = pixelsize / magnification
-    data = pandas.read_csv(profile_file)
+    data = pd.read_csv(profile_file)
 
     dataval = np.array(data.values)
     # print('eliminating fixed broken pixels rayCi camera')
@@ -227,7 +234,7 @@ def profile_analysis(
     )
 
     if trace_file is not None:
-        trace = pandas.read_csv(trace_file, sep="\t")
+        trace = pd.read_csv(trace_file, sep="\t")
 
         # time in fs, field in a.u.
         intensity = (
@@ -295,17 +302,17 @@ def profile_analysis(
 
         print(
             "\nusing the gaussian fit of the beam profile and the integral of the trace^2:\n "
-            "peak intensity (sub-cycle, W/cm2): {i:.3e}".format(**{"i": intensity})
+            "peak intensity (sub-cycle, W/cm2): {i:.3e}".format(i=intensity)
         )
         peak_field = np.sqrt(
             intensity * 1e4 / constants.speed_of_light / constants.epsilon_0
         )
-        print("peak field (sub-cycle, V/m): {f:.3e}".format(**{"f": peak_field}))
+        print("peak field (sub-cycle, V/m): {f:.3e}".format(f=peak_field))
 
         print(
             "\nusing directly camera data, and the integral of the trace^2:\n "
             "peak intensity (sub-cycle, W/cm2): {i:.3e}".format(
-                **{"i": intensityFromRawCameraData}
+                i=intensityFromRawCameraData
             )
         )
         peak_field = np.sqrt(
@@ -314,12 +321,12 @@ def profile_analysis(
             / constants.speed_of_light
             / constants.epsilon_0
         )
-        print("peak field (sub-cycle, V/m): {f:.3e}".format(**{"f": peak_field}))
+        print("peak field (sub-cycle, V/m): {f:.3e}".format(f=peak_field))
 
         print(
             "\nusing directly camera data, and the temporal FWHM retrieved from the trace:\n "
             "peak intensity (sub-cycle, W/cm2): {i:.3e}".format(
-                **{"i": intensityFromTemporalFWHM}
+                i=intensityFromTemporalFWHM
             )
         )
         peak_field = np.sqrt(
@@ -328,7 +335,7 @@ def profile_analysis(
             / constants.speed_of_light
             / constants.epsilon_0
         )
-        print("peak field (sub-cycle, V/m): {f:.3e}".format(**{"f": peak_field}))
+        print("peak field (sub-cycle, V/m): {f:.3e}".format(f=peak_field))
 
         fig, ax = plt.subplots(1, 1)
         time = trace["delay (fs)"]

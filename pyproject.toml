@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "attoworld"
-version = "2025.0.34"
+version = "2025.0.46"
 authors = [{ name = "Nick Karpowicz", email = "nicholas.karpowicz@mpq.mpg.de" }]
 dependencies = [
     "numpy",
@@ -35,3 +35,11 @@ include = ["python/attoworld/spectrum/calibration_data/*"]
 [project.urls]
 Homepage = "https://github.com/NickKarpowicz/Attoworld"
 Issues = "https://github.com/NickKarpowicz/Attoworld/issues"
+
+[tool.ruff]
+exclude = ["examples", "personal"]
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "A", "ICN", "PIE", "RET", "ARG", "D"]
+ignore = ["E501", "D401", "D205", "D211", "D213", "D203"]

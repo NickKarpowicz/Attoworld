@@ -1,11 +1,11 @@
-from matplotlib import rcParams
+"""A few small functions that I might take apart and put into the main module."""
+
 from cycler import cycler
+from matplotlib import rcParams
 
 
 def dark_plot():
-    """
-    Use a dark style for matplotlib plots.
-    """
+    """Use a dark style for matplotlib plots."""
     rcParams["font.family"] = "sans-serif"
     rcParams["font.sans-serif"] = [
         "Helvetica",

@@ -1,17 +1,18 @@
-import numpy as np
+import os
+
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import pandas
-import os
+import numpy as np
+import pandas as pd
 
 
 # load calibration data
 def load_calibration_data(calibration_data_filepath):
-    """
-    Load calibration data in a .npz file for the Reso spectrometer
+    """Load calibration data in a .npz file for the Reso spectrometer.
 
     Args:
         calibration_data_filepath (StrOrBytesPath): path of the file to load
+
     """
     try:
         calibration = np.load(calibration_data_filepath)
@@ -30,35 +31,35 @@ def load_calibration_data(calibration_data_filepath):
 
 
 def smooth(y, box_pts: int):
-    """basic box smoothing for the spectra
+    """Basic box smoothing for the spectra.
 
-    ARGUMENTS:
+    Arguments:
         y = spectrum to be smoothed [numpy array]
         box_pts = width of smoothing box [int, number of points]
 
-    RETURNS:
+    Returns:
         smoothed_y [numpy array]
+
     """
     box = np.ones(box_pts) / box_pts
-    y_smooth = np.convolve(y, box, mode="same")
-    return y_smooth
+    return np.convolve(y, box, mode="same")
 
 
 def tukey_f(x: float, center: float, FWHM: float, w: float):
-    """cosine-smoothed, flattop window function centered in 'center'
+    """cosine-smoothed, flattop window function centered in 'center'.
 
     each edge is w-wide
     amplitude = 1
 
-    ARGUMENTS:
+    Arguments:
         x: float = input value
         center = center of the t. function
         FWHM = full width at half maximum of the t. function
         w = width of the edges of the t. function (0 < w < FWHM)
+
     """
     if FWHM < w:
         print("tukey window can not have edges wider than FWHM")
-        pass
     xmin = center - FWHM / 2 - w / 2
     xmax = center + FWHM / 2 + w / 2
     if x < xmin or x > xmax:
@@ -78,7 +79,7 @@ def tukey_f(x: float, center: float, FWHM: float, w: float):
 
 
 def tukey_window(x, center: float, FWHM: float, w: float):
-    """returns a cosine-smoothed, flattop window centered in 'center'; amplitude = 1.
+    """Returns a cosine-smoothed, flattop window centered in 'center'; amplitude = 1.
 
     The difference with the function tukey_f is that this function can take as input a numpy array or a list, and returns a numpy array or a list.
 
@@ -89,7 +90,9 @@ def tukey_window(x, center: float, FWHM: float, w: float):
         w: width of the edges of the window (w > 0)
 
     Returns:
-        window (numpy array or list)"""
+        window (numpy array or list)
+
+    """
     if isinstance(x, np.ndarray):
         y = []
         for xi in x:
@@ -109,7 +112,7 @@ def tukey_window(x, center: float, FWHM: float, w: float):
 
 
 def read_csd_file(filename):
-    """DEPRECATED read the file produced by the Maya spectrometer"""
+    """DEPRECATED read the file produced by the Maya spectrometer."""
     file = open(filename)
     data = []
     for row in file:
@@ -124,8 +127,7 @@ def read_csd_file(filename):
 
 
 def plot_spectra(filenameList, pdfFilename, legendItemList=None):
-    """DEPRECATED plot the spectra produced by the Maya spectrometer"""
-
+    """DEPRECATED plot the spectra produced by the Maya spectrometer."""
     dataList = []
     for filename in filenameList:
         dataList.append(read_csd_file(filename))
@@ -175,13 +177,15 @@ def read_spectrometer_excel(filename):
         filename: name of the file (without extension)
 
     Returns:
-        numpy array with the spectral data (see original excel for more details)"""
+        numpy array with the spectral data (see original excel for more details)
+
+    """
     if "." in filename and "./" not in filename:
         raise ValueError(
             "in function read_spectrometer_excel, filename must be passed without extension (filename should not contain a dot)"
         )
     os.system("cat " + filename + ".xls > " + filename + ".txt")
-    dataF = pandas.read_table(
+    dataF = pd.read_table(
         filename + ".txt", sep="\t", keep_default_na=False, skiprows=44
     )  # keep_default_na=False,
     data = []
@@ -231,6 +235,7 @@ def calibrate(
     Returns:
         wavelength: wavelength array
         spectrum: calibrated spectrum
+
     """
     wavelength_calibration, lamp_spec, lamp_measbyReso, calibration_smoothed = (
         load_calibration_data(calibration_file_path)
@@ -404,8 +409,8 @@ def plot_spectra_UVsp(
 
     DEPENDS ON read_spectrometer_excel()
     DEPENDS ON calibrate() [optional]
-    """
 
+    """
     if len(columnList) != len(filenameList):
         print(
             "Error: in function plot_spectra_UVsp\ncolumnList has different size than filenameList"
@@ -482,7 +487,7 @@ def plot_spectra_UVsp(
                         "\nplease check the column index of the dark spectrum"
                     )
                     break
-                elif (
+                if (
                     data[i, 7 * column + 2] != data[i, 7 * column + 2]
                     and dark[i, 7 * tp[1] + 2] == dark[i, 7 * tp[1] + 2]
                 ):

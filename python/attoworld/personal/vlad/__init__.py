@@ -7,10 +7,11 @@ utilities, windowing functions, and data analysis tools, along with a
 class defining atomic unit constants.
 """
 
+from typing import Any, List, Optional, Tuple, Union
+
 import numpy as np
 import scipy
-import scipy.linalg # Explicitly import submodule used
-from typing import Tuple, Optional, Union, List, Any
+import scipy.linalg  # Explicitly import submodule used
 
 # Type alias for 1D or 2D NumPy arrays primarily holding float data.
 # Using Any for dtype as functions sometimes handle complex numbers.
@@ -24,6 +25,7 @@ def nextpow2(number: float) -> int:
 
     Returns:
       The smallest integer exponent `exp` such that 2**exp >= number.
+
     """
     return int(np.ceil(np.log2(number)))
 
@@ -43,6 +45,7 @@ def soft_window(x_grid: ArrayLike, x_begin: float, x_end: float) -> ArrayLike:
 
     Returns:
       A 1D array of the same size as x_grid, containing the window values.
+
     """
     window = np.zeros_like(x_grid)
     x_min_transition = min(x_begin, x_end)
@@ -121,6 +124,7 @@ def Fourier_filter(
 
     Returns:
       The filtered data, with the same shape as the input `data`.
+
     """
     if spectral_window.shape[0] == 0:
         return data.copy()  # Return a copy to match behavior when filtering occurs
@@ -200,6 +204,7 @@ def polyfit_with_weights(
 
     Returns:
       A 1D array of polynomial coefficients [p_degree, ..., p_1, p_0].
+
     """
     num_coeffs = degree + 1
     matrix_a = np.empty((num_coeffs, num_coeffs), dtype=np.float64)
@@ -231,7 +236,7 @@ def Fourier_transform(
     is_periodic: bool = False,
     pulse_center_times: Optional[Union[float, np.ndarray]] = None,
 ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
-    r"""Applies the Fast Fourier Transform (FFT) in an easy-to-use way.
+    r"""Apply the Fast Fourier Transform (FFT) in an easy-to-use way.
 
     This function computes the Fourier transform of time-dependent data Y(t),
     defined as:
@@ -272,6 +277,7 @@ def Fourier_transform(
 
     Raises:
         ValueError: If `time_points` has fewer than 2 elements.
+
     """
     _MAX_FFT_POINTS = 2**20
     num_time_points = len(time_points)
@@ -475,50 +481,39 @@ def Fourier_transform(
         if original_y_ndim == 1:
             return y_fft_corrected.flatten(), fft_omega_grid
         return y_fft_corrected, fft_omega_grid
-    else:
-        # Interpolate FFT result onto the target_frequencies grid
-        output_spectrum = np.zeros(
-            (len(target_frequencies), num_data_series), dtype=np.complex128
+    # Interpolate FFT result onto the target_frequencies grid
+    output_spectrum = np.zeros(
+        (len(target_frequencies), num_data_series), dtype=np.complex128
+    )
+    for j_col in range(num_data_series):
+        # Note: y_fft_corrected already includes the phase shift based on _pulse_centers_for_phase
+        # and fft_omega_grid. When interpolating to target_frequencies, this phase is implicitly
+        # interpolated as well.
+        output_spectrum[:, j_col] = np.interp(
+            target_frequencies,
+            fft_omega_grid,
+            y_fft_corrected[:, j_col],  # Use the phase-corrected FFT result
+            left=0.0,
+            right=0.0,
         )
-        for j_col in range(num_data_series):
-            # Note: y_fft_corrected already includes the phase shift based on _pulse_centers_for_phase
-            # and fft_omega_grid. When interpolating to target_frequencies, this phase is implicitly
-            # interpolated as well.
-            output_spectrum[:, j_col] = np.interp(
-                target_frequencies,
-                fft_omega_grid,
-                y_fft_corrected[:, j_col],  # Use the phase-corrected FFT result
-                left=0.0,
-                right=0.0,
-            )
 
         # Reverting to match original logic for target_frequencies path:
         # Interpolate the raw FFT result (before t0 correction)
         interpolated_raw_fft = np.zeros(
             (len(target_frequencies), num_data_series), dtype=np.complex128
         )
-        for j_col in range(num_data_series):
-            interpolated_raw_fft[:, j_col] = np.interp(
-                target_frequencies,
-                fft_omega_grid,
-                y_fft[
-                    :, j_col
-                ],  # Use y_fft (before _pulse_centers_for_phase correction)
-                left=0.0,
-                right=0.0,
-            )
 
-        # Now apply phase correction using _pulse_centers_for_phase and target_frequencies
-        phase_correction_final = np.exp(
-            1j
-            * _pulse_centers_for_phase
-            * target_frequencies.reshape((len(target_frequencies), 1))
-        )
-        output_spectrum = interpolated_raw_fft * phase_correction_final
+    # Now apply phase correction using _pulse_centers_for_phase and target_frequencies
+    phase_correction_final = np.exp(
+        1j
+        * _pulse_centers_for_phase
+        * target_frequencies.reshape((len(target_frequencies), 1))
+    )
+    output_spectrum = interpolated_raw_fft * phase_correction_final
 
-        if original_y_ndim == 1:
-            return output_spectrum.flatten()
-        return output_spectrum
+    if original_y_ndim == 1:
+        return output_spectrum.flatten()
+    return output_spectrum
 
 
 def inverse_Fourier_transform(
@@ -528,7 +523,7 @@ def inverse_Fourier_transform(
     is_periodic: bool = False,
     frequency_offset: Optional[Union[float, ArrayLike]] = None,
 ) -> Union[Tuple[ArrayLike, ArrayLike], ArrayLike]:
-    r"""Applies inverse FFT to frequency-dependent data.
+    r"""Apply inverse FFT to frequency-dependent data.
 
     Computes $ F^{-1}[Y](t) = 1 / (2 \pi) \int_{-\infty}^\infty d\omega Y(\omega) \exp(-i t \omega) $.
 
@@ -546,6 +541,7 @@ def inverse_Fourier_transform(
         A tuple (transformed_data, time_grid).
       If time_points_target is provided:
         Transformed data interpolated at the given time_points_target.
+
     """
     # IFFT(Y(w)) = 1/(2pi) FT(Y(w))_at_-t = 1/(2pi) conj(FT(conj(Y(w)))_at_t)
     # The provided Fourier_transform computes FT[Y(t)](omega) = integral Y(t) exp(iwt) dt
@@ -570,24 +566,23 @@ def inverse_Fourier_transform(
         # Result is FT[Y](k), where k is frequency. Here k corresponds to -t.
         # So, FT[Y(omega)](-t). We need to flip t and scale.
         return transformed_data[::-1] / (2 * np.pi), -neg_time_grid[::-1]
-    else:
-        # Target 'omega' for Fourier_transform is -time_points_target
-        neg_target_times = -time_points_target[::-1]  # Ensure it's sorted for FT
+    # Target 'omega' for Fourier_transform is -time_points_target
+    neg_target_times = -time_points_target[::-1]  # Ensure it's sorted for FT
 
-        result_at_neg_t = Fourier_transform(
-            time_points=omega_points,
-            y_data=data_series,
-            target_frequencies=neg_target_times,
-            is_periodic=is_periodic,
-            pulse_center_times=frequency_offset,
-        )
-        # result_at_neg_t is FT[Y(omega)](-t_target_sorted)
-        # We want values at t_target, so reverse the order back.
-        return result_at_neg_t[::-1] / (2 * np.pi)
+    result_at_neg_t = Fourier_transform(
+        time_points=omega_points,
+        y_data=data_series,
+        target_frequencies=neg_target_times,
+        is_periodic=is_periodic,
+        pulse_center_times=frequency_offset,
+    )
+    # result_at_neg_t is FT[Y(omega)](-t_target_sorted)
+    # We want values at t_target, so reverse the order back.
+    return result_at_neg_t[::-1] / (2 * np.pi)
 
 
 def find_zero_crossings(x_values: ArrayLike, y_values: ArrayLike) -> ArrayLike:
-    """Finds all x-values where linearly interpolated y(x) = 0.
+    """Find all x-values where linearly interpolated y(x) = 0.
 
     Args:
       x_values: 1D array of x-coordinates, sorted ascending, no duplicates.
@@ -595,6 +590,7 @@ def find_zero_crossings(x_values: ArrayLike, y_values: ArrayLike) -> ArrayLike:
 
     Returns:
       A 1D array of x-values where y(x) crosses zero. Empty if no crossings.
+
     """
     if x_values.size == 0 or y_values.size == 0:
         return np.array([])
@@ -656,7 +652,7 @@ def find_zero_crossings(x_values: ArrayLike, y_values: ArrayLike) -> ArrayLike:
 
 
 def find_extrema_positions(x_values: ArrayLike, y_values: ArrayLike) -> ArrayLike:
-    """Finds x-positions of local extrema in y(x).
+    """Find x-positions of local extrema in y(x).
 
     Extrema are found where the derivative y'(x) (approximated by finite
     differences) crosses zero.
@@ -667,6 +663,7 @@ def find_extrema_positions(x_values: ArrayLike, y_values: ArrayLike) -> ArrayLik
 
     Returns:
       A 1D array of x-values where y(x) has local extrema. Empty if none.
+
     """
     if (
         len(x_values) < 2 or len(y_values) < 2
@@ -695,12 +692,11 @@ def find_extrema_positions(x_values: ArrayLike, y_values: ArrayLike) -> ArrayLik
     derivative_y = delta_y / delta_x
 
     # Find where the derivative crosses zero
-    extrema_x_coords = find_zero_crossings(mid_points_x_for_derivative, derivative_y)
-    return extrema_x_coords
+    return find_zero_crossings(mid_points_x_for_derivative, derivative_y)
 
 
 def minimize_imaginary_parts(complex_array: ArrayLike) -> ArrayLike:
-    """Rotates a complex array by a phase to make it as close as possible to being real-valued
+    """Rotates a complex array by a phase to make it as close as possible to being real-valued.
 
     Multiplies `complex_array` by `exp(1j*phi)` where `phi` is chosen to
     minimize `sum(imag(exp(1j*phi) * complex_array)**2)`.
@@ -710,6 +706,7 @@ def minimize_imaginary_parts(complex_array: ArrayLike) -> ArrayLike:
 
     Returns:
       The phase-rotated complex NumPy array.
+
     """
     if complex_array.size == 0:
         return complex_array.copy()
@@ -764,6 +761,7 @@ def integrate_oscillating_function(
 
     Returns:
       A scalar or 1D array (N_series) of integral results.
+
     """
     # Input validation
     if not (x_values.shape[0] == func_values.shape[0] == phase_values.shape[0]):
