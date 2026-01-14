@@ -5,13 +5,7 @@ from .frog import (
     generate_spectrogram,
     reconstruct_frog,
 )
-
-from .time_frequency import (
-    stft,
-    cwt,
-    wigner_ville
-)
-
+from .time_frequency import cwt, stft, wigner_ville
 from .wave import align_waves
 
 __all__ = [

@@ -11,8 +11,8 @@ All methods return Spectrogram objects with time and frequency axes in SI units.
 from typing import Optional, Tuple
 
 import numpy as np
-import scipy.signal as sig
 import pywt
+import scipy.signal as sig
 
 from ..data import Spectrogram, Waveform
 
@@ -37,9 +37,10 @@ def stft(
 
     Returns:
         Spectrogram: Time-frequency representation.
+
     """
     uniform_waveform = waveform.to_uniformly_spaced()
-    
+
     # Defaults
     if nperseg is None:
         nperseg = min(256, len(uniform_waveform.wave))
@@ -73,11 +74,11 @@ def stft(
     # We calculate the time range corresponding to "valid" convolution.
     t_min = (nperseg / 2) / fs
     t_max = (len(uniform_waveform.wave) - nperseg / 2) / fs
-    
+
     # Add small tolerance for float comparison
     tol = 0.1 * uniform_waveform.dt
     mask = (t >= t_min - tol) & (t <= t_max + tol)
-    
+
     Zxx_valid = Zxx[:, mask]
     t_valid = t[mask]
 
@@ -109,17 +110,20 @@ def cwt(
 
     Returns:
         Spectrogram: Time-frequency representation (power).
+
     """
     uniform_waveform = waveform.to_uniformly_spaced()
     dt = uniform_waveform.dt
     fs = 1.0 / dt
-    
+
     # Check if wavelet is available in PyWavelets
     # We rely on pywt to raise error if invalid, but we can try getting center freq first.
     try:
         center_freq = pywt.central_frequency(wavelet)
     except ValueError:
-        raise ValueError(f"Invalid wavelet name '{wavelet}'. Please use a valid PyWavelets name (e.g., 'cmor1.5-1.0', 'mexh').")
+        raise ValueError(
+            f"Invalid wavelet name '{wavelet}'. Please use a valid PyWavelets name (e.g., 'cmor1.5-1.0', 'mexh')."
+        )
 
     # Determine scales
     if scales is None:
@@ -128,18 +132,18 @@ def cwt(
             # Handle potential division by zero if freq_range includes 0
             f_min = max(freq_range[0], 1e-10 * fs)
             f_max = freq_range[1]
-            
+
             s_min = center_freq * fs / f_max
             s_max = center_freq * fs / f_min
         else:
             # Default scales: sensible range for optical pulses
             # Smallest scale (highest freq) -> Nyquist limit: f = fs/2 => s = 2*center_freq
-            # Largest scale (lowest freq) -> Low freq limit. 
+            # Largest scale (lowest freq) -> Low freq limit.
             # We choose a range covering typical spectral content.
             # Using existing heuristic:
-            s_min = 2 * center_freq # corresponds to fs/2 approx
-            s_max = len(uniform_waveform.wave) / 4 # somewhat arbitrary low freq limit
-            
+            s_min = 2 * center_freq  # corresponds to fs/2 approx
+            s_max = len(uniform_waveform.wave) / 4  # somewhat arbitrary low freq limit
+
             # Ensure s_max > s_min
             if s_max <= s_min:
                 s_max = s_min * 10
@@ -147,9 +151,11 @@ def cwt(
         scales = np.logspace(np.log10(s_min), np.log10(s_max), num_scales)
 
     # Compute CWT
-    cwt_matrix, freqs = pywt.cwt(uniform_waveform.wave, scales, wavelet, sampling_period=dt)
+    cwt_matrix, freqs = pywt.cwt(
+        uniform_waveform.wave, scales, wavelet, sampling_period=dt
+    )
 
-    # PyWavelets returns frequencies corresponding to scales. 
+    # PyWavelets returns frequencies corresponding to scales.
     # If scales are increasing, freqs are decreasing.
     # We sort by frequency ascending.
     idx = np.argsort(freqs)
@@ -167,7 +173,6 @@ def wigner_ville(
     nfft: Optional[int] = None,
 ) -> Spectrogram:
     """Compute the Wigner-Ville Distribution (WVD).
-    
     WVD provides high resolution but contains cross-terms for multi-component signals.
 
     Args:
@@ -176,6 +181,7 @@ def wigner_ville(
 
     Returns:
         Spectrogram: Real-valued WVD.
+
     """
     uniform_waveform = waveform.to_uniformly_spaced()
     x = uniform_waveform.wave
@@ -188,41 +194,42 @@ def wigner_ville(
     # WVD Calculation
     # R[n, m] = x[n+m] * x*[n-m]
     # We construct the autocorrelation matrix and FFT it.
-    
+
     # Optimized implementation logic (same as before but cleaner)
     wvd = np.zeros((nfft, N), dtype=complex)
-    
+
     # Iterate over time indices
     for n in range(N):
         # tau range: constrained by signal boundaries
         # indices: n +/- m must be in [0, N-1]
         max_lag = min(n, N - 1 - n)
-        
+
         # Build R vector for this n
         # We can vectorize the lag construction
         m = np.arange(1, max_lag + 1)
-        
+
         R = np.zeros(nfft, dtype=complex)
         R[0] = x[n] * np.conj(x[n])
-        
+
         # Positive lags
         val = x[n + m] * np.conj(x[n - m])
         R[m] = val
         # Negative lags (conjugate symmetry)
         R[nfft - m] = np.conj(val)
-        
+
         wvd[:, n] = np.fft.fft(R)
 
     wvd_real = np.real(wvd)
     wvd_shifted = np.fft.fftshift(wvd_real, axes=0)
-    
+
     # Frequency axis
-    freqs = np.fft.fftshift(np.fft.fftfreq(nfft, d=2*dt))
+    freqs = np.fft.fftshift(np.fft.fftfreq(nfft, d=2 * dt))
 
     return Spectrogram(data=wvd_shifted, time=uniform_waveform.time, freq=freqs)
 
+
 # USAGE EXAMPLE (commented out):
-# 
+#
 # import numpy as np
 # import matplotlib.pyplot as plt
 # import attoworld as aw
@@ -236,9 +243,9 @@ def wigner_ville(
 
 # envelope = np.exp(-t_fs**2 / (2 * sigma_fs**2) + 1j * (chirp * t_fs)**2)
 # waveform = aw.data.ComplexEnvelope(
-#     envelope=envelope, 
-#     time=t_fs*1e-15, 
-#     dt=(t_fs[1]-t_fs[0])*1e-15, 
+#     envelope=envelope,
+#     time=t_fs*1e-15,
+#     dt=(t_fs[1]-t_fs[0])*1e-15,
 #     carrier_frequency=f0*1e+15
 # ).to_waveform()
 

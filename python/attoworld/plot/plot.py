@@ -1,8 +1,8 @@
 """Tools for setting the style and appearance of plots."""
 
 import io
-from typing import Optional
 from dataclasses import dataclass
+from typing import Optional
 
 import marimo as mo
 import matplotlib.pyplot as plt
