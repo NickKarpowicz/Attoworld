@@ -5,7 +5,7 @@
 
 import marimo
 
-__generated_with = "0.15.3"
+__generated_with = "0.19.2"
 app = marimo.App(width="medium")
 
 
@@ -20,7 +20,7 @@ async def _():
         import micropip
         import zipfile
         await micropip.install(
-            "https://nickkarpowicz.github.io/wheels/attoworld-2025.0.45-cp312-cp312-emscripten_3_1_58_wasm32.whl"
+            "https://nickkarpowicz.github.io/wheels/attoworld-2025.0.47-cp312-cp312-emscripten_3_1_58_wasm32.whl"
         )
         def display_download_link_from_file(
             path, output_name, mime_type="text/plain"
