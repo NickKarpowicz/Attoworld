@@ -2,6 +2,7 @@
 
 import io
 from dataclasses import dataclass
+from typing import Optional
 
 import marimo as mo
 import matplotlib.pyplot as plt
@@ -119,7 +120,7 @@ def set_style(theme: str = "light", font_size: int = 11):
 
 def label_letter(
     letter: str = "a",
-    axis: Axes = plt.gca(),
+    axis: Optional[Axes] = None,
     style: str = "Nature",
     x_position: float = -0.14,
     y_position: float = 1.08,
@@ -134,6 +135,8 @@ def label_letter(
         y_position (float): vertical position
 
     """
+    if axis is None:
+        axis = plt.gca()
     letter_string = f"{letter}"
     fontweight = "normal"
     match style:

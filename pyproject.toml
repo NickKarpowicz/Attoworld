@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "attoworld"
-version = "2025.0.46"
+version = "2025.0.47"
 authors = [{ name = "Nick Karpowicz", email = "nicholas.karpowicz@mpq.mpg.de" }]
 dependencies = [
     "numpy",
@@ -14,7 +14,7 @@ dependencies = [
     "marimo",
     "h5py",
     "pandas",
-    "pyyaml",
+    "PyWavelets",
 ]
 description = "Tools from the Attosecond science group at the Max Planck Institute of Quantum Optics"
 readme = "README.md"
