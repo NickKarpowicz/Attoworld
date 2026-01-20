@@ -497,20 +497,6 @@ def Fourier_transform(
             right=0.0,
         )
 
-        # Reverting to match original logic for target_frequencies path:
-        # Interpolate the raw FFT result (before t0 correction)
-        interpolated_raw_fft = np.zeros(
-            (len(target_frequencies), num_data_series), dtype=np.complex128
-        )
-
-    # Now apply phase correction using _pulse_centers_for_phase and target_frequencies
-    phase_correction_final = np.exp(
-        1j
-        * _pulse_centers_for_phase
-        * target_frequencies.reshape((len(target_frequencies), 1))
-    )
-    output_spectrum = interpolated_raw_fft * phase_correction_final
-
     if original_y_ndim == 1:
         return output_spectrum.flatten()
     return output_spectrum
