@@ -815,3 +815,28 @@ def integrate_oscillating_function(
         )
 
     return np.sum(integral_segments, axis=0)
+
+def coherence_time(Y: ArrayLike, dt: float = 1.0) -> float:
+    r"""
+    Given a signal Y(t) on an equidistant grid, the function estimates the coherence time.
+
+    The function implements Mandel's coherence time. It calculates the autocorrelation
+    function of the given signal, then it calculates the complex envelope of the
+    autocorrelation function, and integrates the square of the normalized envelope from
+    t=0 to the maximal time. The coherence time is twice the value of the integral.
+
+    Args:
+      Y: 1D array that represents the time-dependent signal on a regular grid.
+      dt: Time step of the grid.
+
+    Returns:
+      the coherence time as a floating-point number.
+    """
+    ACF = scipy.signal.correlate(Y, Y, mode="full", method="direct") # autocorrelation function
+    N = len(Y)
+    # X = dt * np.arange(-(N - 1), N) # DEBUGGING
+    ACF_envelope = np.abs(scipy.signal.envelope(ACF, residual=None))
+    ACF_envelope /= np.max(ACF_envelope)
+    i1 = N - 1 # np.flatnonzero(X >= 0)[0]
+    # print("X[i1] =", X[i1]) # DEBUGGING
+    return 2.0 * scipy.integrate.simpson(ACF_envelope[i1:]**2, dx=dt)
