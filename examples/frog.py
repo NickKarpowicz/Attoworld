@@ -5,7 +5,7 @@
 
 import marimo
 
-__generated_with = "0.19.2"
+__generated_with = "0.21.0"
 app = marimo.App(width="medium")
 
 
@@ -20,7 +20,7 @@ async def _():
         import micropip
         import zipfile
         await micropip.install(
-            "https://nickkarpowicz.github.io/wheels/attoworld-2025.0.47-cp312-cp312-emscripten_3_1_58_wasm32.whl"
+            "https://nickkarpowicz.github.io/wheels/attoworld-2026.1.2-cp312-cp312-emscripten_3_1_58_wasm32.whl"
         )
         def display_download_link_from_file(
             path, output_name, mime_type="text/plain"
@@ -449,6 +449,7 @@ def _(np):
             ):
                 roi[i] = False
         return np.fft.fftshift(roi)
+
     return (resolve_frequency_roi,)
 
 
