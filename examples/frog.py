@@ -1,4 +1,10 @@
 # /// script
+# requires-python = ">=3.14"
+# dependencies = [
+#     "attoworld>=2026.1.2",
+#     "marimo>=0.23.8",
+#     "numpy>=2.4.6",
+# ]
 # [tool.marimo.display]
 # theme = "dark"
 # ///

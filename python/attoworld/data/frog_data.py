@@ -74,6 +74,20 @@ class FrogData:
                     f"{lam_nm[_i]:.15g}\t{np.abs(raw_spec[_i]) ** 2:.15g}\t{np.angle(raw_spec[_i]):.15g}\t{np.real(raw_spec[_i]):.15g}\t{np.imag(raw_spec[_i]):.15g}\n"
                 )
 
+        with open(
+            base_filename + "_positive_dazzler_phase.txt", "w"
+        ) as dazzler_phase_plus:
+            np.savetxt(
+                dazzler_phase_plus, self.spectrum.to_dazzer_phase(), delimiter="\t"
+            )
+
+        with open(
+            base_filename + "_negative_dazzler_phase.txt", "w"
+        ) as dazzler_phase_minus:
+            np.savetxt(
+                dazzler_phase_minus, self.spectrum.to_dazzer_phase(-1), delimiter="\t"
+            )
+
     def plot_measured_spectrogram(self, ax: Optional[Axes] = None, log: bool = False):
         """Plot the measured spectrogram.
 

@@ -1,6 +1,7 @@
 """Class and function decorators."""
 
 from dataclasses import is_dataclass
+from typing import get_type_hints
 
 import numpy as np
 import yaml
@@ -87,7 +88,7 @@ def yaml_io(cls):
     def to_dict(instance):
         """Serialize the class into a dict."""
         data_dict = {}
-        for field_name, field_type in instance.__annotations__.items():
+        for field_name, field_type in get_type_hints(type(instance)).items():
             field_value = getattr(instance, field_name)
             if field_type is np.ndarray:
                 if field_value.dtype == np.complex128:

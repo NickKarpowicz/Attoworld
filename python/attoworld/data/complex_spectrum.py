@@ -15,7 +15,7 @@ class ComplexSpectrum:
 
     Attributes:
         spectrum (np.ndarray): the spectrum in complex128 format
-        freq (np.ndarray):
+        freq (np.ndarray): the frequencies (float, Hz)
 
     """
 
@@ -35,6 +35,20 @@ class ComplexSpectrum:
         r"""Return a ComplexSpectrum corresponding to the time derivative (multiply by $i\omega$)."""
         d_dt = 1j * 2 * np.pi * self.freq * self.spectrum
         return ComplexSpectrum(spectrum=d_dt, freq=np.array(self.freq))
+
+    def to_dazzer_phase(self, multiplier: float = 1.0):
+        """Return a two-column numpy array providing the phase in a format suitable for loading as phase.txt by a dazzer.
+
+        Args:
+            multiplier: a constant by which to multiply the phase, usually 1 (default) or -1.
+
+        """
+        phase = multiplier * np.unwrap(np.angle(self.spectrum[1::]))
+        intensity = np.real(self.spectrum[1::]) ** 2 + np.imag(self.spectrum[1::]) ** 2
+        phase_expect = np.sum(phase * intensity) / np.sum(intensity)
+        phase -= phase_expect
+        wl_nanometers = 2.99792548e17 / self.freq[1::]
+        return np.flipud(np.vstack((wl_nanometers, phase)).T)
 
     def to_bandpassed(self, frequency: float, sigma: float, order: int = 4):
         r"""Return the complex spectrum after applying a supergaussian bandpass filter to the spectrum, of the form
