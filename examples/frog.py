@@ -582,6 +582,8 @@ def _(
             zip.write(f"{file_base.value}.Ek.dat")
             zip.write(f"{file_base.value}.Speck.dat")
             zip.write(f"{file_base.value}.yml")
+            zip.write(f"{file_base.value}_negative_dazzler_phase.txt")
+            zip.write(f"{file_base.value}_positive_dazzler_phase.txt")
         display_download_link_from_file(
             f"{file_base.value}.zip",
             output_name=f"{file_base.value}.zip",
