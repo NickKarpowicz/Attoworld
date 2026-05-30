@@ -4,6 +4,7 @@
 #     "attoworld>=2026.1.2",
 #     "marimo>=0.23.8",
 #     "numpy>=2.4.6",
+#     "pyside6>=6.11.1",
 # ]
 # [tool.marimo.display]
 # theme = "dark"
@@ -11,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.21.0"
+__generated_with = "0.23.8"
 app = marimo.App(width="medium")
 
 
@@ -42,11 +43,8 @@ async def _():
                     )
                 )
     else:
-        import tkinter as tk
-        from tkinter import filedialog
-
-        root = tk.Tk()
-        root.withdraw()
+        from PySide6.QtWidgets import QApplication, QFileDialog
+        qtapp = QApplication(sys.argv)
 
     import attoworld as aw
     import numpy as np
@@ -55,9 +53,9 @@ async def _():
 
     aw.plot.set_style("nick_dark")
     return (
+        QFileDialog,
         aw,
         display_download_link_from_file,
-        filedialog,
         is_in_web_notebook,
         mo,
         np,
@@ -220,7 +218,6 @@ def _(is_in_web_notebook, loaded_settings, mo):
         bin_fblock,
         bin_median,
         bin_offset,
-        bin_save_button,
         bin_size,
         bin_spatial_chirp_correction,
         bin_t0,
@@ -593,13 +590,11 @@ def _(
 
 
 @app.cell
-def _(filedialog, is_in_web_notebook, mo, result, save_button):
+def _(QFileDialog, is_in_web_notebook, mo, result, save_button):
     mo.stop(not save_button.value)
     if not is_in_web_notebook:
-        _file_path = filedialog.asksaveasfilename(
-            title="Save File", filetypes=[("All Files", "*.*")]
-        )
-
+        _, _file_path = QFileDialog.getSaveFileName(
+                None, "Save file", "", "All Files (*)")
         if (_file_path is not None) and (result is not None) and (_file_path != ""):
             result.save(_file_path)
             result.save_yaml(_file_path + ".yml")
@@ -607,28 +602,26 @@ def _(filedialog, is_in_web_notebook, mo, result, save_button):
 
 
 @app.cell
-def _(filedialog, is_in_web_notebook, mo, plot, result, save_plot_button):
+def _(
+    QFileDialog,
+    is_in_web_notebook,
+    mo,
+    pathlib,
+    plot,
+    result,
+    save_plot_button,
+):
     mo.stop(not save_plot_button.value)
     if not is_in_web_notebook:
-        _file_path = filedialog.asksaveasfilename(
-            title="Save File", filetypes=[("SVG files", "*.svg"), ("PDF files", "*.pdf")]
-        )
-
+        _file_path, _file_type = QFileDialog.getSaveFileName(
+                None, "Save file", "", "SVG files (*.svg);;PDF files (*.pdf)", "SVG files (*.svg)")
         if _file_path is not None and result is not None:
+            if pathlib.Path(_file_path).suffix is "":
+                if _file_type == "PDF files (*.pdf)":
+                    _file_path += ".pdf"
+                else:
+                    _file_path += ".svg"
             plot.savefig(_file_path)
-    return
-
-
-@app.cell
-def _(bin_save_button, bin_settings, filedialog, is_in_web_notebook, mo):
-    if not is_in_web_notebook:
-        mo.stop(not bin_save_button.value)
-        _file_path = filedialog.asksaveasfilename(
-            title="Save File", filetypes=[("YAML files", "*.yml")]
-        )
-
-        if _file_path is not None and bin_settings is not None:
-            bin_settings.save_yaml(_file_path)
     return
 
 
