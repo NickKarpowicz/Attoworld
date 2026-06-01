@@ -78,14 +78,22 @@ class FrogData:
             base_filename + "_positive_dazzler_phase.txt", "w"
         ) as dazzler_phase_plus:
             np.savetxt(
-                dazzler_phase_plus, self.spectrum.to_dazzer_phase(), delimiter="\t"
+                dazzler_phase_plus,
+                self.spectrum.to_dazzer_phase(),
+                delimiter="\t",
+                fmt="%12.12f",
+                newline="\r\n",
             )
 
         with open(
             base_filename + "_negative_dazzler_phase.txt", "w"
         ) as dazzler_phase_minus:
             np.savetxt(
-                dazzler_phase_minus, self.spectrum.to_dazzer_phase(-1), delimiter="\t"
+                dazzler_phase_minus,
+                self.spectrum.to_dazzer_phase(-1),
+                delimiter="\t",
+                fmt="%12.12f",
+                newline="\r\n",
             )
 
     def plot_measured_spectrogram(self, ax: Optional[Axes] = None, log: bool = False):
