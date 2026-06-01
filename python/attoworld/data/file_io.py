@@ -78,12 +78,16 @@ def load_mean_spectrum_from_scarab(
     """
     if is_data_string:
         pd_input = pd.read_csv(
-            io.StringIO(filename_or_data_string), sep="\t", skiprows=header_size
+            io.StringIO(filename_or_data_string),
+            delim_whitespace=True,
+            header=None,
+            skiprows=header_size,
         )
         data = np.array(pd_input.iloc[:, :])
     else:
         data = np.loadtxt(filename_or_data_string, skiprows=header_size)
 
+    print(data.shape)
     return IntensitySpectrum(
         spectrum=np.mean(data[:, 1::], axis=1),
         wavelength=1e-9 * data[:, 0],

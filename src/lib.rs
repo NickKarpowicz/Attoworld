@@ -894,6 +894,9 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         }
 
         let result = best_result.lock().unwrap();
+        if finishing_iterations == 0 {
+            return (result.pulse.clone(), result.gate.clone(), result.error);
+        }
         alloc.guess = Some(result.pulse.clone());
         alloc.gate_guess = Some(result.gate.clone());
         let last = reconstruct_frog_core(alloc, finishing_iterations);

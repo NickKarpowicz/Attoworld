@@ -321,12 +321,18 @@ def _(mo):
 
 
 @app.cell
-def _(mo, spectral_constraint_file):
+def _(aw, mo, spectral_constraint_file):
     spectral_constraint_format = mo.ui.dropdown(options=["Columns", "Text with headers"], value="Text with headers")
     spectral_constraint_data = spectral_constraint_file.contents()
+    constraint_calibration_selector = mo.ui.dropdown(options=[e.value for e in aw.spectrum.CalibrationData],label="Calibration:")
     if spectral_constraint_data is not None:
         mo.output.append(spectral_constraint_format)
-    return spectral_constraint_data, spectral_constraint_format
+        mo.output.append(constraint_calibration_selector)
+    return (
+        constraint_calibration_selector,
+        spectral_constraint_data,
+        spectral_constraint_format,
+    )
 
 
 @app.cell
@@ -362,6 +368,7 @@ def _(mo, spectral_constraint_data, spectral_constraint_format):
 @app.cell
 def _(
     aw,
+    constraint_calibration_selector,
     mo,
     spectral_constraint_bandpass_f0,
     spectral_constraint_bandpass_order,
@@ -389,6 +396,11 @@ def _(
                     spectrum_field=spectral_constraint_intensity_header.value,
                     is_data_string=True
                 )
+        if constraint_calibration_selector.value is not None:
+            constraint_calibration = aw.data.SpectrometerCalibration.from_npz(
+                aw.spectrum.get_calibration_path() / constraint_calibration_selector.value
+            )
+            spectral_constraint = constraint_calibration.apply_to_spectrum(spectral_constraint)
         spectral_constraint = spectral_constraint.to_bandpassed(spectral_constraint_bandpass_f0.value * 1e12,spectral_constraint_bandpass_sigma.value * 1e12,int(spectral_constraint_bandpass_order.value))
         mo.output.append(mo.md("### Loaded spectral constraint:"))
         spectral_constraint.plot_with_group_delay()
@@ -593,7 +605,7 @@ def _(
 def _(QFileDialog, is_in_web_notebook, mo, result, save_button):
     mo.stop(not save_button.value)
     if not is_in_web_notebook:
-        _, _file_path = QFileDialog.getSaveFileName(
+        _file_path, _file_type = QFileDialog.getSaveFileName(
                 None, "Save file", "", "All Files (*)")
         if (_file_path is not None) and (result is not None) and (_file_path != ""):
             result.save(_file_path)
