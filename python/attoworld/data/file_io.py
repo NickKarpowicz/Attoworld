@@ -79,7 +79,7 @@ def load_mean_spectrum_from_scarab(
     if is_data_string:
         pd_input = pd.read_csv(
             io.StringIO(filename_or_data_string),
-            sep=None,
+            sep=" ",
             header=None,
             skiprows=header_size,
         )
