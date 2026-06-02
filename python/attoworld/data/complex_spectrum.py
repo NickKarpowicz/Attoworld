@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from ..numeric import derivative
 from .decorators import yaml_io
 
 
@@ -36,11 +37,18 @@ class ComplexSpectrum:
         d_dt = 1j * 2 * np.pi * self.freq * self.spectrum
         return ComplexSpectrum(spectrum=d_dt, freq=np.array(self.freq))
 
-    def to_dazzer_phase(self, multiplier: float = 1.0):
+    def to_dazzer_phase(
+        self,
+        multiplier: float = 1.0,
+        filter_width: float = 100e-15,
+        filter_order: int = 4,
+    ):
         """Return a two-column numpy array providing the phase in a format suitable for loading as phase.txt by a dazzer.
 
         Args:
             multiplier: a constant by which to multiply the phase, usually 1 (default) or -1.
+            filter_width: time constant for the phase filter in seconds (default 100e-15)
+            filter_order: order of the supergaussian time filter (default 4)
 
         """
         phase = multiplier * np.unwrap(
@@ -48,10 +56,26 @@ class ComplexSpectrum:
         )
         phase = phase[1::]
         intensity = np.real(self.spectrum[1::]) ** 2 + np.imag(self.spectrum[1::]) ** 2
-        phase_expect = np.sum(phase * intensity) / np.sum(intensity)
-        phase -= phase_expect
+        f0 = np.sum(self.freq[1::] * intensity) / np.sum(intensity)
+
         wl_nanometers = 2.99792548e17 / self.freq[1::]
-        return np.flipud(np.vstack((wl_nanometers, phase)).T)
+
+        def apply_time_filter(
+            phase, frequencies, zero_freq, filter_width, filter_order
+        ):
+            freq_step = np.abs(frequencies[1] - frequencies[0])
+            zero_index = (np.abs(frequencies - zero_freq)).argmin()
+            dphase = derivative(np.array(phase), 1, neighbors=3)
+            t = np.fft.fftfreq(len(phase), d=freq_step)
+            sg_filter = np.exp(-(t**filter_order) / (2 * filter_width**filter_order))
+            filtered = np.cumsum(np.real(np.fft.ifft(sg_filter * np.fft.fft(dphase))))
+            filtered -= filtered[zero_index]
+            return filtered
+
+        filtered_phase = apply_time_filter(
+            phase, self.freq[1::], f0, filter_width, filter_order
+        )
+        return np.flipud(np.vstack((wl_nanometers, filtered_phase)).T)
 
     def to_bandpassed(self, frequency: float, sigma: float, order: int = 4):
         r"""Return the complex spectrum after applying a supergaussian bandpass filter to the spectrum, of the form
