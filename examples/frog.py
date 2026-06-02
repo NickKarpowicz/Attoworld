@@ -1,7 +1,7 @@
 # /// script
 # requires-python = ">=3.14"
 # dependencies = [
-#     "attoworld>=2026.1.9",
+#     "attoworld>=2026.1.10",
 #     "marimo>=0.23.8",
 #     "numpy>=2.4.6",
 #     "pyside6>=6.11.1",
@@ -51,7 +51,6 @@ async def _():
     import pathlib
     import time
 
-    aw.plot.set_style("nick_dark")
     return (
         QFileDialog,
         aw,
@@ -63,6 +62,13 @@ async def _():
         time,
         zipfile,
     )
+
+
+@app.cell
+def _(mo):
+    plot_style_selector = mo.ui.dropdown(options=["Dark", "Light"], label="Plot style", value="Dark")
+    mo.output.append(plot_style_selector)
+    return (plot_style_selector,)
 
 
 @app.cell
@@ -267,10 +273,15 @@ def _(
     display_download_link_from_file,
     input_data,
     is_in_web_notebook,
+    plot_style_selector,
 ):
     # if not bin_live.value:
     #     mo.stop(not bin_button.value)
     if input_data is not None:
+        if plot_style_selector.value == "Light":
+            aw.plot.set_style("light")
+        else:
+            aw.plot.set_style("nick_dark")
         frog_data = input_data.to_bin_pipeline_result(bin_settings)
         frog_data.plot_log()
         aw.plot.showmo()
@@ -390,7 +401,6 @@ def _(mo, spectral_constraint_data, spectral_constraint_format):
 def _(
     aw,
     constraint_calibration_selector,
-    mo,
     spectral_constraint_bandpass_f0,
     spectral_constraint_bandpass_order,
     spectral_constraint_bandpass_sigma,
@@ -423,10 +433,23 @@ def _(
             )
             spectral_constraint = constraint_calibration.apply_to_spectrum(spectral_constraint)
         spectral_constraint = spectral_constraint.to_bandpassed(spectral_constraint_bandpass_f0.value * 1e12,spectral_constraint_bandpass_sigma.value * 1e12,int(spectral_constraint_bandpass_order.value))
-        mo.output.append(mo.md("### Loaded spectral constraint:"))
-        spectral_constraint.plot_with_group_delay()
-        aw.plot.showmo()
     return (spectral_constraint,)
+
+
+@app.cell
+def _(aw, mo, plot_style_selector, spectral_constraint):
+    if spectral_constraint is not None:
+        mo.output.append(mo.md("### Loaded spectral constraint:"))
+
+        if plot_style_selector.value == "Light":
+            aw.plot.set_style("light")
+            spectral_constraint.plot_with_group_delay()
+            aw.plot.showmo()
+        else:
+            aw.plot.set_style("nick_dark")
+            spectral_constraint.plot_with_group_delay()
+            aw.plot.showmo()
+    return
 
 
 @app.cell
@@ -510,6 +533,7 @@ def _(
     time,
     xfrog_reference,
 ):
+    frog_type = None
     mo.stop(not reconstruct_button.value)
     if frog_data is not None:
         roi = None
@@ -535,23 +559,21 @@ def _(
                     ptycho_exclude_upper.value * 1e12,
                 )
                 ptycho_threshhold_float = ptycho_threshhold.value
-        _start_time = time.time()
-        result, result_gate = aw.wave.reconstruct_frog(
-            measurement=frog_data,
-            repeats=int(recon_trials.value),
-            test_iterations=int(recon_trial_length.value),
-            polish_iterations=int(recon_followups.value),
-            frog_type=frog_type,
-            spectrum=spectral_constraint,
-            xfrog_gate=xfrog_reference,
-            roi=roi,
-            ptychographic_threshhold=ptycho_threshhold_float,
-        )
-        _stop_time = time.time()
-        reconstruction_time = _stop_time - _start_time
-        mo.output.append(mo.md(f"Reconstruction time: {reconstruction_time: .1f} s"))
-    else:
-        result = None
+                _start_time = time.time()
+                result, result_gate = aw.wave.reconstruct_frog(
+                    measurement=frog_data,
+                    repeats=int(recon_trials.value),
+                    test_iterations=int(recon_trial_length.value),
+                    polish_iterations=int(recon_followups.value),
+                    frog_type=frog_type,
+                    spectrum=spectral_constraint,
+                    xfrog_gate=xfrog_reference,
+                    roi=roi,
+                    ptychographic_threshhold=ptycho_threshhold_float,
+                )
+                _stop_time = time.time()
+                reconstruction_time = _stop_time - _start_time
+                mo.output.append(mo.md(f"Reconstruction time: {reconstruction_time: .1f} s"))
     return result, result_gate
 
 
@@ -563,11 +585,18 @@ def _(
     is_in_web_notebook,
     mo,
     mode_selector,
+    plot_style_selector,
     result,
     result_gate,
 ):
     if result is not None:
-        plot = result.plot_all(figsize=(9.6, 6), wavelength_autoscale=1e-3)
+        if plot_style_selector.value == "Light":
+            aw.plot.set_style("light")
+            plot = result.plot_all(figsize=(9.6, 6), wavelength_autoscale=1e-3)
+        else:
+            aw.plot.set_style("nick_dark")
+            plot = result.plot_all(figsize=(9.6, 6), wavelength_autoscale=1e-3)
+
         aw.plot.showmo()
         if mode_selector.value == "BlindFROG":
             mo.output.append(mo.md("### Gate"))
@@ -623,7 +652,7 @@ def _(
 
 
 @app.cell
-def _(QFileDialog, is_in_web_notebook, mo, result, save_button):
+def _(QFileDialog, is_in_web_notebook, mo, plot, result, save_button):
     mo.stop(not save_button.value)
     if not is_in_web_notebook:
         _file_path, _file_type = QFileDialog.getSaveFileName(
@@ -631,6 +660,7 @@ def _(QFileDialog, is_in_web_notebook, mo, result, save_button):
         if (_file_path is not None) and (result is not None) and (_file_path != ""):
             result.save(_file_path)
             result.save_yaml(_file_path + ".yml")
+            plot.savefig(_file_path + ".svg")
     return
 
 

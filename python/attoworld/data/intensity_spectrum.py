@@ -219,23 +219,27 @@ class IntensitySpectrum:
         intensity_line = ax.plot(1e9 * wl, intensity, label="Intensity")
         ax.set_xlabel("Wavelength (nm)")
         ax.set_ylabel("Intensity (Arb. unit)")
-        ax_phase = plt.twinx(ax)
-        group_delay = (-1e15 / (2 * np.pi)) * derivative(phase, 1) / (freq[1] - freq[2])
-        assert isinstance(ax_phase, Axes)
-        ax_phase.plot([], [])
+
         if self.phase is not None:
+            ax_phase = plt.twinx(ax)
+            assert isinstance(ax_phase, Axes)
+            ax_phase.plot([], [])
+            group_delay = (
+                (-1e15 / (2 * np.pi)) * derivative(phase, 1) / (freq[1] - freq[2])
+            )
             phase_line = ax_phase.plot(
                 1e9 * wl[intensity > phase_blanking],
                 group_delay[intensity > phase_blanking],
                 "--",
                 label="Group delay",
             )
+            ax_phase.set_ylabel("Group delay (fs)")
+            if xlim is not None:
+                ax_phase.set_xlim(xlim)
         else:
             phase_line = None
-        ax_phase.set_ylabel("Group delay (fs)")
         if xlim is not None:
             ax.set_xlim(xlim)
-            ax_phase.set_xlim(xlim)
         if phase_line is not None:
             lines = intensity_line + phase_line
         else:
