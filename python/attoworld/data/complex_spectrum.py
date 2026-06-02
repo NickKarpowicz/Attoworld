@@ -43,7 +43,10 @@ class ComplexSpectrum:
             multiplier: a constant by which to multiply the phase, usually 1 (default) or -1.
 
         """
-        phase = multiplier * np.unwrap(np.angle(self.spectrum[1::]))
+        phase = multiplier * np.unwrap(
+            np.angle(np.fft.fft(np.fft.fftshift(np.fft.ifft(self.spectrum))))
+        )
+        phase = phase[1::]
         intensity = np.real(self.spectrum[1::]) ** 2 + np.imag(self.spectrum[1::]) ** 2
         phase_expect = np.sum(phase * intensity) / np.sum(intensity)
         phase -= phase_expect
