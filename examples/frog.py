@@ -218,6 +218,7 @@ def _(is_in_web_notebook, loaded_settings, mo):
         bin_fblock,
         bin_median,
         bin_offset,
+        bin_save_button,
         bin_size,
         bin_spatial_chirp_correction,
         bin_t0,
@@ -285,6 +286,26 @@ def _(
     else:
         frog_data = None
     return (frog_data,)
+
+
+@app.cell
+def _(
+    QFileDialog,
+    bin_save_button,
+    bin_settings,
+    is_in_web_notebook,
+    mo,
+    pathlib,
+):
+    mo.stop(not bin_save_button.value)
+    if not is_in_web_notebook and bin_settings is not None:
+        _file_path, _file_type = QFileDialog.getSaveFileName(
+                None, "Save file", "", "YAML Files (*.yml)")
+        if (_file_path is not None) and (bin_settings is not None) and (_file_path != ""):
+            if pathlib.Path(_file_path).suffix is "":
+                _file_path += ".yml"
+            bin_settings.save_yaml(_file_path)
+    return
 
 
 @app.cell
