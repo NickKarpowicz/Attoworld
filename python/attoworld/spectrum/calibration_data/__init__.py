@@ -1,13 +1,12 @@
 """Organize the calibration data we have available."""
 
-import importlib.resources
+import pathlib
 from enum import Enum
 
 
 def get_calibration_path():
     """Return the absolute path to the calibration files in the module."""
-    with importlib.resources.path(__name__) as data_path:
-        return data_path
+    return pathlib.Path(__file__).parent
 
 
 class CalibrationData(Enum):
