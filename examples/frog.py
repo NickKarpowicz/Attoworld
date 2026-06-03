@@ -1,7 +1,7 @@
 # /// script
 # requires-python = ">=3.14"
 # dependencies = [
-#     "attoworld>=2026.1.10",
+#     "attoworld>=2026.2",
 #     "marimo>=0.23.8",
 #     "numpy>=2.4.6",
 #     "pyside6>=6.11.1",
@@ -28,7 +28,7 @@ async def _():
         import zipfile
         mo._runtime.context.get_context().marimo_config["runtime"]["output_max_bytes"] = 10000000000
         await micropip.install(
-            "https://nickkarpowicz.github.io/wheels/attoworld-2026.1.6-cp312-cp312-emscripten_3_1_58_wasm32.whl"
+            "https://nickkarpowicz.github.io/wheels/attoworld-2026.2-cp312-cp312-emscripten_3_1_58_wasm32.whl"
         )
         def display_download_link_from_file(
             path, output_name, mime_type="text/plain"
@@ -45,7 +45,7 @@ async def _():
     else:
         from PySide6.QtWidgets import QApplication, QFileDialog
         qtapp = QApplication(sys.argv)
-
+    import matplotlib.pyplot as plt
     import attoworld as aw
     import numpy as np
     import pathlib
@@ -59,6 +59,7 @@ async def _():
         mo,
         np,
         pathlib,
+        plt,
         time,
         zipfile,
     )
@@ -678,13 +679,151 @@ def _(
     if not is_in_web_notebook:
         _file_path, _file_type = QFileDialog.getSaveFileName(
                 None, "Save file", "", "SVG files (*.svg);;PDF files (*.pdf)", "SVG files (*.svg)")
-        if _file_path is not None and result is not None:
+        if _file_path is not "" and result is not None:
             if pathlib.Path(_file_path).suffix is "":
                 if _file_type == "PDF files (*.pdf)":
                     _file_path += ".pdf"
                 else:
                     _file_path += ".svg"
             plot.savefig(_file_path)
+    return
+
+
+@app.cell
+def _(is_in_web_notebook, mo):
+    dazzer_time_constant_box = mo.ui.number(value=100, step=1, start=0, label="Filter time constant (fs)")
+    dazzler_filter_order_box = mo.ui.number(value=4, step=2, start=2, label="Filter order")
+    dazzler_roi_min_box = mo.ui.number(value=700, start=100, step=1, label="ROI min (nm)")
+    dazzler_roi_max_box = mo.ui.number(value=900, start=100, step=1, label="ROI max (nm)")
+    dazzler_save_button = mo.ui.run_button(label="Save custom phase files")
+    mo.output.append(mo.md("## Dazzler phase filtering:"))
+    mo.output.append(dazzer_time_constant_box)
+    mo.output.append(dazzler_filter_order_box)
+    mo.output.append(dazzler_roi_min_box)
+    mo.output.append(dazzler_roi_max_box)
+    if not is_in_web_notebook:
+        mo.output.append(dazzler_save_button)
+    return (
+        dazzer_time_constant_box,
+        dazzler_filter_order_box,
+        dazzler_roi_max_box,
+        dazzler_roi_min_box,
+        dazzler_save_button,
+    )
+
+
+@app.cell
+def _(
+    aw,
+    dazzer_time_constant_box,
+    dazzler_filter_order_box,
+    dazzler_roi_max_box,
+    dazzler_roi_min_box,
+    display_download_link_from_file,
+    is_in_web_notebook,
+    np,
+    plt,
+    result,
+):
+    def phase_roi(phase_data, lam_min, lam_max):
+        return phase_data[
+            (phase_data[:, 0] <= lam_max) & (phase_data[:, 0] >= lam_min), :
+        ]
+
+
+    if result is not None:
+        dazzler_phase_0 = phase_roi(
+            result.spectrum.to_dazzer_phase(
+                multiplier=1, filter_width=1.0, filter_order=8
+            ),
+            dazzler_roi_min_box.value,
+            dazzler_roi_max_box.value,
+        )
+        dazzler_phase_filtered = phase_roi(
+            result.spectrum.to_dazzer_phase(
+                multiplier=1, filter_width=100e-15, filter_order=8
+            ),
+            dazzler_roi_min_box.value,
+            dazzler_roi_max_box.value,
+        )
+        dazzler_phase_custom_filtered = result.spectrum.to_dazzer_phase(
+            multiplier=1,
+            filter_width=1e-15 * dazzer_time_constant_box.value,
+            filter_order=dazzler_filter_order_box.value,
+        )
+        dazzler_phase_custom_filtered_negative = result.spectrum.to_dazzer_phase(
+            multiplier=-1,
+            filter_width=1e-15 * dazzer_time_constant_box.value,
+            filter_order=dazzler_filter_order_box.value,
+        )
+        dazzler_phase_custom_filtered_roi = phase_roi(
+            dazzler_phase_custom_filtered,
+            dazzler_roi_min_box.value,
+            dazzler_roi_max_box.value,
+        )
+        plt.plot(dazzler_phase_0[:, 0], dazzler_phase_0[:, 1], label="Unfiltered")
+        plt.plot(
+            dazzler_phase_filtered[:, 0],
+            dazzler_phase_filtered[:, 1],
+            label="Default filter",
+        )
+        plt.plot(
+            dazzler_phase_custom_filtered_roi[:, 0],
+            dazzler_phase_custom_filtered_roi[:, 1],
+            label="Adjusted filter",
+        )
+        plt.legend()
+        plt.xlabel("Wavelength (nm)")
+        plt.ylabel("Phase (rad)")
+        aw.plot.showmo()
+
+        if is_in_web_notebook:
+            np.savetxt(
+                "positive_phase.txt",
+                dazzler_phase_custom_filtered,
+                delimiter="\t",
+                fmt="%12.12f",
+                newline="\r\n",
+            )
+            np.savetxt(
+                "negative_phase.txt",
+                dazzler_phase_custom_filtered_negative,
+                delimiter="\t",
+                fmt="%12.12f",
+                newline="\r\n",
+            )
+            display_download_link_from_file(
+                "positive_phase.txt", output_name=f"positive_phase.txt"
+            )
+            display_download_link_from_file(
+                "negative_phase.txt", output_name=f"negative_phase.txt"
+            )
+    return (
+        dazzler_phase_custom_filtered,
+        dazzler_phase_custom_filtered_negative,
+    )
+
+
+@app.cell
+def _(
+    QFileDialog,
+    dazzler_phase_custom_filtered,
+    dazzler_phase_custom_filtered_negative,
+    dazzler_save_button,
+    mo,
+    np,
+    result,
+):
+    mo.stop(not dazzler_save_button.value)
+    _file_path, _file_type = QFileDialog.getSaveFileName(
+            None, "Save file", "", "Base name (*)")
+    if _file_path is not "" and result is not None:
+        np.savetxt(_file_path+".txt",dazzler_phase_custom_filtered, delimiter="\t",
+                fmt="%12.12f",
+                newline="\r\n")
+        np.savetxt(_file_path+"_negative.txt",dazzler_phase_custom_filtered_negative, delimiter="\t",
+                fmt="%12.12f",
+                newline="\r\n")
     return
 
 
