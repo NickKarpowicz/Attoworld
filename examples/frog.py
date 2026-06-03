@@ -561,21 +561,21 @@ def _(
                     ptycho_exclude_upper.value * 1e12,
                 )
                 ptycho_threshhold_float = ptycho_threshhold.value
-                _start_time = time.time()
-                result, result_gate = aw.wave.reconstruct_frog(
-                    measurement=frog_data,
-                    repeats=int(recon_trials.value),
-                    test_iterations=int(recon_trial_length.value),
-                    polish_iterations=int(recon_followups.value),
-                    frog_type=frog_type,
-                    spectrum=spectral_constraint,
-                    xfrog_gate=xfrog_reference,
-                    roi=roi,
-                    ptychographic_threshhold=ptycho_threshhold_float,
-                )
-                _stop_time = time.time()
-                reconstruction_time = _stop_time - _start_time
-                mo.output.append(mo.md(f"Reconstruction time: {reconstruction_time: .1f} s"))
+        _start_time = time.time()
+        result, result_gate = aw.wave.reconstruct_frog(
+            measurement=frog_data,
+            repeats=int(recon_trials.value),
+            test_iterations=int(recon_trial_length.value),
+            polish_iterations=int(recon_followups.value),
+            frog_type=frog_type,
+            spectrum=spectral_constraint,
+            xfrog_gate=xfrog_reference,
+            roi=roi,
+            ptychographic_threshhold=ptycho_threshhold_float,
+        )
+        _stop_time = time.time()
+        reconstruction_time = _stop_time - _start_time
+        mo.output.append(mo.md(f"Reconstruction time: {reconstruction_time: .1f} s"))
     return result, result_gate
 
 
