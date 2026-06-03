@@ -309,8 +309,9 @@ def _(
     mo,
     pathlib,
 ):
-    mo.stop(not bin_save_button.value)
+
     if not is_in_web_notebook and bin_settings is not None:
+        mo.stop(not bin_save_button.value)
         _file_path, _file_type = QFileDialog.getSaveFileName(
                 None, "Save file", "", "YAML Files (*.yml)")
         if (_file_path is not None) and (bin_settings is not None) and (_file_path != ""):
