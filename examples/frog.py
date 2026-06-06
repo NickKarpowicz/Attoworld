@@ -1,7 +1,7 @@
 # /// script
 # requires-python = ">=3.14"
 # dependencies = [
-#     "attoworld>=2026.2",
+#     "attoworld>=2026.2.1",
 #     "marimo>=0.23.8",
 #     "numpy>=2.4.6",
 #     "pyside6>=6.11.1",
@@ -12,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.23.8"
+__generated_with = "0.23.9"
 app = marimo.App(width="medium", app_title="Frog")
 
 
@@ -28,7 +28,7 @@ async def _():
         import zipfile
         mo._runtime.context.get_context().marimo_config["runtime"]["output_max_bytes"] = 10000000000
         await micropip.install(
-            "https://nickkarpowicz.github.io/wheels/attoworld-2026.2-cp312-cp312-emscripten_3_1_58_wasm32.whl"
+            "https://nickkarpowicz.github.io/wheels/attoworld-2026.2.1-cp312-cp312-emscripten_3_1_58_wasm32.whl"
         )
         def display_download_link_from_file(
             path, output_name, mime_type="text/plain"
@@ -67,16 +67,22 @@ async def _():
 
 @app.cell
 def _(mo):
+    help_cb = mo.ui.checkbox(value=True, label="show instructions")
     plot_style_selector = mo.ui.dropdown(options=["Dark", "Light"], label="Plot style", value="Dark")
     mo.output.append(plot_style_selector)
-    return (plot_style_selector,)
+    mo.output.append(help_cb)
+    return help_cb, plot_style_selector
 
 
 @app.cell
-def _(mo):
+def _(help_cb, mo):
     mo.output.append(mo.md("# FROG Reconstruction:"))
+    if help_cb.value:
+        mo.output.append(mo.md("This code will take a measured FROG (field-resolved optical gating) trace and attempt to reconstruct it. The reconstruction is written in Rust with a python interface, and can be found at the [Attoworld github repo](https://github.com/NickKarpowicz/Attoworld)."))
     mo.output.append(mo.md("---"))
     mo.output.append(mo.md("### Select your FROG file:"))
+    if help_cb.value:
+        mo.output.append(mo.md("Currently only the .dwc file format is set up, but I can easily add different import methods if you send me an example of the file you want to reconstruct!"))
     return
 
 
@@ -88,9 +94,12 @@ def _(mo):
 
 
 @app.cell
-def _(aw, mo):
+def _(aw, help_cb, mo):
     calibration_selector = mo.ui.dropdown(options=[e.value for e in aw.spectrum.CalibrationData],label="Calibration:")
-    calibration_selector
+    if help_cb.value:
+        mo.output.append(mo.md("If your spectrometer is in our list (i.e. you're in the MPQ lab and calibrated your spectrometer), it will be in the list. If you want your reconstruction to work better, you can send a calibration result to me, using the calibration script in the Attoworld repo examples folder."))
+
+    mo.output.append(calibration_selector)
     return (calibration_selector,)
 
 
@@ -159,9 +168,17 @@ def _(aw, calibration_selector, file_browser, mo, np):
 
 
 @app.cell
-def _(mo):
+def _(help_cb, mo):
     mo.output.append(mo.md("---"))
     mo.output.append(mo.md("### Bin data onto evenly spaced grid:"))
+    if help_cb.value:
+        mo.output.append(mo.md("""The box should contain your full trace, with some empty space on all sides. Make the time-step smaller to have a larger frequency range. Increase the time range by increasing the box size.
+
+    Increasing the dark noise level parameter will gate the spectrogram, reducing noise in the final trace, but be careful that you don't remove actual signal.
+
+    The block-averaging options will bin pixels before interpolation onto the final grid, and can help to improve the signal-to-noise ratio as long as the settings don't reduce the resolution. Median blocking will take the median rather than average, for use when the data has larger outliers.
+
+    The spatial chirp correction will un-tilt a tilted spectrogram, but is only for checking: if it helps, the measurement isn't likely to be valid."""))
     return
 
 
@@ -205,6 +222,11 @@ def _(is_in_web_notebook, loaded_settings, mo):
     bin_tblock = mo.ui.number(label="time block avg.", start=1, value=loaded_settings.time_binning, step=1)
     bin_median = mo.ui.checkbox(label="median blocking", value=loaded_settings.median_binning)
     bin_spatial_chirp_correction = mo.ui.checkbox(label="correct spatial chirp", value=loaded_settings.spatial_chirp_correction)
+    bin_log = mo.ui.checkbox(value=True, label="log scale")
+    bin_geometric_correction = mo.ui.checkbox(label="correct geometric smearing")
+    bin_geometric_smearing_angle = mo.ui.number(value = 0.0, step=0.001, start=0, stop=180, label="beam angle (deg)")
+    bin_geometric_smearing_waist = mo.ui.number(value=10.0, step=0.1, start=0.1, label="beam waist (microns)")
+    bin_geometric_smearing_max = mo.ui.number(value=10, step=0.1, start=1, label="max amplifcation factor")
     mo.output.append(bin_size)
     mo.output.append(bin_dt)
     mo.output.append(bin_t0)
@@ -216,6 +238,7 @@ def _(is_in_web_notebook, loaded_settings, mo):
     mo.output.append(bin_median)
     mo.output.append(bin_spatial_chirp_correction)
 
+
     if not is_in_web_notebook:
         bin_save_button = mo.ui.run_button(label="Save settings")
         mo.output.append(bin_save_button)
@@ -223,6 +246,11 @@ def _(is_in_web_notebook, loaded_settings, mo):
         bin_dt,
         bin_f0,
         bin_fblock,
+        bin_geometric_correction,
+        bin_geometric_smearing_angle,
+        bin_geometric_smearing_max,
+        bin_geometric_smearing_waist,
+        bin_log,
         bin_median,
         bin_offset,
         bin_save_button,
@@ -270,6 +298,11 @@ def _(
 @app.cell
 def _(
     aw,
+    bin_geometric_correction,
+    bin_geometric_smearing_angle,
+    bin_geometric_smearing_max,
+    bin_geometric_smearing_waist,
+    bin_log,
     bin_settings,
     display_download_link_from_file,
     input_data,
@@ -283,8 +316,19 @@ def _(
             aw.plot.set_style("light")
         else:
             aw.plot.set_style("nick_dark")
-        frog_data = input_data.to_bin_pipeline_result(bin_settings)
-        frog_data.plot_log()
+
+        if bin_geometric_correction.value:
+            frog_data = input_data.to_bin_pipeline_result(bin_settings).to_deconvolved_geometric_smearing(
+                angle_in_degrees=bin_geometric_smearing_angle.value,
+                beamwaist_meters=1e-6 * bin_geometric_smearing_waist.value,
+                max_amplification_factor=bin_geometric_smearing_max.value
+            )
+        else:
+            frog_data = input_data.to_bin_pipeline_result(bin_settings)
+        if bin_log.value:
+            frog_data.plot_log()
+        else:
+            frog_data.plot()
         aw.plot.showmo()
 
         if is_in_web_notebook:
@@ -298,6 +342,32 @@ def _(
     else:
         frog_data = None
     return (frog_data,)
+
+
+@app.cell
+def _(bin_geometric_correction, bin_log, mo):
+    mo.output.append(bin_log)
+    mo.output.append(bin_geometric_correction)
+    return
+
+
+@app.cell
+def _(
+    bin_geometric_correction,
+    bin_geometric_smearing_angle,
+    bin_geometric_smearing_max,
+    bin_geometric_smearing_waist,
+    help_cb,
+    mo,
+):
+    if bin_geometric_correction.value:
+        mo.output.append(mo.md("### Geometric smearing correction parameters"))
+        if help_cb.value:
+            mo.output.append(mo.md("This experimental feature will correct for blurring along the delay-axis caused by the angle between the beams in the FROG setup. Since this essentially a deconvolution, it will increase high-frequency noise, which may be suppressed by lowering the max amplification value."))
+        mo.output.append(bin_geometric_smearing_angle)
+        mo.output.append(bin_geometric_smearing_waist)
+        mo.output.append(bin_geometric_smearing_max)
+    return
 
 
 @app.cell
@@ -322,7 +392,7 @@ def _(
 
 
 @app.cell
-def _(mo, mode_selector):
+def _(help_cb, mo, mode_selector):
     ptycho_roi_lower = mo.ui.number(value = 300.0, step=0.1, label="ROI lower frequency (THz)")
     ptycho_roi_upper = mo.ui.number(value = 900.0, step=0.1, label="ROI upper frequency (THz)")
     ptycho_exclude_lower = mo.ui.number(value = 1000.0, step=0.1, label="Excluded region lower frequency (THz)")
@@ -331,6 +401,8 @@ def _(mo, mode_selector):
     if mode_selector.value == "SHG ptychographic":
         mo.output.append(mo.md("---"))
         mo.output.append(mo.md("### Ptychographic FROG options:"))
+        if help_cb.value:
+            mo.output.append(mo.md("Ptychographic reconstruction has additional options that may be configured. The ROI (region of interest) should include the reliably-measured part of the spectrogram. Bad sections of data, e.g. from the stitching region between spectrometers, may additionally be excluded. The noise threshold is an adjustable parameter, but likely won't benefit from adjustment."))
         mo.output.append(ptycho_roi_lower)
         mo.output.append(ptycho_roi_upper)
         mo.output.append(ptycho_exclude_lower)
@@ -346,9 +418,11 @@ def _(mo, mode_selector):
 
 
 @app.cell
-def _(mo):
+def _(help_cb, mo):
     mo.output.append(mo.md("---"))
     mo.output.append(mo.md("### Optional spectral constraint:"))
+    if help_cb.value:
+        mo.output.append(mo.md("If available, a measured spectrum of the pulse to be reconstructed can be used to adjust the marginals of the measurement, improving agreement with the true spectrum."))
     spectral_constraint_file = mo.ui.file(label="Spectral contstraint file")
     mo.output.append(spectral_constraint_file)
     return (spectral_constraint_file,)
@@ -455,9 +529,11 @@ def _(aw, mo, plot_style_selector, spectral_constraint):
 
 
 @app.cell
-def _(mo):
+def _(help_cb, mo):
     mo.output.append(mo.md("---"))
     mo.output.append(mo.md("### Run the reconstruction:"))
+    if help_cb.value:
+        mo.output.append(mo.md("The reconstruction will be run with multiple initial guesses to the spectral phase, with a given number of iterations (trial iterations) following each initial guess. After this, the guess which yielded the lowest error will be sent for additional iterations, set by the finishing iterations parameter. The trials will be run in multiple threads when run in a standard python environment, but the browser-based trials will not, due to current constraints on web assembly."))
     return
 
 
@@ -691,13 +767,15 @@ def _(
 
 
 @app.cell
-def _(is_in_web_notebook, mo):
+def _(help_cb, is_in_web_notebook, mo):
     dazzer_time_constant_box = mo.ui.number(value=100, step=1, start=0, label="Filter time constant (fs)")
     dazzler_filter_order_box = mo.ui.number(value=4, step=2, start=2, label="Filter order")
     dazzler_roi_min_box = mo.ui.number(value=700, start=100, step=1, label="ROI min (nm)")
     dazzler_roi_max_box = mo.ui.number(value=900, start=100, step=1, label="ROI max (nm)")
     dazzler_save_button = mo.ui.run_button(label="Save custom phase files")
-    mo.output.append(mo.md("## Dazzler phase filtering:"))
+    mo.output.append(mo.md("### Dazzler phase filtering:"))
+    if help_cb.value:
+        mo.output.append(mo.md("If the output phase will be fed-back to a Dazzler or other pulse-shaper, it is often useful to apply some smoothing to remove noise from the phase curve. Here, a supergaussian gate is applied to the group-delay curve. Shorter time constants yield more smoothing. The ROI only affects the plot."))
     mo.output.append(dazzer_time_constant_box)
     mo.output.append(dazzler_filter_order_box)
     mo.output.append(dazzler_roi_min_box)

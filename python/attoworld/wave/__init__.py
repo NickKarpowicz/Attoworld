@@ -15,5 +15,5 @@ __all__ = [
     "bundle_frog_reconstruction",
     "stft",
     "cwt",
-    "wigner_ville"
+    "wigner_ville",
 ]

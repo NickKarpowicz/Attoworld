@@ -131,6 +131,30 @@ class Spectrogram:
                 new_data[i, :] = interpolate(self.time + t0, self.time, self.data[i, :])
         return Spectrogram(data=new_data, time=self.time, freq=self.freq)
 
+    def to_deconvolved_geometric_smearing(
+        self,
+        angle_in_degrees: float,
+        beamwaist_meters: float,
+        max_amplification_factor: float,
+    ):
+        """Correct the geometric smearing that results from the angle between beams in an SHG frog."""
+        f = np.fft.fftfreq(len(self.time), d=(self.time[1] - self.time[0]))
+        deconvolution_factor = np.exp(
+            (np.pi**2)
+            * (f**2)
+            * (np.sin(np.pi * angle_in_degrees / 180) ** 2)
+            * (beamwaist_meters**2)
+            / (constants.speed_of_light**2)
+        )
+        deconvolution_factor[deconvolution_factor > max_amplification_factor] = (
+            max_amplification_factor
+        )
+        new_data = np.fft.fft(self.data, axis=1)
+        new_data *= deconvolution_factor[np.newaxis, :]
+        new_data = np.real(np.fft.ifft(new_data, axis=1))
+        new_data[new_data < 0.0] = 0.0
+        return Spectrogram(data=new_data, time=self.time, freq=self.freq)
+
     def to_combined_and_binned(
         self,
         other,
