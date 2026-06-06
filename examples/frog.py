@@ -1,7 +1,7 @@
 # /// script
 # requires-python = ">=3.14"
 # dependencies = [
-#     "attoworld>=2026.2.2",
+#     "attoworld>=2026.2.3",
 #     "marimo>=0.23.8",
 #     "numpy>=2.4.6",
 #     "pyside6>=6.11.1",

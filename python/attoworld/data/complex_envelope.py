@@ -63,6 +63,7 @@ class ComplexEnvelope:
             ax: optionally plot onto a pre-existing matplotlib Axes
             phase_blanking: only show phase information (instantaneous frequency) above this level relative to max intensity
             xlim: pass arguments to set_xlim() to constrain the x-axis
+            plot_transform_limit: whether or not to overlay the transform limit.
 
         """
         if ax is None:
