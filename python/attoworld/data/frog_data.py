@@ -149,7 +149,7 @@ class FrogData:
             xlim: pass arguments to set_xlim() to constrain the x-axis
 
         """
-        return self.pulse.to_complex_envelope().plot(ax, phase_blanking, xlim)
+        return self.pulse.to_complex_envelope().plot(ax, phase_blanking, xlim, True)
 
     def plot_spectrum(
         self, ax: Optional[Axes] = None, phase_blanking: float = 0.05, xlim=None

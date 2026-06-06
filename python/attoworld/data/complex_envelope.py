@@ -50,7 +50,13 @@ class ComplexEnvelope:
         """
         return fwhm(np.abs(self.envelope) ** 2, self.dt)
 
-    def plot(self, ax: Optional[Axes] = None, phase_blanking: float = 0.05, xlim=None):
+    def plot(
+        self,
+        ax: Optional[Axes] = None,
+        phase_blanking: float = 0.05,
+        xlim=None,
+        plot_transform_limit: bool = False,
+    ):
         """Plot the pulse.
 
         Args:
@@ -71,6 +77,21 @@ class ComplexEnvelope:
             intensity,
             label=f"Intensity,\n{1e15 * self.get_fwhm():0.1f} fs",
         )
+        if plot_transform_limit:
+            tl_spectrum = np.abs(np.fft.fft(self.envelope))
+            tl_spectrum /= np.max(tl_spectrum)
+            tl_spectrum[tl_spectrum < 3e-2] = 0.0
+            transform_limit_intensity = np.fft.fftshift(
+                np.abs(np.fft.ifft(tl_spectrum)) ** 2
+            )
+            transform_limit_intensity /= np.max(transform_limit_intensity)
+            transform_limit_fwhm = fwhm(transform_limit_intensity, self.dt)
+            tl_line = ax.plot(
+                time_ax,
+                transform_limit_intensity,
+                "-.",
+                label=f"Fourier limit,\n{1e15 * transform_limit_fwhm:0.1f} fs",
+            )
         ax.set_xlabel("Time (fs)")
         ax.set_ylabel("Intensity (Arb. unit)")
         inst_freq = (
@@ -81,6 +102,8 @@ class ComplexEnvelope:
         ax_phase = plt.twinx(ax)
         assert isinstance(ax_phase, Axes)
         ax_phase.plot([], [])
+        if plot_transform_limit:
+            ax_phase.plot([], [])
         phase_line = ax_phase.plot(
             time_ax[intensity > phase_blanking],
             inst_freq[intensity > phase_blanking],
@@ -92,5 +115,7 @@ class ComplexEnvelope:
             ax.set_xlim(xlim)
             ax_phase.set_xlim(xlim)
         lines = intensity_line + phase_line
+        if plot_transform_limit:
+            lines += tl_line
         ax.legend(lines, [str(line.get_label()) for line in lines])
         return fig

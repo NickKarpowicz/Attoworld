@@ -1,7 +1,7 @@
 # /// script
 # requires-python = ">=3.14"
 # dependencies = [
-#     "attoworld>=2026.2.1",
+#     "attoworld>=2026.2.2",
 #     "marimo>=0.23.8",
 #     "numpy>=2.4.6",
 #     "pyside6>=6.11.1",
@@ -94,11 +94,16 @@ def _(mo):
 
 
 @app.cell
-def _(aw, help_cb, mo):
-    calibration_selector = mo.ui.dropdown(options=[e.value for e in aw.spectrum.CalibrationData],label="Calibration:")
+def _(help_cb, mo):
     if help_cb.value:
         mo.output.append(mo.md("If your spectrometer is in our list (i.e. you're in the MPQ lab and calibrated your spectrometer), it will be in the list. If you want your reconstruction to work better, you can send a calibration result to me, using the calibration script in the Attoworld repo examples folder."))
 
+    return
+
+
+@app.cell
+def _(aw, mo):
+    calibration_selector = mo.ui.dropdown(options=[e.value for e in aw.spectrum.CalibrationData],label="Calibration:")
     mo.output.append(calibration_selector)
     return (calibration_selector,)
 
@@ -689,6 +694,13 @@ def _(
                 "temp.svg", output_name=f"{file_base.value}.svg"
             )
     return (plot,)
+
+
+@app.cell
+def _(help_cb, mo):
+    if help_cb.value:
+        mo.output.append(mo.md("**a** The measured spectrogram as binned above. **b** The retrieved spectrogram. **c** The reconstructed pulse, the time-dependent frequency as determined the derivative of the temporal phase, and the transform limited pulse. The Fourier limit is calculated with an amplitude gate set to $3 \\times 10^{-2}$ of the amplitude, or approximately three orders of magnitude in spectral intensity. **d** The retrieved spectrum and group delay curve."))
+    return
 
 
 @app.cell
