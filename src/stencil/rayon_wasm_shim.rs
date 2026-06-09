@@ -1,3 +1,6 @@
+/// These macros are a workaround for rayon failing on wasm targets - they replace the
+/// par_ version with the standard single-threaded version.
+
 #[macro_export]
 macro_rules! par_iter {
     ($collection:expr) => {{

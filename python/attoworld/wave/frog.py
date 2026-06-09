@@ -248,7 +248,7 @@ def reconstruct_frog(
     else:
         spectral_constraint = None
 
-    (pulse_out, gate_out, g_error) = rust_frog(
+    (pulse_out, gate_out, g_error, best_trial_index, best_finishing_index) = rust_frog(
         np.array(sqrt_sg),
         None,
         trial_pulses=repeats,
@@ -286,4 +286,4 @@ def reconstruct_frog(
         gate=gate_out,
     )
 
-    return result, gate_result
+    return result, gate_result, best_trial_index, best_finishing_index

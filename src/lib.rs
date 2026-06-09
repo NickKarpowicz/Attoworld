@@ -6,9 +6,9 @@ pub mod stencil;
 #[pymodule]
 #[pyo3(name = "attoworld_rs")]
 pub mod attoworld_rs {
-    use crate::frog::reconstruct_frog;
     #[pymodule_export]
     pub use crate::frog::FrogType;
+    use crate::frog::reconstruct_frog;
     use crate::stencil::{
         derivative, derivative_periodic, find_first_intercept, find_last_intercept,
         find_maximum_location, fornberg_stencil, interpolate_sorted_1d_slice, sort_paired_xy,
@@ -105,7 +105,7 @@ pub mod attoworld_rs {
             Err(_) => {
                 return Err(pyo3::PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     "No maximum value possible; does the array contain a NaN value?",
-                ))
+                ));
             }
         };
         let first_intercept =
@@ -113,7 +113,9 @@ pub mod attoworld_rs {
         let last_intercept =
             find_last_intercept(y.as_slice()?, max_value * intercept_value, neighbors);
         if first_intercept > last_intercept {
-            println!("Warning: internal calculation give a negative width, data may be too coarse to be reliable.");
+            println!(
+                "Warning: internal calculation give a negative width, data may be too coarse to be reliable."
+            );
         }
         Ok((dx * (last_intercept - first_intercept)).abs())
     }
@@ -271,6 +273,8 @@ pub mod attoworld_rs {
         Bound<'py, PyArray1<Complex64>>,
         Bound<'py, PyArray1<Complex64>>,
         f64,
+        usize,
+        usize,
     )> {
         let guess_option: Option<Vec<Complex64>> = match guess {
             Some(g) => Some(g.as_slice()?.to_vec()),
@@ -288,7 +292,7 @@ pub mod attoworld_rs {
             Some(s) => Some(s.as_slice()?.to_vec()),
             None => None,
         };
-        let (pulse, gate, g_error) = reconstruct_frog(
+        let (pulse, gate, g_error, trial_best_index, finishing_best_index) = reconstruct_frog(
             measurement_sg_sqrt.as_slice()?,
             guess_option.as_ref().map(|vec| vec.as_slice()),
             trial_pulses,
@@ -300,6 +304,12 @@ pub mod attoworld_rs {
             roi_option.as_ref().map(|vec| vec.as_slice()),
             ptycho_threshhold,
         );
-        Ok((pulse.to_pyarray(py), gate.to_pyarray(py), g_error))
+        Ok((
+            pulse.to_pyarray(py),
+            gate.to_pyarray(py),
+            g_error,
+            trial_best_index,
+            finishing_best_index,
+        ))
     }
 }

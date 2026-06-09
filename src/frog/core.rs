@@ -29,7 +29,7 @@ pub fn reconstruct_frog(
     measured_gate: Option<&[Complex64]>,
     roi: Option<&[bool]>,
     ptycho_threshhold: Option<f64>,
-) -> (Vec<Complex64>, Vec<Complex64>, f64) {
+) -> (Vec<Complex64>, Vec<Complex64>, f64, usize, usize) {
     let mut alloc = FrogAllocation::new(
         measurement_sg_sqrt,
         guess.map(|x| x.to_vec()),
@@ -72,12 +72,18 @@ pub fn reconstruct_frog(
 
     let result = best_result.lock().unwrap();
     if finishing_iterations == 0 {
-        return (result.pulse.clone(), result.gate.clone(), result.error);
+        return (
+            result.pulse.clone(),
+            result.gate.clone(),
+            result.error,
+            result.index,
+            0,
+        );
     }
     alloc.guess = Some(result.pulse.clone());
     alloc.gate_guess = Some(result.gate.clone());
     let last = reconstruct_frog_core(alloc, finishing_iterations);
-    (last.pulse, last.gate, last.error)
+    (last.pulse, last.gate, last.error, result.index, last.index)
 }
 
 #[derive(Clone)]
@@ -85,6 +91,7 @@ struct FrogResult {
     pulse: Vec<Complex64>,
     gate: Vec<Complex64>,
     error: f64,
+    index: usize,
 }
 impl FrogResult {
     fn swap_if_better(&mut self, other: FrogResult) {
@@ -193,7 +200,8 @@ fn reconstruct_frog_core(mut alloc: FrogAllocation, iterations: usize) -> FrogRe
         alloc.fft_forward.clone(),
     );
 
-    for _ in 0..iterations {
+    let mut best_iteration: usize = 0;
+    for i in 0..iterations {
         (pulse, gate) = match alloc.frog_type {
             FrogType::PtychographicShg => apply_ptychographic_frog_iteration(
                 &pulse,
@@ -236,6 +244,7 @@ fn reconstruct_frog_core(mut alloc: FrogAllocation, iterations: usize) -> FrogRe
         );
 
         if g_error < best_error {
+            best_iteration = i;
             best_error = g_error;
             best_gate = gate.clone();
             best = pulse.clone();
@@ -246,6 +255,7 @@ fn reconstruct_frog_core(mut alloc: FrogAllocation, iterations: usize) -> FrogRe
         pulse: best,
         gate: best_gate,
         error: best_error,
+        index: best_iteration,
     };
 }
 
