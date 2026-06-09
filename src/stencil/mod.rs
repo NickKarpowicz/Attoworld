@@ -239,73 +239,36 @@ pub fn interpolate_sorted_1d_slice(
     derivative_order: usize,
 ) -> Box<[f64]> {
     let core_stencil_size: usize = 2 * neighbors as usize;
-
-    //note that the only difference here is the use of .iter() or .par_iter() at the beginning of the chain.
-    if cfg!(target_arch = "wasm32") {
-        x_out
-            .iter()
-            .map(|x| {
-                let index: usize = x_in
-                    .binary_search_by(|a| a.partial_cmp(x).unwrap_or(std::cmp::Ordering::Greater))
-                    .unwrap_or_else(|e| e);
-                if (index == 0 || index == x_in.len()) && !extrapolate {
-                    0.0
+    x_out
+        .par_iter()
+        .map(|x| {
+            let index: usize = x_in
+                .binary_search_by(|a| a.partial_cmp(x).unwrap_or(std::cmp::Ordering::Greater))
+                .unwrap_or_else(|e| e);
+            if (index == 0 || index == x_in.len()) && !extrapolate {
+                0.0
+            } else {
+                let clamped_index: usize = index
+                    .clamp(neighbors as usize, (x_in.len() as i64 - neighbors) as usize)
+                    - neighbors as usize;
+                let stencil_size: usize = if clamped_index == 0
+                    || clamped_index == x_in.len() - (core_stencil_size - 1)
+                {
+                    core_stencil_size + 1
                 } else {
-                    let clamped_index: usize = index
-                        .clamp(neighbors as usize, (x_in.len() as i64 - neighbors) as usize)
-                        - neighbors as usize;
-                    let stencil_size: usize = if clamped_index == 0
-                        || clamped_index == x_in.len() - (core_stencil_size - 1)
-                    {
-                        core_stencil_size + 1
-                    } else {
-                        core_stencil_size
-                    };
-                    //finite difference stencil with order 0 is interpolation
-                    fornberg_stencil(
-                        derivative_order,
-                        &x_in[clamped_index..(clamped_index + stencil_size)],
-                        *x,
-                    )
-                    .iter()
-                    .zip(y_in.iter().skip(clamped_index))
-                    .map(|(a, b)| a * b)
-                    .sum()
-                }
-            })
-            .collect()
-    } else {
-        x_out
-            .par_iter()
-            .map(|x| {
-                let index: usize = x_in
-                    .binary_search_by(|a| a.partial_cmp(x).unwrap_or(std::cmp::Ordering::Greater))
-                    .unwrap_or_else(|e| e);
-                if (index == 0 || index == x_in.len()) && !extrapolate {
-                    0.0
-                } else {
-                    let clamped_index: usize = index
-                        .clamp(neighbors as usize, (x_in.len() as i64 - neighbors) as usize)
-                        - neighbors as usize;
-                    let stencil_size: usize = if clamped_index == 0
-                        || clamped_index == x_in.len() - (core_stencil_size - 1)
-                    {
-                        core_stencil_size + 1
-                    } else {
-                        core_stencil_size
-                    };
-                    //finite difference stencil with order 0 is interpolation
-                    fornberg_stencil(
-                        derivative_order,
-                        &x_in[clamped_index..(clamped_index + stencil_size)],
-                        *x,
-                    )
-                    .iter()
-                    .zip(y_in.iter().skip(clamped_index))
-                    .map(|(a, b)| a * b)
-                    .sum()
-                }
-            })
-            .collect()
-    }
+                    core_stencil_size
+                };
+                //finite difference stencil with order 0 is interpolation
+                fornberg_stencil(
+                    derivative_order,
+                    &x_in[clamped_index..(clamped_index + stencil_size)],
+                    *x,
+                )
+                .iter()
+                .zip(y_in.iter().skip(clamped_index))
+                .map(|(a, b)| a * b)
+                .sum()
+            }
+        })
+        .collect()
 }
