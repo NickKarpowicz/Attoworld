@@ -195,12 +195,10 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
       - run: pip install pyodide-build
       - name: Build wheels
-        env:
-          RUSTFLAGS: "-C target-feature=+atomics,+bulk-memory"
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.platform.target }}
-          args: --release --out dist -i ${{ env.PYTHON_VERSION }} -- -C target-feature=+atomics,+bulk-memory
+          args: --release --out dist -i ${{ env.PYTHON_VERSION }}
           sccache: "true"
       - name: Upload wheels
         uses: actions/upload-artifact@v4
