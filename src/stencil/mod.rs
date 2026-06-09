@@ -1,6 +1,9 @@
+#[cfg(not(target_family = "wasm"))]
 use rayon::prelude::*;
 mod stencil;
 pub use stencil::fornberg_stencil;
+mod rayon_wasm_shim;
+use crate::{par_iter, par_sort_by};
 /// find the interpolated location and maximum value of a distribution
 /// Returns:
 ///     (location , interpolated maximum) both as f64, where the digits after location
@@ -71,12 +74,10 @@ pub fn sort_paired_xy(x_in: &[f64], y_in: &[f64]) -> (Vec<f64>, Vec<f64>) {
         .map(|(a, b)| (*a, *b))
         .collect();
 
-    if cfg!(target_arch = "wasm32") {
-        pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Greater));
-    } else {
-        pairs.par_sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Greater));
-    }
-
+    par_sort_by!(pairs, |a, b| a
+        .0
+        .partial_cmp(&b.0)
+        .unwrap_or(std::cmp::Ordering::Greater));
     pairs.into_iter().unzip()
 }
 
@@ -239,8 +240,7 @@ pub fn interpolate_sorted_1d_slice(
     derivative_order: usize,
 ) -> Box<[f64]> {
     let core_stencil_size: usize = 2 * neighbors as usize;
-    x_out
-        .par_iter()
+    par_iter!(x_out)
         .map(|x| {
             let index: usize = x_in
                 .binary_search_by(|a| a.partial_cmp(x).unwrap_or(std::cmp::Ordering::Greater))
