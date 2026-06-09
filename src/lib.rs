@@ -1,19 +1,21 @@
-use numpy::{IntoPyArray, PyArray1, PyReadonlyArrayDyn, ToPyArray};
 use pyo3::prelude::*;
-use rustfft::num_complex::Complex64;
-pub mod stencil;
-use stencil::{
-    derivative, derivative_periodic, find_first_intercept, find_last_intercept,
-    find_maximum_location, fornberg_stencil, interpolate_sorted_1d_slice, sort_paired_xy,
-};
 pub mod frog;
-use frog::{reconstruct_frog, FrogType};
+pub mod stencil;
 
 /// Functions written in Rust for improved performance and correctness.
 #[pymodule]
 #[pyo3(name = "attoworld_rs")]
-fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()> {
-    m.add_class::<FrogType>()?;
+pub mod attoworld_rs {
+    use crate::frog::reconstruct_frog;
+    #[pymodule_export]
+    pub use crate::frog::FrogType;
+    use crate::stencil::{
+        derivative, derivative_periodic, find_first_intercept, find_last_intercept,
+        find_maximum_location, fornberg_stencil, interpolate_sorted_1d_slice, sort_paired_xy,
+    };
+    use numpy::{IntoPyArray, PyArray1, PyReadonlyArrayDyn, ToPyArray};
+    use pyo3::prelude::*;
+    use rustfft::num_complex::Complex64;
 
     /// Find the location and value of the maximum of a smooth, uniformly sampled signal, interpolating to find the sub-pixel location
     ///
@@ -23,7 +25,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
     ///
     /// Returns:
     ///     (float, float): location, interpolated maximum
-    #[pyfn(m)]
+    #[pyfunction]
     #[pyo3(name = "find_maximum_location")]
     #[pyo3(signature = (y, neighbors = 3, /))]
     fn find_maximum_location_wrapper(
@@ -45,7 +47,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
     ///     neighbors (int): The number of neighboring points in each direction to use when constructing interpolants. Higher values are more accurate, but only for smooth data.
     /// Returns:
     ///     float: "index" of the intercept, a float with non-integer value, indicating where between the pixels the intercept is
-    #[pyfn(m)]
+    #[pyfunction]
     #[pyo3(name = "find_first_intercept")]
     fn find_first_intercept_wrapper(
         y: PyReadonlyArrayDyn<f64>,
@@ -66,7 +68,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
     ///     neighbors (int): The number of neighboring points in each direction to use when constructing interpolants. Higher values are more accurate, but only for smooth data.
     /// Returns:
     ///     float: "index" of the intercept, a float with non-integer value, indicating where between the pixels the intercept is
-    #[pyfn(m)]
+    #[pyfunction]
     #[pyo3(name = "find_last_intercept")]
     fn find_last_intercept_wrapper(
         y: PyReadonlyArrayDyn<f64>,
@@ -89,7 +91,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
     ///     neighbors (int): The number of neighboring points in each direction to use when constructing interpolants. Higher values are more accurate, but only for smooth data.
     /// Returns:
     ///     float: The full width at intercept_value maximum
-    #[pyfn(m)]
+    #[pyfunction]
     #[pyo3(name = "fwhm")]
     #[pyo3(signature = (y, dx = 1.0, intercept_value = 0.5, neighbors = 2))]
     fn fwhm(
@@ -131,7 +133,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
     ///     >>> stencil = fornberg_stencil(1, np.array([-1.0, 0.0, 1.0]))
     ///     >>> print(stencil)
     ///     [-0.5  0.   0.5]
-    #[pyfn(m)]
+    #[pyfunction]
     #[pyo3(name = "fornberg_stencil")]
     #[pyo3(signature = (order, positions, position_out = 0.0, /))]
     fn fornberg_stencil_wrapper<'py>(
@@ -156,7 +158,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
     ///
     /// Returns:
     ///     np.ndarray: the interpolated y_out
-    #[pyfn(m)]
+    #[pyfunction]
     #[pyo3(signature = (x_out, x_in, y_in,/, inputs_are_sorted=true, neighbors=2, extrapolate=false, derivative_order=0))]
     fn interpolate<'py>(
         py: Python<'py>,
@@ -201,7 +203,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
     ///     neighbors (int): the number of nearest neighbors to consider in each direction.
     /// Returns:
     ///     np.ndarray: the derivative
-    #[pyfn(m)]
+    #[pyfunction]
     #[pyo3(name = "derivative")]
     #[pyo3(signature = (y, order, /, neighbors=3))]
     fn derivative_wrapper<'py>(
@@ -221,7 +223,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
     ///     neighbors (int): the number of nearest neighbors to consider in each direction.
     /// Returns:
     ///     np.ndarray: the derivative
-    #[pyfn(m)]
+    #[pyfunction]
     #[pyo3(name = "derivative_periodic")]
     #[pyo3(signature = (y, order, /, neighbors=3))]
     fn derivative_periodic_wrapper<'py>(
@@ -250,7 +252,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
     ///     pulse: the reconstructed pulse
     ///     gate: the reconstructed gate
     ///     error: the G' error of the reconstruction
-    #[pyfn(m)]
+    #[pyfunction]
     #[pyo3(name = "rust_frog")]
     #[pyo3(signature = (measurement_sg_sqrt, guess=None, trial_pulses=64, iterations=128, finishing_iterations=512, frog_type=FrogType::Shg, spectrum=None, measured_gate=None, roi=None, ptycho_threshhold=None))]
     fn frog_wrapper<'py>(
@@ -300,6 +302,4 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         );
         Ok((pulse.to_pyarray(py), gate.to_pyarray(py), g_error))
     }
-
-    Ok(())
 }
