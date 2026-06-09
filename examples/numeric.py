@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.14.10"
+__generated_with = "0.23.8"
 app = marimo.App(width="medium")
 
 
@@ -20,7 +20,9 @@ def _():
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Check convergence of numerical derivatives""")
+    mo.md(r"""
+    ## Check convergence of numerical derivatives
+    """)
     return
 
 
@@ -58,12 +60,10 @@ def _(aw, np, plt):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Check interpolate()
     The interpolate function uses Fornberg's algorithm to generate interpolation stencils. It should have performance and accuracy similar to scipy's CubicSpline when neighbors=3. It will be comparatively slower if you would have reused the same CubicSpline object for multiple interpolations, however.
-    """
-    )
+    """)
     return
 
 
@@ -124,12 +124,10 @@ def _(aw, np, scipy, timeit):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Check FWHM error
     Note that the aw.numeric.fwhm() function has a much smaller error than the implementation I've seen elsewhere (which only reduces in error linearly with step size).
-    """
-    )
+    """)
     return
 
 
@@ -169,12 +167,10 @@ def _(N_pts_range, aw, np, plt):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Labels
     The attoworld.plot.Char class contains useful symbols for putting correct labels on things.
-    """
-    )
+    """)
     return
 
 
@@ -191,7 +187,9 @@ def _(aw, np, plt):
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Data containers""")
+    mo.md(r"""
+    ## Data containers
+    """)
     return
 
 

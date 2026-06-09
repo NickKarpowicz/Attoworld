@@ -175,7 +175,7 @@ jobs:
     strategy:
       matrix:
         platform:
-          - runner: ubuntu-24.04
+          - runner: ubuntu-latest
             target: wasm32-unknown-emscripten
     steps:
       - uses: actions/checkout@v4
@@ -186,7 +186,7 @@ jobs:
           echo EMSCRIPTEN_VERSION=$(pyodide config get emscripten_version) >> $GITHUB_ENV
           echo PYTHON_VERSION=$(pyodide config get python_version | cut -d '.' -f 1-2) >> $GITHUB_ENV
           pip uninstall -y pyodide-build
-      - uses: mymindstorm/setup-emsdk@v14
+      - uses: mymindstorm/setup-emsdk@v16
         with:
           version: ${{ env.EMSCRIPTEN_VERSION }}
           actions-cache-folder: emsdk-cache

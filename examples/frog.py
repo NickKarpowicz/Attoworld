@@ -1,7 +1,7 @@
 # /// script
 # requires-python = ">=3.14"
 # dependencies = [
-#     "attoworld>=2026.2.3",
+#     "attoworld>=2026.2.5",
 #     "marimo>=0.23.8",
 #     "numpy>=2.4.6",
 #     "pyside6>=6.11.1",
@@ -12,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.23.8"
 app = marimo.App(width="medium", app_title="Frog")
 
 
@@ -28,7 +28,7 @@ async def _():
         import zipfile
         mo._runtime.context.get_context().marimo_config["runtime"]["output_max_bytes"] = 10000000000
         await micropip.install(
-            "https://nickkarpowicz.github.io/wheels/attoworld-2026.2.3-cp312-cp312-emscripten_3_1_58_wasm32.whl"
+            "https://nickkarpowicz.github.io/wheels/attoworld-2026.2.5-cp312-cp312-emscripten_3_1_58_wasm32.whl"
         )
         def display_download_link_from_file(
             path, output_name, mime_type="text/plain"
@@ -546,9 +546,9 @@ def _(help_cb, mo):
 
 @app.cell
 def _(is_in_web_notebook, mo):
-    recon_trials = mo.ui.number(value=16, label="Initial guesses")
-    recon_trial_length = mo.ui.number(value=128, label="Trial iterations")
-    recon_followups = mo.ui.number(value=1024, label="Finishing iterations")
+    recon_trials = mo.ui.number(value=256, label="Initial guesses")
+    recon_trial_length = mo.ui.number(value=16, label="Trial iterations")
+    recon_followups = mo.ui.number(value=512, label="Finishing iterations")
     reconstruct_button = mo.ui.run_button(label="reconstruct")
     save_button = mo.ui.run_button(label="save")
     save_plot_button = mo.ui.run_button(label="save plot")
@@ -645,7 +645,7 @@ def _(
                 )
                 ptycho_threshhold_float = ptycho_threshhold.value
         _start_time = time.time()
-        result, result_gate = aw.wave.reconstruct_frog(
+        result, result_gate, best_trial_index, best_finishing_index = aw.wave.reconstruct_frog(
             measurement=frog_data,
             repeats=int(recon_trials.value),
             test_iterations=int(recon_trial_length.value),
@@ -658,8 +658,13 @@ def _(
         )
         _stop_time = time.time()
         reconstruction_time = _stop_time - _start_time
-        mo.output.append(mo.md(f"Reconstruction time: {reconstruction_time: .1f} s"))
-    return result, result_gate
+    return (
+        best_finishing_index,
+        best_trial_index,
+        reconstruction_time,
+        result,
+        result_gate,
+    )
 
 
 @app.cell
@@ -702,6 +707,15 @@ def _(
 def _(help_cb, mo):
     if help_cb.value:
         mo.output.append(mo.md("**a** The measured spectrogram as binned above. **b** The retrieved spectrogram. **c** The reconstructed pulse, the time-dependent frequency as determined the derivative of the temporal phase, and the transform limited pulse. The Fourier limit is calculated with an amplitude gate set to $3 \\times 10^{-2}$ of the amplitude, or approximately three orders of magnitude in spectral intensity. **d** The retrieved spectrum and group delay curve."))
+    return
+
+
+@app.cell
+def _(best_finishing_index, best_trial_index, mo, reconstruction_time, result):
+    if result is not None:
+        mo.output.append(mo.md(f"Reconstruction time: {reconstruction_time: .1f} s"))
+        mo.output.append(mo.md(f"Best trial minimum error on iteration: {best_trial_index}"))
+        mo.output.append(mo.md(f"Finishing iteration with lowest error: {best_finishing_index}"))
     return
 
 
