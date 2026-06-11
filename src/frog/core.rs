@@ -274,7 +274,9 @@ fn apply_frog_iteration(
     let mut gate = vec![Complex64::ZERO; dim];
     workspace.fill(Complex64::ZERO);
 
+    //loop over the rows of the spectrogram
     for j in 0..dim {
+        //loop over the columns to produce a reshuffled version of the spectrogram
         for i in 0..dim {
             let g_index: i64 = j as i64 - half + i as i64;
             if (g_index >= 0) && (g_index < dim_i) {
@@ -283,11 +285,19 @@ fn apply_frog_iteration(
                 workspace[i] = Complex64::ZERO;
             }
         }
+
+        //fft from time to frequency
         fft_forward.process(workspace);
+
+        //create the new spectrogram from the sqrt of the measurement, and the phase of the calculation
         for i in 0..dim {
             workspace[i] = Complex64::from_polar(meas_sqrt[i * dim + j], workspace[i].arg());
         }
+
+        //fft back to time vs. delay (but with delay shuffled out)
         fft_backward.process(workspace);
+
+        //approximate the new field with an integral along the columns of this shuffled spectrogram
         for i in 0..dim {
             field[i] += workspace[i];
             let g_index: i64 = j as i64 - half + i as i64;
