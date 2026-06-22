@@ -1,7 +1,7 @@
 # /// script
 # requires-python = ">=3.14"
 # dependencies = [
-#     "attoworld>=2026.2.5",
+#     "attoworld>=2026.2.6",
 #     "marimo>=0.23.8",
 #     "numpy>=2.4.6",
 #     "pyside6>=6.11.1",
@@ -12,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.23.8"
+__generated_with = "0.23.9"
 app = marimo.App(width="medium", app_title="Frog")
 
 
@@ -801,6 +801,7 @@ def _(help_cb, is_in_web_notebook, mo):
     dazzler_roi_min_box = mo.ui.number(value=700, start=100, step=1, label="ROI min (nm)")
     dazzler_roi_max_box = mo.ui.number(value=900, start=100, step=1, label="ROI max (nm)")
     dazzler_save_button = mo.ui.run_button(label="Save custom phase files")
+    dazzler_old_phase_button = mo.ui.file(label="Load previous dazzler phase.txt")
     mo.output.append(mo.md("### Dazzler phase filtering:"))
     if help_cb.value:
         mo.output.append(mo.md("If the output phase will be fed-back to a Dazzler or other pulse-shaper, it is often useful to apply some smoothing to remove noise from the phase curve. Here, a supergaussian gate is applied to the group-delay curve. Shorter time constants yield more smoothing. The ROI only affects the plot."))
@@ -808,11 +809,13 @@ def _(help_cb, is_in_web_notebook, mo):
     mo.output.append(dazzler_filter_order_box)
     mo.output.append(dazzler_roi_min_box)
     mo.output.append(dazzler_roi_max_box)
+    mo.output.append(dazzler_old_phase_button)
     if not is_in_web_notebook:
         mo.output.append(dazzler_save_button)
     return (
         dazzer_time_constant_box,
         dazzler_filter_order_box,
+        dazzler_old_phase_button,
         dazzler_roi_max_box,
         dazzler_roi_min_box,
         dazzler_save_button,
@@ -824,6 +827,7 @@ def _(
     aw,
     dazzer_time_constant_box,
     dazzler_filter_order_box,
+    dazzler_old_phase_button,
     dazzler_roi_max_box,
     dazzler_roi_min_box,
     display_download_link_from_file,
@@ -863,22 +867,45 @@ def _(
             filter_width=1e-15 * dazzer_time_constant_box.value,
             filter_order=dazzler_filter_order_box.value,
         )
+
+        dazzler_old_phase_stream = dazzler_old_phase_button.contents()
+        if dazzler_old_phase_stream is not None:
+            dazzler_phase_old = aw.data.load_mean_spectrum_from_scarab(
+                dazzler_old_phase_stream.decode("utf-8"), is_data_string=True, separator="\t"
+            )
+            interpolated_old_phase = aw.numeric.interpolate(
+                np.array(dazzler_phase_custom_filtered[:, 0]),
+                np.array(dazzler_phase_old.wavelength_nm()),
+                np.array(dazzler_phase_old.spectrum),
+            )
+            dazzler_phase_custom_filtered[:, 1] += interpolated_old_phase
+            dazzler_phase_custom_filtered_negative[:, 1] += interpolated_old_phase
+
+
         dazzler_phase_custom_filtered_roi = phase_roi(
             dazzler_phase_custom_filtered,
             dazzler_roi_min_box.value,
             dazzler_roi_max_box.value,
         )
+
         plt.plot(dazzler_phase_0[:, 0], dazzler_phase_0[:, 1], label="Unfiltered")
         plt.plot(
             dazzler_phase_filtered[:, 0],
             dazzler_phase_filtered[:, 1],
             label="Default filter",
         )
-        plt.plot(
-            dazzler_phase_custom_filtered_roi[:, 0],
-            dazzler_phase_custom_filtered_roi[:, 1],
-            label="Adjusted filter",
-        )
+        if dazzler_old_phase_stream is None:
+            plt.plot(
+                dazzler_phase_custom_filtered_roi[:, 0],
+                dazzler_phase_custom_filtered_roi[:, 1],
+                label="Adjusted filter",
+            )
+        else:
+            plt.plot(
+                dazzler_phase_custom_filtered_roi[:, 0],
+                dazzler_phase_custom_filtered_roi[:, 1],
+                label="Adjusted + old phase",
+            )
         plt.legend()
         plt.xlabel("Wavelength (nm)")
         plt.ylabel("Phase (rad)")

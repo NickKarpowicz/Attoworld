@@ -66,7 +66,10 @@ def read_dwc(file_or_path, is_buffer: bool = False):
 
 
 def load_mean_spectrum_from_scarab(
-    filename_or_data_string: str, is_data_string: bool = False, header_size: int = 0
+    filename_or_data_string: str,
+    is_data_string: bool = False,
+    header_size: int = 0,
+    separator=" ",
 ):
     """Load data produced by Scarab (Nick's C++ interface for Ocean Optics spectrometers).
 
@@ -74,12 +77,13 @@ def load_mean_spectrum_from_scarab(
         filename_or_data_string (str): path to the file, or a bytestream containing the file
         is_data_string (bool): set to true if using a bytestream
         header_size (int): lines to skip before getting to the real data
+        separator (str): separator between the numbers (default is space)
 
     """
     if is_data_string:
         pd_input = pd.read_csv(
             io.StringIO(filename_or_data_string),
-            sep=" ",
+            sep=separator,
             header=None,
             skiprows=header_size,
         )
