@@ -175,7 +175,7 @@ jobs:
           pip uninstall -y pyodide-build
       - uses: emscripten-core/setup-emsdk@v16
         with:
-          version: ${{ env.EMSCRIPTEN_VERSION }}
+          version: 3.1.74
           actions-cache-folder: emsdk-cache
       - uses: actions/setup-python@v6
         with:
