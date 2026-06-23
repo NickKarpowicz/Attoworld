@@ -183,6 +183,8 @@ jobs:
       - run: pip install pyodide-build
       - name: Build wheels
         uses: PyO3/maturin-action@v1
+        env:
+          MATURIN_PYEMSCRIPTEN_PLATFORM_VERSION: 2026_0
         with:
           target: ${{ matrix.platform.target }}
           args: --release --out dist -i ${{ env.PYTHON_VERSION }}
