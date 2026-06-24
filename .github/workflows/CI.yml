@@ -224,7 +224,7 @@ jobs:
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         env:
-          MATURIN_EMSCRIPTEN_VERSION: 3_1_58
+          MATURIN_EMSCRIPTEN_VERSION: emscripten_3_1_58_wasm32
         with:
           target: ${{ matrix.platform.target }}
           args: --release --out dist -i ${{ env.PYTHON_VERSION }}
