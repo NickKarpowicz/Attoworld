@@ -1,8 +1,8 @@
 # /// script
 # requires-python = ">=3.14"
 # dependencies = [
-#     "attoworld>=2026.2.6",
-#     "marimo>=0.23.8",
+#     "attoworld>=2026.2.8",
+#     "marimo>=0.23.10",
 #     "numpy>=2.4.6",
 #     "pyside6>=6.11.1",
 # ]
@@ -28,7 +28,7 @@ async def _():
         import zipfile
         mo._runtime.context.get_context().marimo_config["runtime"]["output_max_bytes"] = 10000000000
         await micropip.install(
-            "https://nickkarpowicz.github.io/wheels/attoworld-2026.2.5-cp312-cp312-emscripten_3_1_58_wasm32.whl"
+            "attoworld"
         )
         def display_download_link_from_file(
             path, output_name, mime_type="text/plain"
