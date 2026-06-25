@@ -164,6 +164,9 @@ jobs:
             target: wasm32-unknown-emscripten
     steps:
       - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
       - run: pip install --force-reinstall -v "pyodide-build==0.35.1"
       - name: Get Emscripten and Python version info
         shell: bash
