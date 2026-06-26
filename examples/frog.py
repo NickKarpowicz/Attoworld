@@ -4,7 +4,7 @@
 #     "attoworld>=2026.2.8",
 #     "marimo>=0.23.10",
 #     "numpy>=2.4.6",
-#     "pyside6>=6.11.1",
+#     "pyside6; sys_platform != 'emscripten'",
 # ]
 # [tool.marimo.display]
 # theme = "dark"
@@ -12,24 +12,30 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.23.11"
 app = marimo.App(width="medium", app_title="Frog")
 
 
 @app.cell
-async def _():
+def _():
     import marimo as mo
+    import matplotlib.pyplot as plt
+    import attoworld as aw
+    import numpy as np
+    import pathlib
+    import time
 
+    return aw, mo, np, pathlib, plt, time
+
+
+@app.cell
+def _(mo):
     # check if running in a browser for extra setup
     import sys
     is_in_web_notebook = sys.platform == "emscripten"
     if is_in_web_notebook:
-        import micropip
         import zipfile
         mo._runtime.context.get_context().marimo_config["runtime"]["output_max_bytes"] = 10000000000
-        await micropip.install(
-            "attoworld"
-        )
         def display_download_link_from_file(
             path, output_name, mime_type="text/plain"
         ):
@@ -45,22 +51,10 @@ async def _():
     else:
         from PySide6.QtWidgets import QApplication, QFileDialog
         qtapp = QApplication(sys.argv)
-    import matplotlib.pyplot as plt
-    import attoworld as aw
-    import numpy as np
-    import pathlib
-    import time
-
     return (
         QFileDialog,
-        aw,
         display_download_link_from_file,
         is_in_web_notebook,
-        mo,
-        np,
-        pathlib,
-        plt,
-        time,
         zipfile,
     )
 
