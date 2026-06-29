@@ -213,38 +213,6 @@ class FrogData:
         label_letter("d", ax[1, 1])
         return fig
 
-    # def get_error(self) -> float:
-    #     """Get the G' error of the reconstruction."""
-    #     norm_measured = np.linalg.norm(self.measured_spectrogram.data)
-    #     norm_retrieved = np.linalg.norm(self.reconstructed_spectrogram.data)
-    #     return np.sqrt(
-    #         np.sum(
-    #             (
-    #                 self.measured_spectrogram.data[:] / norm_measured
-    #                 - self.reconstructed_spectrogram.data[:] / norm_retrieved
-    #             )
-    #             ** 2
-    #         )
-    #         / np.sum((self.measured_spectrogram.data[:] / norm_measured) ** 2)
-    #     )
-
-    # def get_G_error(self) -> float:
-    #     """Get the G (note: no apostrophe) error. This one doesn't mean much, but is useful
-    #     for comparing reconstructions of the same spectrogram between different programs.
-    #     """
-    #     return np.sqrt(
-    #         (1.0 / float(len(self.measured_spectrogram.data[:]) ** 2))
-    #         * np.sum(
-    #             (
-    #                 self.measured_spectrogram.data[:]
-    #                 / np.max(self.measured_spectrogram.data[:])
-    #                 - self.reconstructed_spectrogram.data[:]
-    #                 / np.max(self.reconstructed_spectrogram.data[:])
-    #             )
-    #             ** 2
-    #         )
-    #     )
-
     def get_fwhm(self) -> float:
         """Get the full-width-at-half-max value of the reconstructed pulse."""
         return self.pulse.get_envelope_fwhm()
