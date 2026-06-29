@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from ..attoworld_rs import FrogType, rust_frog
+from ..attoworld_rs import FrogType, generate_spectrogram_with_error, rust_frog
 from ..data import ComplexEnvelope, FrogData, IntensitySpectrum, Spectrogram
 from ..numeric import find_maximum_location, interpolate
 
@@ -22,6 +22,7 @@ def bundle_frog_reconstruction(
     t,
     result,
     measurement,
+    frog_type: FrogType,
     f0: float = 375e12,
     interpolation_factor: int = 100,
     gate=None,
@@ -32,6 +33,7 @@ def bundle_frog_reconstruction(
         t: the time vector (s)
         result: the reconstructed complex envelope
         measurement: the measured spectrogram, sqrt-ed and fftshift-ed
+        frog_type (FrogType): the type of frog used
         f0 (float): the central frequency (Hz)
         interpolation_factor (int): factor by which to interpolate to get a valid waveform (Nyquist)
         gate: the gate complex envelope (optional, used in xfrog)
@@ -44,13 +46,18 @@ def bundle_frog_reconstruction(
         gate = result
     f = np.fft.fftfreq(len(t), d=(t[1] - t[0]))
     sg_freq = np.fft.fftshift(f) + 2 * f0
+
+    measured_not_sqrt = measurement**2
+    (result_sg_data, g_prime_error, g_error) = generate_spectrogram_with_error(
+        frog_type, result, gate, measured_not_sqrt / np.linalg.norm(measured_not_sqrt)
+    )
     result_sg = Spectrogram(
-        data=np.fft.fftshift(np.abs(generate_spectrogram(result, gate)) ** 2, axes=0),
+        data=np.fft.fftshift(result_sg_data, axes=0),
         time=t,
         freq=sg_freq,
     )
     measurement_sg = Spectrogram(
-        data=np.fft.fftshift(np.abs(measurement) ** 2, axes=0), time=t, freq=sg_freq
+        data=np.fft.fftshift(measured_not_sqrt, axes=0), time=t, freq=sg_freq
     )
     result_ce = ComplexEnvelope(
         time=t, dt=(t[1] - t[0]), carrier_frequency=f0, envelope=result
@@ -65,50 +72,8 @@ def bundle_frog_reconstruction(
         raw_reconstruction=result,
         f0=f0,
         dt=(t[1] - t[0]),
-    )
-
-
-# FROG functions
-def generate_spectrogram(Et, Gt):
-    """Generate a spectrogram, same pattern as in FROG book.
-
-    Args:
-        Et: field
-        Gt: gate
-
-    Returns:
-        np.ndarray: the complex spectrogram
-
-    """
-    spectrogram_timetime = np.outer(Et, Gt)
-    for _i in range(Et.shape[0]):
-        spectrogram_timetime[_i, :] = blank_roll(
-            spectrogram_timetime[_i, :], -_i + int(Et.shape[0] / 2)
-        )
-
-    return np.fft.fft(spectrogram_timetime, axis=0)
-
-
-def blank_roll(data: np.ndarray, step):
-    """np.roll, but pulse entering from other side set to zero."""
-    rolled = np.roll(data, step)
-    if step > 0:
-        rolled[:step] = 0.0
-    elif step < 0:
-        rolled[step:] = 0.0
-    return rolled
-
-
-def calculate_g_error(measurement_normalized, pulse, gate=None):
-    """Calculate G' error helper function."""
-    if gate is None:
-        recon_normalized = np.abs(generate_spectrogram(pulse, pulse)) ** 2
-    else:
-        recon_normalized = np.abs(generate_spectrogram(pulse, gate)) ** 2
-    recon_normalized /= np.linalg.norm(recon_normalized)
-    return np.sqrt(
-        np.sum((measurement_normalized[:] - recon_normalized[:]) ** 2)
-        / np.sum(measurement_normalized[:] ** 2)
+        g_prime_error=g_prime_error,
+        g_error=g_error,
     )
 
 
@@ -269,6 +234,7 @@ def reconstruct_frog(
         gate_out = shift_to_zero_and_normalize(gate_out)
 
     result = bundle_frog_reconstruction(
+        frog_type=frog_type,
         t=measurement.time,
         result=pulse_out,
         measurement=sqrt_sg,
@@ -278,6 +244,7 @@ def reconstruct_frog(
     )
 
     gate_result = bundle_frog_reconstruction(
+        frog_type=frog_type,
         t=measurement.time,
         result=gate_out,
         measurement=sqrt_sg,
