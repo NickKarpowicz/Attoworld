@@ -6,7 +6,7 @@ macro_rules! par_iter {
     ($collection:expr) => {{
         #[cfg(target_family = "wasm")]
         {
-            $collection.iter()
+            $collection.par_iter()
         }
 
         #[cfg(not(target_family = "wasm"))]
@@ -21,7 +21,7 @@ macro_rules! par_sort_by {
     ($collection:expr, $cmp:expr) => {{
         #[cfg(target_family = "wasm")]
         {
-            $collection.sort_by($cmp)
+            $collection.par_sort_by($cmp)
         }
 
         #[cfg(not(target_family = "wasm"))]
