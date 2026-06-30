@@ -1,4 +1,4 @@
-//#[cfg(not(target_family = "wasm"))]
+#[cfg(not(target_family = "wasm"))]
 use rayon::prelude::*;
 mod stencil;
 pub use stencil::fornberg_stencil;
