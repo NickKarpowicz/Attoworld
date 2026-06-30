@@ -50,7 +50,7 @@ pub fn reconstruct_frog(
         for _ in 0..trial_pulses {
             let new_result = reconstruct_frog_core(alloc.clone(), iterations);
             let mut best_result_lock = best_result.lock().unwrap();
-            best_result_lock.swap_if_better(new_result);
+            best_result_lock.swap_if_better(&new_result);
         }
     } else {
         for _ in 0..threads {
@@ -60,7 +60,7 @@ pub fn reconstruct_frog(
                 for _ in 0..thread_pulses {
                     let new_result = reconstruct_frog_core(local_alloc.clone(), iterations);
                     let mut best_result_lock = best_result_clone.lock().unwrap();
-                    best_result_lock.swap_if_better(new_result);
+                    best_result_lock.swap_if_better(&new_result);
                 }
             }));
         }
@@ -94,9 +94,9 @@ struct FrogResult {
     index: usize,
 }
 impl FrogResult {
-    fn swap_if_better(&mut self, other: FrogResult) {
+    fn swap_if_better(&mut self, other: &FrogResult) {
         if other.error < self.error {
-            *self = other;
+            *self = other.clone();
         }
     }
 }
