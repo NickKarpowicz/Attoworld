@@ -42,8 +42,6 @@ def bundle_frog_reconstruction(
         FrogData: the bundled data
 
     """
-    if gate is None:
-        gate = result
     f = np.fft.fftfreq(len(t), d=(t[1] - t[0]))
     sg_freq = np.fft.fftshift(f) + 2 * f0
 
@@ -51,6 +49,10 @@ def bundle_frog_reconstruction(
     (result_sg_data, g_prime_error, g_error) = generate_spectrogram_with_error(
         frog_type, result, gate, measured_not_sqrt / np.linalg.norm(measured_not_sqrt)
     )
+
+    if gate is None:
+        gate = result
+
     result_sg = Spectrogram(
         data=np.fft.fftshift(result_sg_data, axes=0),
         time=t,
