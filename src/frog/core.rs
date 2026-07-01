@@ -50,7 +50,7 @@ pub fn reconstruct_frog(
         for _ in 0..trial_pulses {
             let new_result = reconstruct_frog_core(alloc.clone(), iterations);
             let mut best_result_lock = best_result.lock().unwrap();
-            best_result_lock.swap_if_better(new_result);
+            best_result_lock.swap_if_better(&new_result);
         }
     } else {
         for _ in 0..threads {
@@ -60,7 +60,7 @@ pub fn reconstruct_frog(
                 for _ in 0..thread_pulses {
                     let new_result = reconstruct_frog_core(local_alloc.clone(), iterations);
                     let mut best_result_lock = best_result_clone.lock().unwrap();
-                    best_result_lock.swap_if_better(new_result);
+                    best_result_lock.swap_if_better(&new_result);
                 }
             }));
         }
@@ -94,9 +94,9 @@ struct FrogResult {
     index: usize,
 }
 impl FrogResult {
-    fn swap_if_better(&mut self, other: FrogResult) {
+    fn swap_if_better(&mut self, other: &FrogResult) {
         if other.error < self.error {
-            *self = other;
+            *self = other.clone();
         }
     }
 }
@@ -191,7 +191,7 @@ fn reconstruct_frog_core(mut alloc: FrogAllocation, iterations: usize) -> FrogRe
 
     let mut best = pulse.clone();
     let mut best_gate = gate.clone();
-    let mut best_error: f64 = calculate_g_error(
+    let mut best_error: f64 = generate_reconstructed_spectrogram_with_error(
         &alloc.measurement_normalized,
         &pulse,
         &gate,
@@ -234,7 +234,7 @@ fn reconstruct_frog_core(mut alloc: FrogAllocation, iterations: usize) -> FrogRe
             &alloc.frog_type,
             alloc.measured_gate.as_deref(),
         );
-        let g_error = calculate_g_error(
+        let g_error = generate_reconstructed_spectrogram_with_error(
             alloc.measurement_normalized.as_slice(),
             &pulse,
             &gate,
@@ -327,8 +327,9 @@ fn frog_guess_from_pulse_and_gate(
     }
 }
 
-/// Calculate the error of a FROG reconstruction
-fn calculate_g_error(
+/// Generate the reconstructed spectrogram and calculate its difference
+/// from the measurement as variance
+pub fn generate_reconstructed_spectrogram_with_error(
     measurement_normalized: &[f64],
     pulse: &[Complex64],
     gate: &[Complex64],
@@ -340,19 +341,23 @@ fn calculate_g_error(
     let dim = pulse.len();
     let dim_i: i64 = dim as i64;
     let half: i64 = dim as i64 / 2;
-    for j in 0..dim {
-        for i in 0..dim {
-            let g_index: i64 = j as i64 - half + i as i64;
+
+    for delay_idx in 0..dim {
+        // create the nonlinear signal associated with the delay
+        for time_idx in 0..dim {
+            let g_index: i64 = delay_idx as i64 - half + time_idx as i64;
             if (g_index >= 0) && (g_index < dim_i) {
-                workspace[i] = pulse[i] * gate[g_index as usize];
+                workspace[time_idx] = pulse[time_idx] * gate[g_index as usize];
             } else {
-                workspace[i] = Complex64::ZERO;
+                workspace[time_idx] = Complex64::ZERO;
             }
         }
         fft_forward.process(workspace);
+
+        //sum over intensities for calculating norm
         for (a, b) in reconstructed_spectrogram
             .iter_mut()
-            .skip(j * dim)
+            .skip(delay_idx * dim)
             .take(dim)
             .zip(workspace.iter())
         {
@@ -370,13 +375,12 @@ fn calculate_g_error(
                 .powi(2);
         }
     }
-    let area = measurement_normalized.iter().map(|&a| a * a).sum::<f64>();
-    return (variance / area).sqrt();
+    return variance.sqrt();
 }
 
 /// Resolve the relevant nonlinear process to provide the gate function associated with
 /// a given pulse, or use the provided pulse to make a gate (xfrog)
-fn gate_from_pulse(
+pub fn gate_from_pulse(
     field: &[Complex64],
     gate: &mut [Complex64],
     nonlinearity: &FrogType,

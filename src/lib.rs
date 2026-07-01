@@ -8,13 +8,19 @@ pub mod stencil;
 pub mod attoworld_rs {
     #[pymodule_export]
     pub use crate::frog::FrogType;
-    use crate::frog::reconstruct_frog;
+    use crate::frog::{
+        gate_from_pulse, generate_reconstructed_spectrogram_with_error, reconstruct_frog,
+    };
     use crate::stencil::{
         derivative, derivative_periodic, find_first_intercept, find_last_intercept,
         find_maximum_location, fornberg_stencil, interpolate_sorted_1d_slice, sort_paired_xy,
     };
-    use numpy::{IntoPyArray, PyArray1, PyReadonlyArrayDyn, ToPyArray};
+    use numpy::{
+        IntoPyArray, PyArray1, PyArray2, PyArrayMethods, PyReadonlyArrayDyn, ToPyArray,
+        npyffi::NPY_ORDER,
+    };
     use pyo3::prelude::*;
+    use rustfft::FftPlanner;
     use rustfft::num_complex::Complex64;
 
     /// Find the location and value of the maximum of a smooth, uniformly sampled signal, interpolating to find the sub-pixel location
@@ -310,6 +316,78 @@ pub mod attoworld_rs {
             g_error,
             trial_best_index,
             finishing_best_index,
+        ))
+    }
+
+    /// Create the reconstructed spectrogram and generate the G and G' errors for a given pulse and spectrogram.
+    ///
+    /// Args:
+    ///     frog_type (FrogType): the nonlinarity used
+    ///     pulse (np.ndarray): the reconstructed (raw) pulse
+    ///     input_gate (np.ndarray): (optional) the gate to use (i.e. for XFROG)
+    ///     measured_spectrogram (np.ndarray): (optional) the measured spectrogram data (binned)
+    ///
+    /// Returns:
+    ///     np.ndarray: the calculated spectrogram
+    ///     float: the G' error
+    ///     float: the G error (old style)
+    #[pyfunction]
+    #[pyo3(name = "generate_spectrogram_with_error")]
+    fn generate_spectrogram_with_error_wrapper<'py>(
+        py: Python<'py>,
+        frog_type: FrogType,
+        pulse: PyReadonlyArrayDyn<'py, Complex64>,
+        input_gate: Option<PyReadonlyArrayDyn<'py, Complex64>>,
+        measured_spectrogram: Option<PyReadonlyArrayDyn<'py, f64>>,
+    ) -> PyResult<(Bound<'py, PyArray2<f64>>, f64, f64)> {
+        let pulse_vec = pulse.as_slice()?.to_vec();
+        let dim: usize = pulse_vec.len();
+        let mut gate = vec![Complex64::ZERO; dim];
+        let measured_spectrogram_vec: Vec<f64> = match measured_spectrogram {
+            Some(s) => s.as_slice()?.to_vec(),
+            None => vec![0.0; dim * dim],
+        };
+        let mut reconstructed_spectrogram: Vec<f64> = vec![0.0; dim * dim];
+        let mut workspace: Vec<Complex64> = vec![Complex64::ZERO; dim * dim];
+        let mut planner = FftPlanner::<f64>::new();
+        let fft_forward = planner.plan_fft_forward(dim);
+        let input_gate_option: Option<Vec<Complex64>> = match input_gate {
+            Some(g) => Some(g.as_slice()?.to_vec()),
+            None => None,
+        };
+
+        gate_from_pulse(
+            &pulse_vec,
+            &mut gate,
+            &frog_type,
+            input_gate_option.as_ref().map(|vec| vec.as_slice()),
+        );
+        let rms = generate_reconstructed_spectrogram_with_error(
+            &measured_spectrogram_vec,
+            &pulse_vec,
+            &gate,
+            &mut workspace,
+            &mut reconstructed_spectrogram,
+            fft_forward,
+        );
+        let max_val: f64 = match measured_spectrogram_vec
+            .iter()
+            .max_by(|x, y| x.partial_cmp(y).unwrap())
+            .copied()
+        {
+            Some(v) => v,
+            None => 1.0,
+        };
+        let area = measured_spectrogram_vec.iter().map(|&a| a * a).sum::<f64>();
+        let g_error = (rms * rms * area / (dim as f64).powi(2)).sqrt() / max_val;
+        let g_prime_error = rms / area;
+
+        Ok((
+            reconstructed_spectrogram
+                .to_pyarray(py)
+                .reshape_with_order([dim, dim], NPY_ORDER::NPY_FORTRANORDER)?,
+            g_prime_error,
+            g_error,
         ))
     }
 }
