@@ -112,20 +112,6 @@ def generate_gate_from_frog(
     return interpolated_real + 1j * interpolated_imag
 
 
-def fix_aliasing(result):
-    """Check if the reconstruction is aliased.
-
-    Args:
-        result: the result to check
-
-    """
-    offset = int(len(result) / 2)
-    firstprod = np.real(result[offset]) * np.real(result[offset + 1])
-    if firstprod < 0.0:
-        return np.fft.ifft(np.fft.fftshift(np.fft.fft(result)))
-    return result
-
-
 def reconstruct_frog(
     measurement: Spectrogram,
     test_iterations: int = 100,
