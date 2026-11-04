@@ -4,6 +4,8 @@ import copy
 from dataclasses import dataclass
 
 import numpy as np
+import scipy.constants as constants
+import scipy.optimize as opt
 
 from ..numeric import derivative
 from .decorators import yaml_io
@@ -37,6 +39,60 @@ class ComplexSpectrum:
         d_dt = 1j * 2 * np.pi * self.freq * self.spectrum
         return ComplexSpectrum(spectrum=d_dt, freq=np.array(self.freq))
 
+    def to_applied_phase_series(
+        self,
+        l0: float = 800.0,
+        sign: int = 1,
+        delay: float = 0.0,
+        gdd: float = 0.0,
+        tod: float = 0.0,
+        fod: float = 0.0,
+        ):
+        """Return a ComplexSpectrum with a given parameterized phase applied.
+
+        Args:
+            l0: the central wavelength of the expansion (nm)
+            sign: multiplier (e.g. -1 changes sign)
+            delay: time delay (fs)
+            gdd: group delay dispersion (fs^2)
+            tod: third order dispersion (fs^3)
+            fod: fourth order dispersion (fs^4)
+
+        """
+        f0 = 1e9*constants.speed_of_light/l0
+        w = 2.0 * np.pi * (self.freq-f0)
+        phase = 2.0e-15*np.pi*self.freq * delay + 0.5e-30 * gdd * (w**2) + (tod/6.0e45) * (w**3) + (fod/24.0e60) * (w**4)
+        return ComplexSpectrum(spectrum=np.exp(1j * sign * phase) * self.spectrum, freq=np.array(self.freq))
+
+    def get_optimized_phase_series(
+        self, l0: float = 800.0,
+        sign: int = 1,
+        max_gdd: float = 0.0,
+        max_tod: float = 0.0,
+        max_fod: float = 0.0
+    ):
+        """Optimize phase series (delay, GDD, TOD, FOD) for peak intensity."""
+        def get_inverse_intensity(x):
+            gdd, tod, fod = x
+            new_pulse = np.fft.ifft(self.to_applied_phase_series(l0, sign, 0.0, gdd, tod, fod).spectrum, 16*len(self.spectrum))
+            return 1.0/np.max(np.abs(new_pulse))
+
+
+        bounds = [
+            (-max_gdd, max_gdd),
+            (-max_tod, max_tod),
+            (-max_fod, max_fod)
+        ]
+
+        res = opt.differential_evolution(
+            get_inverse_intensity,
+            bounds,
+            popsize=32,
+            maxiter=16384,
+            tol = 1e-4
+        )
+
+        return res.x
     def to_dazzer_phase(
         self,
         multiplier: float = 1.0,
