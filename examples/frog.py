@@ -3,7 +3,8 @@
 # dependencies = [
 #     "attoworld>=2026.2.10",
 #     "marimo>=0.23.10",
-#     "numpy>=2.4.6",
+#     "matplotlib",
+#     "numpy",
 #     "pyside6; sys_platform != 'emscripten'",
 # ]
 # [tool.marimo.display]
@@ -934,6 +935,7 @@ def _(
 
 @app.cell
 def _(help_cb, mo):
+    dials_wavelength_box = mo.ui.number(start=1.0, stop=1e6, value=800.0, label="Expansion central wavelength (nm)")
     dials_gdd_max_box = mo.ui.number(start=0, value=1000, label="GDD range (fs^2)")
     dials_tod_max_box = mo.ui.number(start=0, value=10000, label="TOD range (fs^3)")
     dials_fod_max_box = mo.ui.number(start=0, value=100000, label="FOD range (fs^4)")
@@ -942,22 +944,32 @@ def _(help_cb, mo):
     mo.output.append(mo.md("### Optimized phase expansion:"))
     if help_cb.value:
         mo.output.append(mo.md("Calculate a set of phase parameters to optimize the pulse intensity."))
+    mo.output.append(dials_wavelength_box)
     mo.output.append(dials_gdd_max_box)
     mo.output.append(dials_tod_max_box)
     mo.output.append(dials_fod_max_box)
     mo.output.append(dials_sign_flip)
     mo.output.append(dials_run)
-    return dials_run, dials_sign_flip
+    return dials_run, dials_sign_flip, dials_wavelength_box
 
 
 @app.cell
-def _(aw, dials_run, dials_sign_flip, mo, np, plt, result):
+def _(
+    aw,
+    dials_run,
+    dials_sign_flip,
+    dials_wavelength_box,
+    mo,
+    np,
+    plt,
+    result,
+):
     mo.stop(not dials_run.value)
     if result is not None:
         _multiplier = 1
         if dials_sign_flip.value:
             _multiplier = -1
-        optimized_dials = result.spectrum.get_optimized_phase_series(800, _multiplier, 200, 2000, 2e4)
+        optimized_dials = result.spectrum.get_optimized_phase_series(dials_wavelength_box.value, _multiplier, 200, 2000, 2e4)
         mo.output.append(mo.md(f"GDD: {optimized_dials[0]} fs^2"))
         mo.output.append(mo.md(f"TOD: {optimized_dials[1]} fs^3"))
         mo.output.append(mo.md(f"FOD: {optimized_dials[2]} fs^4"))
@@ -967,7 +979,7 @@ def _(aw, dials_run, dials_sign_flip, mo, np, plt, result):
             np.abs(
                 np.fft.ifft(
                     result.spectrum.to_applied_phase_series(
-                        800.0,
+                        dials_wavelength_box.value,
                         _multiplier,
                         0.0,
                         optimized_dials[0],

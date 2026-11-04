@@ -4,7 +4,7 @@
 __pycache__/
 .pytest_cache/
 *.py[cod]
-
+__marimo__
 # C extensions
 *.so
 
